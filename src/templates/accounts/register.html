@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% load crispy_forms_tags %}
+
+{% block title %}
+    Регистрация
+{% endblock %}
+
+{% block content %}
+
+<div class="row justify-content-center">
+
+    <div class="col-md-6">
+
+        <div class="card shadow-sm">
+
+            <div class="card-body">
+
+                <h3 class="mb-4">
+                    Регистрация
+                </h3>
+
+                <form method="post">
+
+                    {% csrf_token %}
+
+                    {{ form|crispy }}
+
+                    <button type="submit"
+                            class="btn btn-dark w-100">
+
+                        Зарегистрироваться
+
+                    </button>
+
+                </form>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
+
+{% endblock %}
