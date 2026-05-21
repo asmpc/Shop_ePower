@@ -43,6 +43,7 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'crispy_forms',
     'crispy_bootstrap5',
+    'django_extensions',
 
     # applications
     'shop_epower.accounts',
