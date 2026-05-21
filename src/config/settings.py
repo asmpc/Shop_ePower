@@ -47,7 +47,7 @@ INSTALLED_APPS = [
     # applications
     'shop_epower.accounts',
     'shop_epower.core',
-    # 'shop_epower.catalog',
+    'shop_epower.catalog',
 
 ]
 

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>{{ product.name }}</h2>
+
+    <p><strong>Brand:</strong> {{ product.brand.name }}</p>
+    <p><strong>Category:</strong> {{ product.category.name }}</p>
+
+    <p>{{ product.description }}</p>
+
+    <hr>
+
+    <h4>Images</h4>
+
+    <div class="row">
+
+        {% for img in product.images.all %}
+
+            <div class="col-md-3">
+                <img src="{{ img.image.url }}" class="img-fluid mb-2">
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+    <hr>
+
+    <h4>Variants</h4>
+
+    <ul>
+        {% for variant in product.variants.all %}
+            <li>
+                {{ variant.name }} {% if variant.color %} ({{ variant.color }}) {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+</div>
+
+{% endblock %}
