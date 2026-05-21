@@ -1,0 +1,97 @@
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+
+    <div class="container">
+
+        <a class="navbar-brand"
+           href="{% url 'home' %}">
+            Shop ePower
+        </a>
+
+        <button class="navbar-toggler"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#navbarNav">
+
+            <span class="navbar-toggler-icon"></span>
+
+        </button>
+
+        <div class="collapse navbar-collapse"
+             id="navbarNav">
+
+            <ul class="navbar-nav me-auto">
+
+                <li class="nav-item">
+
+                    <a class="nav-link text-light fs-5"
+                       href="{% url 'catalog:product_list' %}">
+                        Каталог
+                    </a>
+
+                </li>
+
+            </ul>
+
+            <ul class="navbar-nav ms-auto">
+
+                {% if request.user.is_authenticated %}
+
+                    <li class="nav-item">
+
+                        <a class="nav-link"
+                           href="{% url 'profile' %}">
+
+                            {{ request.user.username }}
+
+                        </a>
+
+                    </li>
+
+                    <li class="nav-item">
+
+                        <form action="{% url 'logout-template' %}"
+                              method="post"
+                              class="d-flex">
+
+                            {% csrf_token %}
+
+                            <button type="submit"
+                                    class="btn btn-link nav-link border-0">
+
+                                Выход
+
+                            </button>
+
+                        </form>
+
+                    </li>
+
+                {% else %}
+
+                    <li class="nav-item">
+
+                        <a class="nav-link"
+                           href="{% url 'login-template' %}">
+                            Вход
+                        </a>
+
+                    </li>
+
+                    <li class="nav-item">
+
+                        <a class="nav-link"
+                           href="{% url 'register-template' %}">
+                            Регистрация
+                        </a>
+
+                    </li>
+
+                {% endif %}
+
+            </ul>
+
+        </div>
+
+    </div>
+
+</nav>
