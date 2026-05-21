@@ -4,7 +4,6 @@ from django.views.generic import ListView
 from django.db.models import Q
 
 from shop_epower.catalog.models import Product, Brand, Category
-from shop_epower.catalog.models import Brand, Category
 
 
 
@@ -15,6 +14,7 @@ class ProductListView(ListView):
     context_object_name = 'products'
     paginate_by = 12
 
+
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -23,7 +23,11 @@ class ProductListView(ListView):
         for product in context['products']:
             product.final_price = product.get_price_for_user(user)
 
+        context['brands'] = Brand.objects.filter(is_active=True)
+        context['categories'] = Category.objects.filter(is_active=True)
+
         return context
+
 
     def get_queryset(self):
         queryset = Product.objects.filter(
