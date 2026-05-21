@@ -66,6 +66,8 @@
 
                         <h5>{{ product.name }}</h5>
 
+                            {{ product.final_price }}
+
                         <p>{{ product.brand.name }}</p>
 
                         <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary">

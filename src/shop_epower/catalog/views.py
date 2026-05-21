@@ -18,13 +18,14 @@ class ProductListView(ListView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context['brands'] = Brand.objects.all()
-        context['categories'] = Category.objects.all()
+        user = self.request.user
+
+        for product in context['products']:
+            product.final_price = product.get_price_for_user(user)
 
         return context
 
     def get_queryset(self):
-
         queryset = Product.objects.filter(
             is_active=True
         ).select_related(
@@ -34,62 +35,53 @@ class ProductListView(ListView):
             'images'
         )
 
-        # ----------------------------
-        # SEARCH
-        # ----------------------------
         search = self.request.GET.get('search')
-
         if search:
-
             queryset = queryset.filter(
                 Q(name__icontains=search) |
                 Q(manufacturer_article__icontains=search) |
                 Q(brand__name__icontains=search)
             )
 
-        # ----------------------------
-        # FILTER: brand
-        # ----------------------------
         brand = self.request.GET.get('brand')
-
         if brand:
-
             queryset = queryset.filter(brand__slug=brand)
 
-        # ----------------------------
-        # FILTER: category
-        # ----------------------------
         category = self.request.GET.get('category')
-
         if category:
-
             queryset = queryset.filter(category__slug=category)
 
-        # ----------------------------
-        # SORTING
-        # ----------------------------
         sort = self.request.GET.get('sort')
-
         if sort == 'name':
-
             queryset = queryset.order_by('name')
-
         elif sort == 'name_desc':
-
             queryset = queryset.order_by('-name')
-
         elif sort == 'newest':
-
             queryset = queryset.order_by('-created_at')
 
-        return queryset
+        # 🔥 NEW PART: attach computed price
+        user = self.request.user
 
+        for product in queryset:
+            product.final_price = product.get_price_for_user(user)
+
+        return queryset
 
 
 class ProductDetailView(DetailView):
     model = Product
     template_name = 'catalog/product_detail.html'
     context_object_name = 'product'
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        product = context['product']
+        user = self.request.user
+
+        product.final_price = product.get_price_for_user(user)
+
+        return context
 
     def get_queryset(self):
         return Product.objects.filter(

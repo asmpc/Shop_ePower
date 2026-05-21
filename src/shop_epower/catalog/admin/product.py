@@ -16,6 +16,7 @@ class ProductAdmin(admin.ModelAdmin):
         'unit_type',
         'is_active',
         'created_at',
+        'base_price',
     )
 
     list_filter = (
@@ -53,6 +54,7 @@ class ProductAdmin(admin.ModelAdmin):
                 'manufacturer_article',
                 'unit_type',
                 'description',
+                'base_price',
                 'is_active',
             )
         }),

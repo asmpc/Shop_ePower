@@ -4,6 +4,9 @@ from django.utils.translation import gettext_lazy as _
 from shop_epower.core.models import BaseModel
 from shop_epower.core.utils.slugs import generate_unique_slug
 
+from decimal import Decimal
+
+
 
 class Product(BaseModel):
 
@@ -43,6 +46,13 @@ class Product(BaseModel):
     manufacturer_article = models.CharField(
         max_length=255,
         verbose_name=_('Manufacturer article')
+    )
+
+    base_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name=_('Base price'),
     )
 
     description = models.TextField(
@@ -91,6 +101,36 @@ class Product(BaseModel):
             self.slug = generate_unique_slug(self, self.name)
 
         super().save(*args, **kwargs)
+
+    def apply_discount(self, price, discount_percent):
+
+        if not discount_percent:
+            return price
+
+        discount_multiplier = (
+                                      Decimal('100') - Decimal(discount_percent)
+                              ) / Decimal('100')
+
+        return (price * discount_multiplier).quantize(
+            Decimal('0.01')
+        )
+
+    def get_price_for_user(self, user):
+
+        base_price = self.base_price
+
+        if not user or not user.is_authenticated:
+            return base_price
+
+        if not user.price_category:
+            return base_price
+
+        discount = user.price_category.discount_percent
+
+        return self.apply_discount(
+            base_price,
+            discount
+        )
 
     def __str__(self):
 
