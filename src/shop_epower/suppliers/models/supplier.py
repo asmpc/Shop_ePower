@@ -31,6 +31,9 @@ class Supplier(models.Model):
         default=True,
     )
 
+    # Новое поле
+    is_own = models.BooleanField(default=False)  # отмечает наш склад
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )

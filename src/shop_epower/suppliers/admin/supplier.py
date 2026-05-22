@@ -22,6 +22,7 @@ class SupplierAdmin(admin.ModelAdmin):
         "phone",
         "website",
         "is_active",
+        "is_own",
         "created_at",
     )
 

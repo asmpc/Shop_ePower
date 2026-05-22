@@ -5,6 +5,11 @@ from django.db.models import Q
 
 from shop_epower.catalog.models import Product, Brand, Category
 
+from shop_epower.suppliers.services.stock import (
+    get_product_inventory_detailed,
+)
+
+
 
 
 class ProductListView(ListView):
@@ -69,6 +74,8 @@ class ProductListView(ListView):
         for product in queryset:
             product.final_price = product.get_price_for_user(user)
 
+            product.inventory = get_product_inventory_detailed(product)
+
         return queryset
 
 
@@ -84,6 +91,8 @@ class ProductDetailView(DetailView):
         user = self.request.user
 
         product.final_price = product.get_price_for_user(user)
+
+        product.inventory = get_product_inventory_detailed(product)
 
         return context
 

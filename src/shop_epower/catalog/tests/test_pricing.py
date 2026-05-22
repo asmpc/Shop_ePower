@@ -6,7 +6,7 @@ from shop_epower.accounts.models import User, PriceCategory
 from shop_epower.catalog.models import Brand, Category
 
 
-class TestPricingCase(TestCase):
+class TestPricing(TestCase):
 
     def setUp(self):
         self.category_discount = PriceCategory.objects.create(

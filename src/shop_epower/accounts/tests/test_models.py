@@ -7,7 +7,7 @@ from shop_epower.accounts.models import (
 )
 
 
-class RoleModelTests(TestCase):
+class TestsRoleModel(TestCase):
 
     def test_user_default_role(self):
 
