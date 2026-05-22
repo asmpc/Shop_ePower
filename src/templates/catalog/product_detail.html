@@ -6,7 +6,25 @@
 
     <h2>{{ product.name }}</h2>
 
-    {{ product.final_price }}
+<p class="fs-4">${{ product.final_price }}</p>
+
+{% if product.inventory.in_stock %}
+        {% if product.inventory.own_stock > 0 %}
+            <p class="text-success">
+                In stock: {{ product.inventory.own_stock }} ready to ship
+            </p>
+        {% endif %}
+
+        {% if product.inventory.supplier_stock > 0 %}
+            <p class="text-info">
+                Additional {{ product.inventory.supplier_stock }} available from supplier
+                — Delivery: {{ product.inventory.min_lead_time }} days
+            </p>
+        {% endif %}
+    {% else %}
+        <p class="text-danger">Out of stock</p>
+    {% endif %}
+
 
     <p><strong>Brand:</strong> {{ product.brand.name }}</p>
     <p><strong>Category:</strong> {{ product.category.name }}</p>
