@@ -5,10 +5,13 @@ from django.db.models import Q
 
 from shop_epower.catalog.models import Product, Brand, Category
 
+from shop_epower.suppliers.models import CurrencyRate
+from shop_epower.accounts.services.roles import is_manager
+
 from shop_epower.suppliers.services.stock import (
     get_product_inventory_detailed,
+    get_supplier_inventory_details,
 )
-from shop_epower.suppliers.models import CurrencyRate
 
 
 
@@ -21,6 +24,7 @@ class ProductListView(ListView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+        context["is_manager"] = is_manager(self.request.user)
 
         user = self.request.user
 
@@ -88,6 +92,8 @@ class ProductDetailView(DetailView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        context["is_manager"] = is_manager(self.request.user)
+
         product = context['product']
         user = self.request.user
 
@@ -102,6 +108,13 @@ class ProductDetailView(DetailView):
             currency_rates[rate.currency] = float(rate.rate_to_BYN)
 
         context["currency_rates"] = currency_rates
+
+        manager = is_manager(self.request.user)
+
+        context["is_manager"] = manager
+
+        if manager:
+            context["supplier_inventory_details"] = get_supplier_inventory_details(product)
 
         return context
 

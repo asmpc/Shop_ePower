@@ -100,3 +100,13 @@ def get_product_inventory_data(product: Product) -> dict:
         "supplier_count": queryset.count(),
         "min_lead_time": aggregated["min_lead_time"],
     }
+
+
+def get_supplier_inventory_details(product: Product):
+    """
+    Returns supplier-level inventory details for manager/admin visibility.
+    """
+
+    return get_active_supplier_products(product).select_related(
+        "supplier",
+    )
