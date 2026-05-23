@@ -5,6 +5,13 @@ from shop_epower.suppliers.models.supplier import Supplier
 
 
 class SupplierProduct(models.Model):
+
+    CURRENCY_CHOICES = [
+        ('BYN', 'BYN'),
+        ('RUB', 'RUB'),
+        ('USD', 'USD'),
+    ]
+
     supplier = models.ForeignKey(
         Supplier,
         on_delete=models.CASCADE,
@@ -26,6 +33,12 @@ class SupplierProduct(models.Model):
         decimal_places=2,
         null=True,
         blank=True,
+    )
+
+    currency = models.CharField(
+        max_length=3,
+        choices=CURRENCY_CHOICES,
+        default='BYN',
     )
 
     stock_quantity = models.PositiveIntegerField(
@@ -55,6 +68,9 @@ class SupplierProduct(models.Model):
             "product",
             "supplier_article",
         )
+        verbose_name = "Supplier Product"
+        verbose_name_plural = "Supplier Products"
+
 
     def __str__(self):
-        return f"{self.supplier} → {self.product}"
+        return f"{self.product.name} from {self.supplier.name} ({self.currency})"

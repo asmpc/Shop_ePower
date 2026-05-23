@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% load static %}
 
 {% block content %}
 
@@ -66,7 +67,29 @@
 
                         <h5>{{ product.name }}</h5>
 
-                           <p class="fs-4">${{ product.final_price }}</p>
+
+<div class="mb-2">
+    <p class="fs-4 mb-1">
+        <span
+            class="js-product-price"
+data-base-price="{{ product.final_price|stringformat:'f' }}"
+        >
+            {{ product.final_price }} BYN
+        </span>
+    </p>
+
+    <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">
+            BYN
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">
+            RUB
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">
+            USD
+        </button>
+    </div>
+</div>
 
 
 {% if product.inventory.in_stock %}
@@ -103,5 +126,45 @@
     </div>
 
 </div>
+
+
+
+{{ currency_rates|json_script:"currency-rates" }}
+
+<script>
+    const currencyRates = JSON.parse(
+        document.getElementById("currency-rates").textContent
+    );
+
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".js-currency-btn");
+
+        if (!button) {
+            return;
+        }
+
+        const currency = button.dataset.currency;
+        const card = button.closest(".card-body");
+        const priceElement = card.querySelector(".js-product-price");
+
+        const basePrice = Number(priceElement.dataset.basePrice);
+        const rate = Number(currencyRates[currency]);
+
+        if (!rate) {
+            priceElement.textContent = "Currency rate not set";
+            return;
+        }
+
+        let convertedPrice;
+
+        if (currency === "BYN") {
+            convertedPrice = basePrice;
+        } else {
+            convertedPrice = basePrice / rate;
+        }
+
+        priceElement.textContent = `${convertedPrice.toFixed(2)} ${currency}`;
+    });
+</script>
 
 {% endblock %}
