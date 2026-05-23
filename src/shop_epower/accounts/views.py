@@ -49,6 +49,9 @@ from .serializers import (
     LogoutSerializer,
 )
 
+from django.contrib.auth.views import LoginView
+from django.urls import reverse
+
 
 
 @extend_schema(
@@ -109,12 +112,17 @@ class LogoutAPIView(APIView):
 
 class CustomLoginView(LoginView):
     template_name = 'accounts/login.html'
-
     authentication_form = LoginForm
-
     redirect_authenticated_user = True
 
-    next_page = reverse_lazy('profile')
+    def get_success_url(self):
+
+        next_url = self.get_redirect_url()
+
+        if next_url:
+            return next_url
+
+        return reverse('catalog:product_list')
 
 
 class CustomLogoutView(LogoutView):

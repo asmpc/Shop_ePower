@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<form method="get" class="mb-4">
+
+    <input
+        type="text"
+        name="search"
+        placeholder="Search products..."
+        value="{{ request.GET.search }}"
+        class="form-control mb-2"
+    >
+
+    <select name="brand" class="form-control mb-2">
+        <option value="">All brands</option>
+
+        {% for b in brands %}
+            <option value="{{ b.slug }}" {% if request.GET.brand == b.slug %}selected{% endif %}>
+                {{ b.name }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <select name="category" class="form-control mb-2">
+        <option value="">All categories</option>
+
+        {% for c in categories %}
+            <option value="{{ c.slug }}" {% if request.GET.category == c.slug %}selected{% endif %}>
+                {{ c.name }}
+            </option>
+        {% endfor %}
+    </select>
+
+    <select name="sort" class="form-control mb-2">
+        <option value="">Default</option>
+        <option value="name">Name A-Z</option>
+        <option value="name_desc">Name Z-A</option>
+        <option value="newest">Newest</option>
+    </select>
+
+    <button class="btn btn-primary">
+        Apply
+    </button>
+
+</form>
+
+<div class="container mt-4">
+
+    <h2>Catalog</h2>
+
+    <div class="row">
+
+        {% for product in products %}
+
+            <div class="col-md-3">
+
+                <div class="card mb-3">
+
+                    {% if product.images.first %}
+                        <img src="{{ product.images.first.image.url }}"
+                            class="card-img-top product-image">
+                    {% endif %}
+
+                    <div class="card-body">
+
+                        <h5>{{ product.name }}</h5>
+
+
+<div class="mb-2">
+    <p class="fs-4 mb-1">
+        <span
+            class="js-product-price"
+data-base-price="{{ product.final_price|stringformat:'f' }}"
+        >
+            {{ product.final_price }} BYN
+        </span>
+    </p>
+
+    <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">
+            BYN
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">
+            RUB
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">
+            USD
+        </button>
+    </div>
+</div>
+
+
+{% if product.inventory.in_stock %}
+        {% if product.inventory.own_stock > 0 %}
+            <p class="text-success">
+                In stock: {{ product.inventory.own_stock }} ready to ship
+            </p>
+        {% endif %}
+
+        {% if product.inventory.supplier_stock > 0 %}
+            <p class="text-info">
+                Additional {{ product.inventory.supplier_stock }} available from supplier
+                — Delivery: {{ product.inventory.min_lead_time }} days
+            </p>
+        {% endif %}
+    {% else %}
+        <p class="text-danger">Out of stock</p>
+    {% endif %}
+
+                        <p>{{ product.brand.name }}</p>
+
+                        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary">
+                            View
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+
+
+{{ currency_rates|json_script:"currency-rates" }}
+
+<script>
+    const currencyRates = JSON.parse(
+        document.getElementById("currency-rates").textContent
+    );
+
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".js-currency-btn");
+
+        if (!button) {
+            return;
+        }
+
+        const currency = button.dataset.currency;
+        const card = button.closest(".card-body");
+        const priceElement = card.querySelector(".js-product-price");
+
+        const basePrice = Number(priceElement.dataset.basePrice);
+        const rate = Number(currencyRates[currency]);
+
+        if (!rate) {
+            priceElement.textContent = "Currency rate not set";
+            return;
+        }
+
+        let convertedPrice;
+
+        if (currency === "BYN") {
+            convertedPrice = basePrice;
+        } else {
+            convertedPrice = basePrice / rate;
+        }
+
+        priceElement.textContent = `${convertedPrice.toFixed(2)} ${currency}`;
+    });
+</script>
+
+{% endblock %}
