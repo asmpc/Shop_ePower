@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>{{ product.name }}</h2>
+
+<div class="mb-2">
+    <p class="fs-4 mb-1">
+        <span
+            class="js-product-price"
+data-base-price="{{ product.final_price|stringformat:'f' }}"
+        >
+            {{ product.final_price }} BYN
+        </span>
+    </p>
+
+    <div class="btn-group btn-group-sm" role="group">
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">
+            BYN
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">
+            RUB
+        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">
+            USD
+        </button>
+    </div>
+</div>
+
+{% if product.inventory.in_stock %}
+        {% if product.inventory.own_stock > 0 %}
+            <p class="text-success">
+                In stock: {{ product.inventory.own_stock }} ready to ship
+            </p>
+        {% endif %}
+
+        {% if product.inventory.supplier_stock > 0 %}
+            <p class="text-info">
+                Additional {{ product.inventory.supplier_stock }} available from supplier
+                — Delivery: {{ product.inventory.min_lead_time }} days
+            </p>
+        {% endif %}
+    {% else %}
+        <p class="text-danger">Out of stock</p>
+    {% endif %}
+
+
+    <p><strong>Brand:</strong> {{ product.brand.name }}</p>
+    <p><strong>Category:</strong> {{ product.category.name }}</p>
+
+    <p>{{ product.description }}</p>
+
+    <hr>
+
+    <h4>Images</h4>
+
+    <div class="row">
+
+        {% for img in product.images.all %}
+
+            <div class="col-md-3">
+                <img src="{{ img.image.url }}" class="img-fluid mb-2">
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+    <hr>
+
+    <h4>Variants</h4>
+
+    <ul>
+        {% for variant in product.variants.all %}
+            <li>
+                {{ variant.name }} {% if variant.color %} ({{ variant.color }}) {% endif %}
+            </li>
+        {% endfor %}
+    </ul>
+
+</div>
+
+
+{{ currency_rates|json_script:"currency-rates" }}
+
+<script>
+    const currencyRates = JSON.parse(
+        document.getElementById("currency-rates").textContent
+    );
+
+    document.addEventListener("click", function (event) {
+        const button = event.target.closest(".js-currency-btn");
+
+        if (!button) {
+            return;
+        }
+
+        const currency = button.dataset.currency;
+        const priceBlock = button.closest(".mb-2");
+        const priceElement = priceBlock.querySelector(".js-product-price");
+
+        const basePrice = Number(priceElement.dataset.basePrice);
+        const rate = Number(currencyRates[currency]);
+
+        if (!rate) {
+            priceElement.textContent = "Currency rate not set";
+            return;
+        }
+
+        let convertedPrice;
+
+        if (currency === "BYN") {
+            convertedPrice = basePrice;
+        } else {
+            convertedPrice = basePrice / rate;
+        }
+
+        priceElement.textContent = `${convertedPrice.toFixed(2)} ${currency}`;
+    });
+</script>
+
+{% endblock %}

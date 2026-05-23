@@ -43,11 +43,13 @@ INSTALLED_APPS = [
     'drf_spectacular',
     'crispy_forms',
     'crispy_bootstrap5',
+    'django_extensions',
 
     # applications
     'shop_epower.accounts',
     'shop_epower.core',
-    # 'shop_epower.catalog',
+    'shop_epower.catalog',
+    'shop_epower.suppliers',
 
 ]
 
@@ -200,3 +202,4 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
+EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
