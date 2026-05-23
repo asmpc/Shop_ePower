@@ -8,7 +8,7 @@ from shop_epower.catalog.models import Product, Brand, Category
 from shop_epower.suppliers.services.stock import (
     get_product_inventory_detailed,
 )
-
+from shop_epower.suppliers.models import CurrencyRate
 
 
 
@@ -19,7 +19,6 @@ class ProductListView(ListView):
     context_object_name = 'products'
     paginate_by = 12
 
-
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
@@ -27,9 +26,19 @@ class ProductListView(ListView):
 
         for product in context['products']:
             product.final_price = product.get_price_for_user(user)
+            product.inventory = get_product_inventory_detailed(product)
 
         context['brands'] = Brand.objects.filter(is_active=True)
         context['categories'] = Category.objects.filter(is_active=True)
+
+        currency_rates = {
+            "BYN": 1,
+        }
+
+        for rate in CurrencyRate.objects.all():
+            currency_rates[rate.currency] = float(rate.rate_to_BYN)
+
+        context["currency_rates"] = currency_rates
 
         return context
 
@@ -68,14 +77,6 @@ class ProductListView(ListView):
         elif sort == 'newest':
             queryset = queryset.order_by('-created_at')
 
-        # 🔥 NEW PART: attach computed price
-        user = self.request.user
-
-        for product in queryset:
-            product.final_price = product.get_price_for_user(user)
-
-            product.inventory = get_product_inventory_detailed(product)
-
         return queryset
 
 
@@ -91,8 +92,16 @@ class ProductDetailView(DetailView):
         user = self.request.user
 
         product.final_price = product.get_price_for_user(user)
-
         product.inventory = get_product_inventory_detailed(product)
+
+        currency_rates = {
+            "BYN": 1,
+        }
+
+        for rate in CurrencyRate.objects.all():
+            currency_rates[rate.currency] = float(rate.rate_to_BYN)
+
+        context["currency_rates"] = currency_rates
 
         return context
 

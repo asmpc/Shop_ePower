@@ -17,7 +17,7 @@ class ProductAdmin(admin.ModelAdmin):
         'unit_type',
         'is_active',
         'created_at',
-        'base_price',
+        'base_price_display',
     )
 
     list_filter = (
@@ -43,6 +43,7 @@ class ProductAdmin(admin.ModelAdmin):
         'id',
         'created_at',
         'updated_at',
+        'base_price_display',
     )
 
     fieldsets = (
@@ -87,3 +88,14 @@ class ProductAdmin(admin.ModelAdmin):
         for product in queryset:
             recalc_product_base_price(product)
         self.message_user(request, f"Base prices recalculated for {queryset.count()} products")
+
+    @admin.display(description="Base Price")
+    def base_price_display(self, obj):
+        return f"{obj.base_price} BYN"
+
+    # Добавляем help_text для поля base_price
+    def formfield_for_dbfield(self, db_field, **kwargs):
+        formfield = super().formfield_for_dbfield(db_field, **kwargs)
+        if db_field.name == 'base_price':
+            formfield.help_text = "Цена в BYN (белорусские рубли)"
+        return formfield
