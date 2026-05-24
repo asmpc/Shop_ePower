@@ -33,6 +33,17 @@
 
     <div class="container mt-4">
 
+
+        {% if messages %}
+    <div class="container mt-3">
+        {% for message in messages %}
+            <div class="alert alert-{{ message.tags }}">
+                {{ message }}
+            </div>
+        {% endfor %}
+    </div>
+{% endif %}
+
         {% block content %}
         {% endblock %}
 

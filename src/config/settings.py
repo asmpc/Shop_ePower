@@ -51,6 +51,9 @@ INSTALLED_APPS = [
     'shop_epower.core',
     'shop_epower.catalog',
     'shop_epower.suppliers',
+    'shop_epower.cart',
+
+
 
 ]
 
@@ -78,6 +81,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "shop_epower.cart.context_processors.cart_summary",
             ],
         },
     },
