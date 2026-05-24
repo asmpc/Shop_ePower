@@ -13,6 +13,7 @@ from shop_epower.suppliers.services.stock import (
     get_supplier_inventory_details,
     get_product_inventory_public,
 )
+from shop_epower.suppliers.services.cost import get_product_cost_summary
 
 
 
@@ -111,6 +112,10 @@ class ProductDetailView(DetailView):
         context["currency_rates"] = currency_rates
 
         manager = is_manager(self.request.user)
+
+        if manager:
+            context["supplier_inventory_details"] = get_supplier_inventory_details(product)
+            context["cost_summary"] = get_product_cost_summary(product)
 
         context["is_manager"] = manager
 
