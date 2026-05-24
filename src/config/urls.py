@@ -27,6 +27,13 @@ from django.conf.urls.static import static
 
 
 urlpatterns = [
+
+    path("admin/", admin.site.urls),
+    path("shop/", include("shop_epower.urls")),
+
+    # new structured API
+    path("api/", include("api.urls")),
+
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(
         "api/schema/swagger-ui/",
@@ -34,10 +41,7 @@ urlpatterns = [
         name="swagger-ui",
     ),
 
-    path("admin/", admin.site.urls),
-    path("shop/", include("shop_epower.urls")),
     path("api-auth/", include("rest_framework.urls")),
-
 
 
 ]

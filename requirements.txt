@@ -9,3 +9,4 @@ django-crispy-forms==2.6
 pillow==12.2.0
 django-extensions==4.1
 ipython==9.13.0
+django-filter==25.2
