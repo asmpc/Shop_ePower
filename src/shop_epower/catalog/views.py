@@ -11,6 +11,7 @@ from shop_epower.accounts.services.roles import is_manager
 from shop_epower.suppliers.services.stock import (
     get_product_inventory_detailed,
     get_supplier_inventory_details,
+    get_product_inventory_public,
 )
 
 
@@ -28,9 +29,9 @@ class ProductListView(ListView):
 
         user = self.request.user
 
-        for product in context['products']:
+        for product in context["products"]:
             product.final_price = product.get_price_for_user(user)
-            product.inventory = get_product_inventory_detailed(product)
+            product.inventory = get_product_inventory_public(product)
 
         context['brands'] = Brand.objects.filter(is_active=True)
         context['categories'] = Category.objects.filter(is_active=True)
@@ -98,7 +99,7 @@ class ProductDetailView(DetailView):
         user = self.request.user
 
         product.final_price = product.get_price_for_user(user)
-        product.inventory = get_product_inventory_detailed(product)
+        product.inventory = get_product_inventory_public(product)
 
         currency_rates = {
             "BYN": 1,
