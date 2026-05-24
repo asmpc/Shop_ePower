@@ -1,7 +1,10 @@
 from django.views.generic import DetailView
 
 from django.views.generic import ListView
-from django.db.models import Q
+from shop_epower.catalog.selectors.products import (
+    get_product_list_queryset,
+    get_product_detail_queryset,
+)
 
 from shop_epower.catalog.models import Product, Brand, Category
 
@@ -14,6 +17,7 @@ from shop_epower.suppliers.services.stock import (
     get_product_inventory_public,
 )
 from shop_epower.suppliers.services.cost import get_product_cost_summary
+from shop_epower.catalog.selectors.product_data import prepare_product_for_user
 
 
 
@@ -31,8 +35,7 @@ class ProductListView(ListView):
         user = self.request.user
 
         for product in context["products"]:
-            product.final_price = product.get_price_for_user(user)
-            product.inventory = get_product_inventory_public(product)
+            prepare_product_for_user(product, user)
 
         context['brands'] = Brand.objects.filter(is_active=True)
         context['categories'] = Category.objects.filter(is_active=True)
@@ -48,43 +51,8 @@ class ProductListView(ListView):
 
         return context
 
-
     def get_queryset(self):
-        queryset = Product.objects.filter(
-            is_active=True
-        ).select_related(
-            'brand',
-            'category'
-        ).prefetch_related(
-            'images'
-        )
-
-        search = self.request.GET.get('search')
-        if search:
-            queryset = queryset.filter(
-                Q(name__icontains=search) |
-                Q(manufacturer_article__icontains=search) |
-                Q(brand__name__icontains=search)
-            )
-
-        brand = self.request.GET.get('brand')
-        if brand:
-            queryset = queryset.filter(brand__slug=brand)
-
-        category = self.request.GET.get('category')
-        if category:
-            queryset = queryset.filter(category__slug=category)
-
-        sort = self.request.GET.get('sort')
-        if sort == 'name':
-            queryset = queryset.order_by('name')
-        elif sort == 'name_desc':
-            queryset = queryset.order_by('-name')
-        elif sort == 'newest':
-            queryset = queryset.order_by('-created_at')
-
-        return queryset
-
+        return get_product_list_queryset(self.request.GET)
 
 class ProductDetailView(DetailView):
     model = Product
@@ -99,8 +67,7 @@ class ProductDetailView(DetailView):
         product = context['product']
         user = self.request.user
 
-        product.final_price = product.get_price_for_user(user)
-        product.inventory = get_product_inventory_public(product)
+        prepare_product_for_user(product, user)
 
         currency_rates = {
             "BYN": 1,
@@ -125,16 +92,7 @@ class ProductDetailView(DetailView):
         return context
 
     def get_queryset(self):
-        return Product.objects.filter(
-            is_active=True
-        ).select_related(
-            'brand',
-            'category'
-        ).prefetch_related(
-            'variants',
-            'images',
-            'variants__images'
-        )
+        return get_product_detail_queryset()
 
 
 def get_brand_list(self):
