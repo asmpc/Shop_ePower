@@ -1,6 +1,8 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-from shop_epower.suppliers.models import CurrencyRate
+from shop_epower.suppliers.models import CurrencyRate,SupplierProduct
+from shop_epower.suppliers.services.markup import get_markup_percent_for_product
+
 
 
 class CurrencyService:
@@ -46,7 +48,6 @@ class CurrencyService:
 
     @classmethod
     def update_product_base_price(cls, product):
-        from shop_epower.suppliers.models import SupplierProduct, GlobalMarkup
 
         supplier_products = SupplierProduct.objects.filter(
             product=product,
@@ -68,8 +69,7 @@ class CurrencyService:
             for sp in supplier_products
         )
 
-        markup = GlobalMarkup.objects.first()
-        markup_percent = markup.percent if markup else Decimal("20")
+        markup_percent = get_markup_percent_for_product(product)
 
         product.base_price = (
             max_price_byn * (Decimal("1") + markup_percent / Decimal("100"))
