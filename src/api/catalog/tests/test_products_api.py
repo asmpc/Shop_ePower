@@ -356,3 +356,40 @@ class TestProductListAPI(APITestCase):
         self.assertEqual(len(response.data), 1)
 
         self.assertEqual(response.data[0]["slug"], "product-1")
+
+    def test_product_list_filter_by_parent_category_includes_child_products(self):
+        brand = Brand.objects.create(
+            name="Test brand",
+            slug="test-brand",
+        )
+
+        parent_category = Category.objects.create(
+            name="Cable",
+            slug="cable",
+        )
+
+        child_category = Category.objects.create(
+            name="Power cable",
+            slug="power-cable",
+            parent=parent_category,
+        )
+
+        Product.objects.create(
+            name="Power Cable Product",
+            slug="power-cable-product",
+            brand=brand,
+            category=child_category,
+            manufacturer_article="CABLE-001",
+            base_price=100,
+        )
+
+        response = self.client.get(
+            reverse("api-product-list"),
+            {
+                "category": "cable",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertEqual(len(response.data), 1)
+        self.assertEqual(response.data[0]["slug"], "power-cable-product")

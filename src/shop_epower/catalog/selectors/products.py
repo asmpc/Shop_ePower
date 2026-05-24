@@ -1,9 +1,20 @@
-# shop_epower/catalog/selectors/products.py
-
 from django.db.models import Q
 
-from shop_epower.catalog.models import Product
+from shop_epower.catalog.models import Product, Category
 
+
+
+def get_category_with_descendants(category):
+    categories = [category]
+
+    children = Category.objects.filter(parent=category)
+
+    for child in children:
+        categories.extend(
+            get_category_with_descendants(child)
+        )
+
+    return categories
 
 def get_product_list_queryset(params=None):
     params = params or {}
@@ -29,9 +40,21 @@ def get_product_list_queryset(params=None):
     if brand:
         queryset = queryset.filter(brand__slug=brand)
 
-    category = params.get("category")
-    if category:
-        queryset = queryset.filter(category__slug=category)
+
+    category_slug = params.get("category")
+
+    if category_slug:
+        try:
+            category = Category.objects.get(slug=category_slug)
+        except Category.DoesNotExist:
+            return queryset.none()
+
+        categories = get_category_with_descendants(category)
+
+        queryset = queryset.filter(
+            category__in=categories
+        )
+
 
     sort = params.get("sort")
     if sort == "name":
@@ -54,3 +77,4 @@ def get_product_detail_queryset():
         "images",
         "variants__images",
     )
+
