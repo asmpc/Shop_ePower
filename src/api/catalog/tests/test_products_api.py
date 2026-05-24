@@ -256,3 +256,103 @@ class TestProductListAPI(APITestCase):
 
         self.assertIn("supplier_inventory_details", response.data)
         self.assertIn("cost_summary", response.data)
+
+    def test_product_list_can_filter_by_brand(self):
+        brand_1 = Brand.objects.create(
+            name="Brand 1",
+            slug="brand-1",
+        )
+        brand_2 = Brand.objects.create(
+            name="Brand 2",
+            slug="brand-2",
+        )
+
+        category = Category.objects.create(
+            name="Test category",
+            slug="test-category",
+        )
+
+        Product.objects.create(
+            name="Product 1",
+            slug="product-1",
+            brand=brand_1,
+            category=category,
+            base_price=100,
+        )
+
+        Product.objects.create(
+            name="Product 2",
+            slug="product-2",
+            brand=brand_2,
+            category=category,
+            base_price=100,
+        )
+
+        response = self.client.get(
+            reverse("api-product-list"),
+            {
+                "brand": "brand-1",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            status.HTTP_200_OK,
+        )
+
+        self.assertEqual(
+            len(response.data),
+            1,
+        )
+
+        self.assertEqual(
+            response.data[0]["slug"],
+            "product-1",
+        )
+
+    def test_product_list_can_filter_by_category(self):
+        brand = Brand.objects.create(
+            name="Test brand",
+            slug="test-brand",
+        )
+
+        category_1 = Category.objects.create(
+            name="Category 1",
+            slug="category-1",
+        )
+
+        category_2 = Category.objects.create(
+            name="Category 2",
+            slug="category-2",
+        )
+
+        Product.objects.create(
+            name="Product 1",
+            slug="product-1",
+            brand=brand,
+            category=category_1,
+            manufacturer_article="ART-001",
+            base_price=100,
+        )
+
+        Product.objects.create(
+            name="Product 2",
+            slug="product-2",
+            brand=brand,
+            category=category_2,
+            manufacturer_article="ART-002",
+            base_price=100,
+        )
+
+        response = self.client.get(
+            reverse("api-product-list"),
+            {
+                "category": "category-1",
+            },
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertEqual(len(response.data), 1)
+
+        self.assertEqual(response.data[0]["slug"], "product-1")

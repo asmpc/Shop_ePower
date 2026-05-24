@@ -14,7 +14,5 @@ urlpatterns = [
 
     path('catalog/', include('shop_epower.catalog.urls')),
 
-    # new structured API
-    path("api/", include("shop_epower.api.urls")),
 
 ]

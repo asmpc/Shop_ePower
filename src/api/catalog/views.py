@@ -13,16 +13,51 @@ from .serializers import (
     ProductDetailSerializer,
 )
 
+from rest_framework.permissions import AllowAny
+
+from django_filters.rest_framework import DjangoFilterBackend
+
+from rest_framework.filters import (
+    SearchFilter,
+    OrderingFilter,
+)
+
+from .filters import ProductFilter
+
 
 
 class ProductListAPIView(ListAPIView):
     serializer_class = ProductListSerializer
+    permission_classes = [AllowAny]
+
+    filter_backends = [
+        DjangoFilterBackend,
+        SearchFilter,
+        OrderingFilter,
+    ]
+
+    filterset_class = ProductFilter
+
+    search_fields = [
+        "name",
+        "manufacturer_article",
+        "brand__name",
+    ]
+
+    ordering_fields = [
+        "name",
+        "created_at",
+    ]
+
+    ordering = [
+        "name",
+    ]
 
     def get_queryset(self):
-        return get_product_list_queryset(self.request.query_params)
+        return get_product_list_queryset()
 
     def list(self, request, *args, **kwargs):
-        queryset = self.get_queryset()
+        queryset = self.filter_queryset(self.get_queryset())
 
         for product in queryset:
             prepare_product_for_user(product, request.user)
@@ -34,6 +69,7 @@ class ProductListAPIView(ListAPIView):
 
 class ProductDetailAPIView(RetrieveAPIView):
     serializer_class = ProductDetailSerializer
+    permission_classes = [AllowAny]
     lookup_field = "slug"
 
     def get_queryset(self):
