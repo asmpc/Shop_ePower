@@ -34,6 +34,13 @@
 
             <ul class="navbar-nav ms-auto">
 
+
+                <li class="nav-item">
+    <a class="nav-link" href="{% url 'cart-detail' %}">
+        🛒 {{ navbar_cart_total_quantity }} | {{ navbar_cart_total_price }} BYN
+    </a>
+</li>
+
                 {% if request.user.is_authenticated %}
 
                     <li class="nav-item">

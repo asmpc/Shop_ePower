@@ -110,6 +110,30 @@
 
                         <p>{{ product.brand.name }}</p>
 
+<form
+    method="post"
+    action="{% url 'cart-add' product.id %}"
+    class="mt-2"
+>
+    {% csrf_token %}
+
+    <div class="d-flex justify-content-center mb-2">
+        <input
+            type="number"
+            name="quantity"
+            value="1"
+            min="1"
+            class="form-control form-control-sm text-center"
+            style="width: 80px;"
+        >
+    </div>
+
+    <button type="submit" class="btn btn-sm btn-primary w-100">
+        Add to cart
+    </button>
+</form>
+
+
         <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary mt-auto">
             View
         </a>
