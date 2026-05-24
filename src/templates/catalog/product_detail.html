@@ -31,21 +31,23 @@ data-base-price="{{ product.final_price|stringformat:'f' }}"
 </div>
 
 {% if product.inventory.in_stock %}
-        {% if product.inventory.own_stock > 0 %}
-            <p class="text-success">
-                In stock: {{ product.inventory.own_stock }} ready to ship
-            </p>
-        {% endif %}
 
-        {% if product.inventory.supplier_stock > 0 %}
-            <p class="text-info">
-                Additional {{ product.inventory.supplier_stock }} available from supplier
-                — Delivery: {{ product.inventory.min_lead_time }} days
-            </p>
-        {% endif %}
-    {% else %}
-        <p class="text-danger">Out of stock</p>
+    {% if product.inventory.own_stock > 0 %}
+        <p class="text-success">
+            In stock: {{ product.inventory.own_stock }}
+        </p>
     {% endif %}
+
+    {% if product.inventory.supplier_stock > 0 %}
+        <p class="text-info">
+            Available to order: {{ product.inventory.supplier_stock }}
+            — from {{ product.inventory.min_lead_time }} days
+        </p>
+    {% endif %}
+
+{% else %}
+    <p class="text-danger">Out of stock</p>
+{% endif %}
 
     {% if is_manager %}
     <hr>
