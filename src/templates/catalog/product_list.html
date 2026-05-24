@@ -69,26 +69,20 @@
 
 
 
-<div class="mb-2">
+<div class="mb-2 js-price-box">
     <p class="fs-4 mb-1">
         <span
             class="js-product-price"
-data-base-price="{{ product.final_price|stringformat:'f' }}"
+            data-base-price="{{ product.final_price|stringformat:'f' }}"
         >
             {{ product.final_price }} BYN
         </span>
     </p>
 
     <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">
-            BYN
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">
-            RUB
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">
-            USD
-        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">BYN</button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
     </div>
 </div>
 
@@ -116,9 +110,9 @@ data-base-price="{{ product.final_price|stringformat:'f' }}"
 
                         <p>{{ product.brand.name }}</p>
 
-<a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary mt-auto">
-    View
-</a>
+        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary mt-auto">
+            View
+        </a>
 
                     </div>
 
@@ -149,8 +143,8 @@ data-base-price="{{ product.final_price|stringformat:'f' }}"
         }
 
         const currency = button.dataset.currency;
-        const card = button.closest(".card-body");
-        const priceElement = card.querySelector(".js-product-price");
+        const priceBox = button.closest(".js-price-box");
+        const priceElement = priceBox.querySelector(".js-product-price");
 
         const basePrice = Number(priceElement.dataset.basePrice);
         const rate = Number(currencyRates[currency]);

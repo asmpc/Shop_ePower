@@ -57,6 +57,7 @@ class ProductDetailVisibilityTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertFalse(response.context["is_manager"])
         self.assertNotIn("supplier_inventory_details", response.context)
+        self.assertNotIn("cost_summary", response.context)
 
     def test_manager_receives_supplier_inventory_details(self):
         manager_user = User.objects.create_user(
@@ -82,6 +83,9 @@ class ProductDetailVisibilityTestCase(TestCase):
             list(response.context["supplier_inventory_details"]),
             [self.supplier_product],
         )
+        self.assertIn("cost_summary", response.context)
+        self.assertIsNotNone(response.context["cost_summary"])
+
 
     def test_admin_receives_supplier_inventory_details(self):
         admin_user = User.objects.create_user(
@@ -103,3 +107,5 @@ class ProductDetailVisibilityTestCase(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertTrue(response.context["is_manager"])
         self.assertIn("supplier_inventory_details", response.context)
+        self.assertIn("cost_summary", response.context)
+        self.assertIsNotNone(response.context["cost_summary"])

@@ -7,26 +7,20 @@
 
     <h2>{{ product.name }}</h2>
 
-<div class="mb-2">
+<div class="mb-2 js-price-box">
     <p class="fs-4 mb-1">
         <span
             class="js-product-price"
-data-base-price="{{ product.final_price|stringformat:'f' }}"
+            data-base-price="{{ product.final_price|stringformat:'f' }}"
         >
             {{ product.final_price }} BYN
         </span>
     </p>
 
     <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">
-            BYN
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">
-            RUB
-        </button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">
-            USD
-        </button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">BYN</button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
+        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
     </div>
 </div>
 
@@ -49,12 +43,14 @@ data-base-price="{{ product.final_price|stringformat:'f' }}"
     <p class="text-danger">Out of stock</p>
 {% endif %}
 
-    {% if is_manager %}
+{% if is_manager %}
     <hr>
 
-    <h4>Supplier inventory</h4>
+    <h4>Manager information</h4>
 
     {% if supplier_inventory_details %}
+        <h5>Supplier inventory</h5>
+
         <table class="table table-sm table-bordered">
             <thead>
                 <tr>
@@ -84,33 +80,31 @@ data-base-price="{{ product.final_price|stringformat:'f' }}"
             No supplier inventory available.
         </p>
     {% endif %}
-{% endif %}
 
-    {% if is_manager and cost_summary %}
-    <hr>
+    {% if cost_summary %}
+        <h5>Cost summary</h5>
 
-    <h4>Cost summary</h4>
-
-    <table class="table table-sm table-bordered">
-        <tbody>
-            <tr>
-                <th>Base price</th>
-                <td>{{ cost_summary.base_price }} BYN</td>
-            </tr>
-            <tr>
-                <th>Max supplier cost</th>
-                <td>{{ cost_summary.max_supplier_cost_byn }} BYN</td>
-            </tr>
-            <tr>
-                <th>Markup percent</th>
-                <td>{{ cost_summary.markup_percent }}%</td>
-            </tr>
-            <tr>
-                <th>Margin</th>
-                <td>{{ cost_summary.margin_amount }} BYN</td>
-            </tr>
-        </tbody>
-    </table>
+        <table class="table table-sm table-bordered">
+            <tbody>
+                <tr>
+                    <th>Base price</th>
+                    <td>{{ cost_summary.base_price }} BYN</td>
+                </tr>
+                <tr>
+                    <th>Max supplier cost</th>
+                    <td>{{ cost_summary.max_supplier_cost_byn }} BYN</td>
+                </tr>
+                <tr>
+                    <th>Markup percent</th>
+                    <td>{{ cost_summary.markup_percent }}%</td>
+                </tr>
+                <tr>
+                    <th>Margin</th>
+                    <td>{{ cost_summary.margin_amount }} BYN</td>
+                </tr>
+            </tbody>
+        </table>
+    {% endif %}
 {% endif %}
 
 
