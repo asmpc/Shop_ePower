@@ -100,3 +100,69 @@ def get_product_inventory_data(product: Product) -> dict:
         "supplier_count": queryset.count(),
         "min_lead_time": aggregated["min_lead_time"],
     }
+
+
+def get_supplier_inventory_details(product: Product):
+    """
+    Returns supplier-level inventory details for manager/admin visibility.
+    """
+
+    return get_active_supplier_products(product).select_related(
+        "supplier",
+    )
+
+from django.db.models import Min, Sum
+
+
+def get_product_inventory_public(product: Product) -> dict:
+    """
+    Public aggregated inventory for clients.
+
+    Shows:
+    - own stock
+    - supplier stock
+    - total available
+    - minimal supplier lead time
+
+    Hides:
+    - supplier names
+    - supplier prices
+    - supplier articles
+    """
+
+    own_stock_data = (
+        SupplierProduct.objects.filter(
+            product=product,
+            is_active=True,
+            supplier__is_active=True,
+            supplier__is_own=True,
+        )
+        .aggregate(
+            own_stock=Sum("stock_quantity"),
+        )
+    )
+
+    supplier_stock_data = (
+        SupplierProduct.objects.filter(
+            product=product,
+            is_active=True,
+            supplier__is_active=True,
+            supplier__is_own=False,
+        )
+        .aggregate(
+            supplier_stock=Sum("stock_quantity"),
+            min_lead_time=Min("lead_time_days"),
+        )
+    )
+
+    own_stock = own_stock_data["own_stock"] or 0
+    supplier_stock = supplier_stock_data["supplier_stock"] or 0
+    total_available = own_stock + supplier_stock
+
+    return {
+        "own_stock": own_stock,
+        "supplier_stock": supplier_stock,
+        "total_available": total_available,
+        "min_lead_time": supplier_stock_data["min_lead_time"],
+        "in_stock": total_available > 0,
+    }

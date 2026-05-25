@@ -13,6 +13,10 @@ from shop_epower.suppliers.services.currency import CurrencyService
 
 
 class TestCurrencyPricing(TestCase):
+
+    # Подготавливаем базовые данные для тестов валютного ценообразования:
+    # продукт, поставщик и глобальную наценку 20%.
+    # В этих тестах проверяем конвертацию валют и пересчёт product.base_price.
     def setUp(self):
         self.brand = Brand.objects.create(name="Test Brand")
         self.category = Category.objects.create(name="Test Category")
@@ -34,10 +38,13 @@ class TestCurrencyPricing(TestCase):
             percent=20,
         )
 
-    def test_convert_rub_to_byn(self):
+    # Проверяем конвертацию из RUB в базовую валюту проекта.
+    # При текущей настройке base_currency = BYN:
+    # 1000 RUB * 0.038700 = 38.70.
+    def test_convert_rub_to_base_currency(self):
         CurrencyRate.objects.create(
             currency="RUB",
-            rate_to_BYN=Decimal("0.038700"),
+            rate_to_base_currency=Decimal("0.038700"),
         )
 
         result = CurrencyService.convert(
@@ -48,10 +55,13 @@ class TestCurrencyPricing(TestCase):
 
         self.assertEqual(result, Decimal("38.70"))
 
-    def test_convert_byn_to_rub(self):
+    # Проверяем обратную конвертацию из базовой валюты проекта в RUB.
+    # При текущей настройке base_currency = BYN:
+    # 288 BYN / 0.038700 = 7441.86 RUB.
+    def test_convert_base_currency_to_rub(self):
         CurrencyRate.objects.create(
             currency="RUB",
-            rate_to_BYN=Decimal("0.038700"),
+            rate_to_base_currency=Decimal("0.038700"),
         )
 
         result = CurrencyService.convert(
@@ -62,6 +72,9 @@ class TestCurrencyPricing(TestCase):
 
         self.assertEqual(result, Decimal("7441.86"))
 
+    # Проверяем пересчёт base_price, когда цена поставщика уже указана
+    # в базовой валюте проекта.
+    # Применяется GlobalMarkup 20%: 100 + 20% = 120.
     def test_recalculate_base_price_from_byn_supplier_price(self):
         SupplierProduct.objects.create(
             supplier=self.supplier,
@@ -79,10 +92,13 @@ class TestCurrencyPricing(TestCase):
 
         self.assertEqual(self.product.base_price, Decimal("120.00"))
 
+    # Проверяем пересчёт base_price, когда цена поставщика указана в RUB.
+    # Сначала цена конвертируется в базовую валюту проекта,
+    # затем применяется GlobalMarkup 20%.
     def test_recalculate_base_price_from_rub_supplier_price(self):
         CurrencyRate.objects.create(
             currency="RUB",
-            rate_to_BYN=Decimal("0.038700"),
+            rate_to_base_currency=Decimal("0.038700"),
         )
 
         SupplierProduct.objects.create(
@@ -103,10 +119,13 @@ class TestCurrencyPricing(TestCase):
         # 38.70 + 20% = 46.44 BYN
         self.assertEqual(self.product.base_price, Decimal("46.44"))
 
+    # Проверяем, что при нескольких поставщиках используется максимальная
+    # закупочная цена после конвертации в базовую валюту проекта.
+    # Это защищает магазин от занижения base_price.
     def test_recalculate_uses_max_supplier_price_after_conversion(self):
         CurrencyRate.objects.create(
             currency="RUB",
-            rate_to_BYN=Decimal("0.038700"),
+            rate_to_base_currency=Decimal("0.038700"),
         )
 
         SupplierProduct.objects.create(
@@ -133,10 +152,11 @@ class TestCurrencyPricing(TestCase):
 
         self.product.refresh_from_db()
 
-        # 3000 RUB * 0.0387 = 116.10 BYN
-        # 116.10 + 20% = 139.32 BYN
         self.assertEqual(self.product.base_price, Decimal("139.32"))
 
+    # Проверяем безопасное поведение при отсутствии курса валюты.
+    # Если поставщик указал цену в валюте без CurrencyRate,
+    # сервис должен явно выбросить ValueError, а не считать неверную цену.
     def test_missing_currency_rate_raises_error(self):
         SupplierProduct.objects.create(
             supplier=self.supplier,

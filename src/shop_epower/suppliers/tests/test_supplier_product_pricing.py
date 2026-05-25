@@ -5,7 +5,9 @@ from shop_epower.suppliers.services.pricing import recalc_product_base_price
 
 
 class TestSupplierProductPricing(TestCase):
-
+    # Подготавливаем базовые объекты для тестов пересчёта base_price:
+    # продукт, собственного поставщика, внешнего поставщика
+    # и глобальную наценку 20%.
     def setUp(self):
         # Создаем базовые объекты
         self.brand = Brand.objects.create(name="Test Brand")
@@ -20,6 +22,9 @@ class TestSupplierProductPricing(TestCase):
         self.supplier_ext = Supplier.objects.create(name="External Supplier", is_own=False)
         self.markup = GlobalMarkup.objects.create(percent=20)
 
+    # Проверяем пересчёт base_price при одном поставщике.
+    # Берётся supplier_price и применяется GlobalMarkup:
+    # 100 + 20% = 120.
     def test_single_supplier_price(self):
         # Один поставщик
         sp = SupplierProduct.objects.create(
@@ -34,6 +39,10 @@ class TestSupplierProductPricing(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.base_price, 120)  # 100 + 20%
 
+    # Проверяем пересчёт base_price при нескольких поставщиках.
+    # Сервис должен взять максимальную закупочную цену
+    # и применить к ней GlobalMarkup:
+    # 110 + 20% = 132.
     def test_multiple_suppliers_max_price(self):
         # Несколько поставщиков, берется max цена
         SupplierProduct.objects.create(
@@ -55,6 +64,8 @@ class TestSupplierProductPricing(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.base_price, 132)  # 110 + 20%
 
+    # Проверяем, что неактивный поставщик не участвует в расчёте base_price.
+    # Даже если у него supplier_price выше, он должен быть проигнорирован.
     def test_inactive_supplier_ignored(self):
         # Неактивный поставщик не учитывается
         inactive_supplier = Supplier.objects.create(name="Inactive Supplier", is_own=False, is_active=False)
@@ -79,6 +90,9 @@ class TestSupplierProductPricing(TestCase):
         self.product.refresh_from_db()
         self.assertEqual(self.product.base_price, 120)  # 100 + 20%, не учитывается 200 неактивного
 
+    # Проверяем, что после изменения supplier_price
+    # повторный пересчёт обновляет product.base_price.
+    # Это важно для админки и обновления цен поставщиков.
     def test_supplier_product_update_triggers_recalc(self):
         # Проверяем, что после изменения supplier_price пересчет работает
         sp = SupplierProduct.objects.create(

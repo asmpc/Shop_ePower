@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1>Cart</h1>
+
+<form
+    method="post"
+    action="{% url 'cart-clear' %}"
+    class="mb-3"
+>
+    {% csrf_token %}
+
+    <button type="submit" class="btn btn-warning">
+        Clear cart
+    </button>
+</form>
+
+<p>Total quantity: {{ cart_total_quantity }}</p>
+<p>Total price: {{ cart_total_price }} BYN</p>
+
+<ul>
+    {% for item in cart_items %}
+        <li class="mb-2">
+        {{ item.product.name }}
+        —
+        <div style="display:inline-flex; align-items:center; gap:5px;">
+
+    <!-- MINUS -->
+    <form
+        method="post"
+        action="{% url 'cart-remove' item.product.id %}"
+        style="display:inline;"
+    >
+        {% csrf_token %}
+        <input type="hidden" name="quantity" value="1">
+        <button type="submit" class="btn btn-sm btn-outline-danger">
+            -
+        </button>
+    </form>
+
+    <span>{{ item.quantity }}</span>
+
+    <!-- PLUS -->
+    <form
+        method="post"
+        action="{% url 'cart-add' item.product.id %}"
+        style="display:inline;"
+    >
+        {% csrf_token %}
+        <input type="hidden" name="quantity" value="1">
+        <button type="submit" class="btn btn-sm btn-outline-success">
+            +
+        </button>
+    </form>
+
+</div>
+        —
+        {{ item.price_snapshot }} {{ item.currency_snapshot }}
+        —
+        total: {{ item.total_price }} {{ item.currency_snapshot }}
+
+        <form
+            method="post"
+            action="{% url 'cart-remove' item.product.id %}"
+            style="display:inline;"
+        >
+            {% csrf_token %}
+            <button type="submit" class="btn btn-sm btn-danger">
+                Remove
+            </button>
+        </form>
+    </li>
+    {% empty %}
+        <li>Cart is empty</li>
+    {% endfor %}
+</ul>
+
+{% endblock %}

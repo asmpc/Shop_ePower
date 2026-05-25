@@ -1,108 +1,50 @@
-from django.urls import path
+# accounts/urls.py
 
-from .views import (
-    RegisterView,
-    LogoutAPIView,
-    CustomTokenObtainPairView,
-    CustomTokenRefreshView,
-)
+from django.urls import path
+from django.contrib.auth import views as auth_views
 
 from .views import (
     CustomLoginView,
     CustomLogoutView,
     RegisterTemplateView,
+    ProfileView,
 )
 
-from .views import ProfileView
-
-from django.contrib.auth import views as auth_views
-
-
-
-
 urlpatterns = [
-
-    # API
-
-    path(
-        'api/login/',
-        CustomTokenObtainPairView.as_view(),
-        name='api-login',
-    ),
+    path("login/", CustomLoginView.as_view(), name="login-template"),
+    path("logout/", CustomLogoutView.as_view(), name="logout-template"),
+    path("register/", RegisterTemplateView.as_view(), name="register-template"),
+    path("profile/", ProfileView.as_view(), name="profile"),
 
     path(
-        'api/refresh/',
-        CustomTokenRefreshView.as_view(),
-        name='api-refresh',
-    ),
-
-    path(
-        'api/logout/',
-        LogoutAPIView.as_view(),
-        name='api-logout',
-    ),
-
-    path(
-        'api/register/',
-        RegisterView.as_view(),
-        name='api-register',
-    ),
-
-    # Templates
-
-    path(
-        'login/',
-        CustomLoginView.as_view(),
-        name='login-template',
-    ),
-
-    path(
-        'logout/',
-        CustomLogoutView.as_view(),
-        name='logout-template',
-    ),
-
-    path(
-        'register/',
-        RegisterTemplateView.as_view(),
-        name='register-template',
-    ),
-
-    path(
-        'profile/',
-        ProfileView.as_view(),
-        name='profile',
-    ),
-
-    path(
-        'password-reset/',
+        "password-reset/",
         auth_views.PasswordResetView.as_view(
-            template_name='accounts/password_reset.html'
+            template_name="accounts/password_reset.html",
+            email_template_name="accounts/password_reset_email.html",
+            success_url="/shop/accounts/password-reset/done/",
         ),
-        name='password_reset',
+        name="password_reset",
     ),
-
     path(
-        'password-reset/done/',
+        "password-reset/done/",
         auth_views.PasswordResetDoneView.as_view(
-            template_name='accounts/password_reset_done.html'
+            template_name="accounts/password_reset_done.html",
         ),
-        name='password_reset_done',
+        name="password_reset_done",
     ),
-
     path(
-        'reset/<uidb64>/<token>/',
+        "reset/<uidb64>/<token>/",
         auth_views.PasswordResetConfirmView.as_view(
-            template_name='accounts/password_reset_confirm.html'
+            template_name="accounts/password_reset_confirm.html",
+            success_url="/shop/accounts/reset/done/",
         ),
-        name='password_reset_confirm',
+        name="password_reset_confirm",
     ),
-
     path(
-        'reset/done/',
+        "reset/done/",
         auth_views.PasswordResetCompleteView.as_view(
-            template_name='accounts/password_reset_complete.html'
+            template_name="accounts/password_reset_complete.html",
         ),
-        name='password_reset_complete',
+        name="password_reset_complete",
     ),
 ]

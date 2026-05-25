@@ -13,7 +13,6 @@ from rest_framework_simplejwt.serializers import (
 
 User = get_user_model()
 
-
 class RegisterSerializer(serializers.ModelSerializer):
 
     password = serializers.CharField(

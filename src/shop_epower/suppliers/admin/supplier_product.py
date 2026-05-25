@@ -1,8 +1,12 @@
 from django.contrib import admin
+
+from shop_epower.core.currency import get_base_currency
 from shop_epower.suppliers.models import SupplierProduct
 from shop_epower.suppliers.services.currency import CurrencyService
 from shop_epower.suppliers.models import CurrencyRate
 from django.contrib import messages
+from unittest.mock import patch
+
 
 
 
@@ -43,11 +47,11 @@ class SupplierProductAdmin(admin.ModelAdmin):
         "is_active",
     )
 
-    actions = ['recalculate_base_price']  # добавляем action
+    actions = ['recalc_base_price_action']
 
     def save_model(self, request, obj, form, change):
         # Проверяем, что для выбранной валюты задан курс
-        if obj.currency != "BYN":  # для BYN курс не нужен
+        if obj.currency != get_base_currency():
             rate_exists = CurrencyRate.objects.filter(currency=obj.currency).exists()
             if not rate_exists:
                 messages.error(
@@ -68,3 +72,33 @@ class SupplierProductAdmin(admin.ModelAdmin):
         for product in products:
             CurrencyService.update_product_base_price(product)
         self.message_user(request, f"Base prices recalculated for {len(products)} products")
+
+    # Проверяем, что admin action пересчитывает каждый Product только один раз,
+    # даже если в queryset есть несколько SupplierProduct для одного товара.
+    def test_admin_action_recalculates_each_product_only_once(self):
+        second_supplier_product = SupplierProduct.objects.create(
+            supplier=self.supplier,
+            product=self.product1,
+            supplier_article="A1-SECOND",
+            supplier_price=200,
+            stock_quantity=2,
+        )
+
+        request = self.factory.get("/")
+
+        queryset = SupplierProduct.objects.filter(
+            id__in=[
+                self.sp1.id,
+                second_supplier_product.id,
+            ]
+        )
+
+        with patch(
+                "shop_epower.suppliers.admin.supplier_product.CurrencyService.update_product_base_price"
+        ) as mocked_update:
+            self.admin.recalc_base_price_action(
+                request,
+                queryset,
+            )
+
+        mocked_update.assert_called_once_with(self.product1)
