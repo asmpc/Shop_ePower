@@ -13,6 +13,7 @@ User = get_user_model()
 
 class TestProductListAPI(APITestCase):
 
+    # Проверяем, что API списка товаров возвращает созданные продукты
     def test_product_list_returns_products(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -44,6 +45,8 @@ class TestProductListAPI(APITestCase):
             "test-product",
         )
 
+    # Проверяем, что в списке товаров API возвращает не только базовые данные,
+    # но и рассчитанную цену final_price и inventory.
     def test_product_list_returns_product_price_and_inventory(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -92,6 +95,8 @@ class TestProductListAPI(APITestCase):
             "100.00",
         )
 
+    # Проверяем detail endpoint товара:
+    # возвращаются slug, final_price, inventory, brand и images.
     def test_product_detail_returns_product(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -148,6 +153,8 @@ class TestProductListAPI(APITestCase):
             response.data,
         )
 
+    # Проверяем, что detail endpoint возвращает изображения товара
+    # и при этом не отдаёт manager-only данные обычному пользователю.
     def test_product_detail_returns_images(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -217,6 +224,8 @@ class TestProductListAPI(APITestCase):
             response.data
         )
 
+    # Проверяем, что manager получает расширенные данные товара:
+    # supplier_inventory_details и cost_summary.
     def test_product_detail_returns_manager_data_for_manager(self):
         user = User.objects.create_user(
             email="manager@test.com",
@@ -257,6 +266,7 @@ class TestProductListAPI(APITestCase):
         self.assertIn("supplier_inventory_details", response.data)
         self.assertIn("cost_summary", response.data)
 
+    # Проверяем фильтрацию списка товаров по brand slug.
     def test_product_list_can_filter_by_brand(self):
         brand_1 = Brand.objects.create(
             name="Brand 1",
@@ -310,6 +320,7 @@ class TestProductListAPI(APITestCase):
             "product-1",
         )
 
+    # Проверяем фильтрацию списка товаров по category slug.
     def test_product_list_can_filter_by_category(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -357,6 +368,8 @@ class TestProductListAPI(APITestCase):
 
         self.assertEqual(response.data[0]["slug"], "product-1")
 
+    # Проверяем, что фильтр по родительской категории
+    # включает товары из дочерних категорий.
     def test_product_list_filter_by_parent_category_includes_child_products(self):
         brand = Brand.objects.create(
             name="Test brand",
@@ -393,3 +406,44 @@ class TestProductListAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertEqual(len(response.data), 1)
         self.assertEqual(response.data[0]["slug"], "power-cable-product")
+
+    # Проверяем, что обычный client не получает manager-only данные
+    # в detail endpoint товара.
+    def test_product_detail_does_not_return_manager_data_for_client(self):
+        user = User.objects.create_user(
+            email="client@test.com",
+            username="client",
+            password="12345678",
+            role="client",
+        )
+
+        self.client.force_authenticate(user=user)
+
+        brand = Brand.objects.create(
+            name="Test brand",
+            slug="test-brand",
+        )
+
+        category = Category.objects.create(
+            name="Test category",
+            slug="test-category",
+        )
+
+        product = Product.objects.create(
+            name="Test product",
+            slug="test-product",
+            brand=brand,
+            category=category,
+            base_price=100,
+        )
+
+        response = self.client.get(
+            reverse(
+                "api-product-detail",
+                kwargs={"slug": product.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+        self.assertNotIn("supplier_inventory_details", response.data)
+        self.assertNotIn("cost_summary", response.data)

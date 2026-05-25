@@ -8,6 +8,10 @@ from shop_epower.catalog.models import Brand, Category, Product
 
 class TestCartModels(TestCase):
 
+    # Проверяем, что property total_price у CartItem корректно рассчитывает
+    # итоговую стоимость как price_snapshot * quantity.
+    # Это важно, потому что в корзине используется зафиксированная цена (snapshot),
+    # а не текущая цена товара.
     def test_cart_item_total_price(self):
         brand = Brand.objects.create(
             name="Test brand",

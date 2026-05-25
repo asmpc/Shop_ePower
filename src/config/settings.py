@@ -82,6 +82,7 @@ TEMPLATES = [
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 "shop_epower.cart.context_processors.cart_summary",
+                "shop_epower.core.context_processors.base_currency",
             ],
         },
     },
@@ -214,3 +215,6 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Shop settings
+SHOP_BASE_CURRENCY = env("SHOP_BASE_CURRENCY", default="BYN")

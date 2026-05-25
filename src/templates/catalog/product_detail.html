@@ -5,156 +5,218 @@
 
 <div class="container mt-4">
 
-    <h2>{{ product.name }}</h2>
+    <h2 class="mb-3">
+        {{ product.name }}
+    </h2>
 
-<div class="mb-2 js-price-box">
-    <p class="fs-4 mb-1">
-        <span
-            class="js-product-price"
-            data-base-price="{{ product.final_price|stringformat:'f' }}"
-        >
-            {{ product.final_price }} BYN
-        </span>
+    <div
+        class="mb-3 js-price-box"
+        data-base-currency="{{ base_currency }}"
+    >
+        <p class="fs-4 mb-1">
+            <span
+                class="js-product-price"
+                data-base-price="{{ product.final_price|stringformat:'f' }}"
+            >
+                {{ product.final_price }} {{ base_currency }}
+            </span>
+        </p>
+
+        <div class="btn-group btn-group-sm" role="group">
+            <button
+                type="button"
+                class="btn btn-outline-secondary js-currency-btn"
+                data-currency="{{ base_currency }}"
+            >
+                {{ base_currency }}
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-outline-secondary js-currency-btn"
+                data-currency="RUB"
+            >
+                RUB
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-outline-secondary js-currency-btn"
+                data-currency="USD"
+            >
+                USD
+            </button>
+        </div>
+    </div>
+
+    {% if product.inventory.in_stock %}
+
+        {% if product.inventory.own_stock > 0 %}
+            <p class="text-success">
+                In stock: {{ product.inventory.own_stock }}
+            </p>
+        {% endif %}
+
+        {% if product.inventory.supplier_stock > 0 %}
+            <p class="text-info">
+                Available to order:
+                {{ product.inventory.supplier_stock }}
+                — from {{ product.inventory.min_lead_time }} days
+            </p>
+        {% endif %}
+
+    {% else %}
+
+        <p class="text-danger">
+            Out of stock
+        </p>
+
+    {% endif %}
+
+    <form
+        method="post"
+        action="{% url 'cart-add' product.id %}"
+        class="mt-3 mb-4"
+    >
+        {% csrf_token %}
+
+        <div class="mb-2">
+            <label for="quantity" class="form-label">
+                Quantity
+            </label>
+
+            <input
+                type="number"
+                name="quantity"
+                id="quantity"
+                value="1"
+                min="1"
+                class="form-control"
+                style="max-width: 120px;"
+            >
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Add to cart
+        </button>
+    </form>
+
+    <p>
+        <strong>Brand:</strong> {{ product.brand.name }}
     </p>
 
-    <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">BYN</button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
-    </div>
-</div>
+    <p>
+        <strong>Category:</strong> {{ product.category.name }}
+    </p>
 
-{% if product.inventory.in_stock %}
-
-    {% if product.inventory.own_stock > 0 %}
-        <p class="text-success">
-            In stock: {{ product.inventory.own_stock }}
+    {% if product.description %}
+        <p>
+            {{ product.description }}
         </p>
     {% endif %}
 
-    {% if product.inventory.supplier_stock > 0 %}
-        <p class="text-info">
-            Available to order: {{ product.inventory.supplier_stock }}
-            — from {{ product.inventory.min_lead_time }} days
-        </p>
-    {% endif %}
+    {% if is_manager %}
 
-{% else %}
-    <p class="text-danger">Out of stock</p>
-{% endif %}
+        <hr>
 
-{% if is_manager %}
-    <hr>
+        <h4>Manager information</h4>
 
-    <h4>Manager information</h4>
+        {% if supplier_inventory_details %}
 
-    {% if supplier_inventory_details %}
-        <h5>Supplier inventory</h5>
+            <h5>Supplier inventory</h5>
 
-        <table class="table table-sm table-bordered">
-            <thead>
-                <tr>
-                    <th>Supplier</th>
-                    <th>Article</th>
-                    <th>Supplier price</th>
-                    <th>Currency</th>
-                    <th>Stock</th>
-                    <th>Lead time</th>
-                </tr>
-            </thead>
-            <tbody>
-                {% for item in supplier_inventory_details %}
+            <table class="table table-sm table-bordered">
+                <thead>
                     <tr>
-                        <td>{{ item.supplier.name }}</td>
-                        <td>{{ item.supplier_article }}</td>
-                        <td>{{ item.supplier_price }}</td>
-                        <td>{{ item.currency }}</td>
-                        <td>{{ item.stock_quantity }}</td>
-                        <td>{{ item.lead_time_days }} days</td>
+                        <th>Supplier</th>
+                        <th>Article</th>
+                        <th>Supplier price</th>
+                        <th>Currency</th>
+                        <th>Stock</th>
+                        <th>Lead time</th>
                     </tr>
-                {% endfor %}
-            </tbody>
-        </table>
-    {% else %}
-        <p class="text-muted">
-            No supplier inventory available.
-        </p>
+                </thead>
+
+                <tbody>
+                    {% for item in supplier_inventory_details %}
+                        <tr>
+                            <td>{{ item.supplier.name }}</td>
+                            <td>{{ item.supplier_article }}</td>
+                            <td>{{ item.supplier_price }}</td>
+                            <td>{{ item.currency }}</td>
+                            <td>{{ item.stock_quantity }}</td>
+                            <td>{{ item.lead_time_days }} days</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+
+        {% else %}
+
+            <p class="text-muted">
+                No supplier inventory available.
+            </p>
+
+        {% endif %}
+
+        {% if cost_summary %}
+
+            <h5>Cost summary</h5>
+
+            <table class="table table-sm table-bordered">
+                <tbody>
+                    <tr>
+                        <th>Base price</th>
+                        <td>
+                            {{ cost_summary.base_price }} {{ base_currency }}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>Max supplier cost</th>
+                        <td>
+                            {{ cost_summary.max_supplier_cost }} {{ base_currency }}
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>Markup percent</th>
+                        <td>
+                            {{ cost_summary.markup_percent }}%
+                        </td>
+                    </tr>
+
+                    <tr>
+                        <th>Margin</th>
+                        <td>
+                            {{ cost_summary.margin_amount }} {{ base_currency }}
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+
+        {% endif %}
+
     {% endif %}
-
-    {% if cost_summary %}
-        <h5>Cost summary</h5>
-
-        <table class="table table-sm table-bordered">
-            <tbody>
-                <tr>
-                    <th>Base price</th>
-                    <td>{{ cost_summary.base_price }} BYN</td>
-                </tr>
-                <tr>
-                    <th>Max supplier cost</th>
-                    <td>{{ cost_summary.max_supplier_cost_byn }} BYN</td>
-                </tr>
-                <tr>
-                    <th>Markup percent</th>
-                    <td>{{ cost_summary.markup_percent }}%</td>
-                </tr>
-                <tr>
-                    <th>Margin</th>
-                    <td>{{ cost_summary.margin_amount }} BYN</td>
-                </tr>
-            </tbody>
-        </table>
-    {% endif %}
-{% endif %}
-
-<form
-    method="post"
-    action="{% url 'cart-add' product.id %}"
-    class="mt-3"
->
-    {% csrf_token %}
-
-    <div class="mb-2">
-        <label for="quantity" class="form-label">
-            Quantity
-        </label>
-
-        <input
-            type="number"
-            name="quantity"
-            id="quantity"
-            value="1"
-            min="1"
-            class="form-control"
-            style="max-width: 120px;"
-        >
-    </div>
-
-    <button type="submit" class="btn btn-primary">
-        Add to cart
-    </button>
-</form>
-
-
-    <p><strong>Brand:</strong> {{ product.brand.name }}</p>
-    <p><strong>Category:</strong> {{ product.category.name }}</p>
-
-    <p>{{ product.description }}</p>
 
     <hr>
 
     <h4>Images</h4>
 
     <div class="row">
-
         {% for img in product.images.all %}
-
             <div class="col-md-3">
-                <img src="{{ img.image.url }}" class="img-fluid mb-2">
+                <img
+                    src="{{ img.image.url }}"
+                    class="img-fluid mb-2"
+                    alt="{{ product.name }}"
+                >
             </div>
-
+        {% empty %}
+            <p class="text-muted">
+                No images available.
+            </p>
         {% endfor %}
-
     </div>
 
     <hr>
@@ -164,13 +226,19 @@
     <ul>
         {% for variant in product.variants.all %}
             <li>
-                {{ variant.name }} {% if variant.color %} ({{ variant.color }}) {% endif %}
+                {{ variant.name }}
+                {% if variant.color %}
+                    ({{ variant.color }})
+                {% endif %}
+            </li>
+        {% empty %}
+            <li class="text-muted">
+                No variants available.
             </li>
         {% endfor %}
     </ul>
 
 </div>
-
 
 {{ currency_rates|json_script:"currency-rates" }}
 
@@ -187,22 +255,24 @@
         }
 
         const currency = button.dataset.currency;
-        const priceBlock = button.closest(".mb-2");
-        const priceElement = priceBlock.querySelector(".js-product-price");
+        const priceBox = button.closest(".js-price-box");
+        const priceElement = priceBox.querySelector(".js-product-price");
 
+        const baseCurrency = priceBox.dataset.baseCurrency;
         const basePrice = Number(priceElement.dataset.basePrice);
-        const rate = Number(currencyRates[currency]);
-
-        if (!rate) {
-            priceElement.textContent = "Currency rate not set";
-            return;
-        }
 
         let convertedPrice;
 
-        if (currency === "BYN") {
+        if (currency === baseCurrency) {
             convertedPrice = basePrice;
         } else {
+            const rate = Number(currencyRates[currency]);
+
+            if (!rate) {
+                priceElement.textContent = "Currency rate not set";
+                return;
+            }
+
             convertedPrice = basePrice / rate;
         }
 

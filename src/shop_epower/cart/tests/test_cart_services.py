@@ -53,7 +53,8 @@ class TestCartServices(TestCase):
             session_key="test-session",
         )
 
-
+    # Проверяем, что для неавторизованного пользователя создаётся активная корзина,
+    # привязанная к session_key.
     def test_get_or_create_cart_creates_cart_for_session(self):
         cart = get_or_create_cart(
             session_key="another-session",
@@ -68,6 +69,8 @@ class TestCartServices(TestCase):
             cart.is_active,
         )
 
+    # Проверяем, что товар добавляется в корзину как новый CartItem.
+    # Stock мокается, чтобы тестировать только cart service, а не suppliers.
     def test_add_product_to_cart_creates_item(self):
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -88,6 +91,8 @@ class TestCartServices(TestCase):
         self.assertEqual(CartItem.objects.count(), 1)
         self.assertEqual(item.quantity, 2)
 
+    # Проверяем, что при добавлении товара фиксируется price_snapshot.
+    # Это важно: цена в корзине должна храниться отдельно от текущей цены товара.
     def test_add_product_to_cart_stores_price_snapshot(self):
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -110,6 +115,8 @@ class TestCartServices(TestCase):
                 Decimal("10.00"),
             )
 
+    # Проверяем, что повторное добавление того же товара не создаёт новый CartItem,
+    # а увеличивает quantity у уже существующей позиции.
     def test_add_product_to_cart_increases_quantity_if_item_exists(self):
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -143,6 +150,7 @@ class TestCartServices(TestCase):
                 1,
             )
 
+    # Проверяем защиту от некорректного количества: quantity=0 запрещён.
     def test_add_product_to_cart_rejects_zero_quantity(self):
         with self.assertRaises(ValidationError):
             add_product_to_cart(
@@ -151,6 +159,7 @@ class TestCartServices(TestCase):
                 quantity=0,
             )
 
+    # Проверяем защиту от отрицательного количества.
     def test_add_product_to_cart_rejects_negative_quantity(self):
         with self.assertRaises(ValidationError):
             add_product_to_cart(
@@ -159,6 +168,8 @@ class TestCartServices(TestCase):
                 quantity=-1,
             )
 
+    # Проверяем, что нельзя добавить в корзину больше товара,
+    # чем доступно на складе и у поставщиков.
     def test_add_product_to_cart_rejects_quantity_above_available_stock(self):
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -177,6 +188,8 @@ class TestCartServices(TestCase):
                     quantity=2,
                 )
 
+    # Проверяем, что clear_cart удаляет все позиции из корзины,
+    # но сам объект Cart при этом остаётся.
     def test_clear_cart_removes_all_items(self):
         with patch(
             "shop_epower.cart.services.get_product_inventory_public",
@@ -206,8 +219,8 @@ class TestCartServices(TestCase):
             0,
         )
 
-
-    #Тест: guest cart переносится в user cart
+    # Проверяем merge guest cart -> user cart после логина.
+    # Гостевая корзина находится по старому session_key и переносится в корзину пользователя.
     def test_merge_session_cart_to_user_cart_moves_guest_items_to_user_cart(self):
         request = RequestFactory().get("/")
         request.session = SessionStore()
@@ -247,7 +260,8 @@ class TestCartServices(TestCase):
             Cart.objects.filter(id=guest_cart.id).exists()
         )
 
-    #Тест: если товар уже есть — quantity складывается
+    # Проверяем, что если такой товар уже есть в user cart,
+    # то при merge quantity складывается, а дубль CartItem не создаётся.
     def test_merge_session_cart_to_existing_user_cart_merges_quantity(self):
         request = RequestFactory().get("/")
         request.session = SessionStore()
@@ -290,7 +304,8 @@ class TestCartServices(TestCase):
 
         self.assertEqual(item.quantity, 5)
 
-    #Тест: если guest cart нет — ничего не происходит
+    # Проверяем безопасное поведение: если guest cart не найдена,
+    # service ничего не меняет и возвращает False.
     def test_merge_session_cart_to_user_cart_returns_false_without_guest_cart(self):
         request = RequestFactory().get("/")
         request.session = SessionStore()
@@ -304,7 +319,8 @@ class TestCartServices(TestCase):
 
         self.assertFalse(cart_updated)
 
-    #Тест: цена пересчитывается под user
+    # Проверяем, что при merge цена пересчитывается под авторизованного пользователя,
+    # а не переносится старый guest price_snapshot.
     def test_merge_session_cart_recalculates_price_for_user(self):
         request = RequestFactory().get("/")
         request.session = SessionStore()

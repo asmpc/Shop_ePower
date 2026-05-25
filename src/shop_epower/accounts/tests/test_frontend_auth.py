@@ -1,5 +1,4 @@
 from django.test import TestCase
-from django.urls import reverse
 
 from django.contrib.auth import get_user_model
 
@@ -15,6 +14,8 @@ User = get_user_model()
 
 class TestsFrontendAuth(TestCase):
 
+    # Подготавливаем тестового пользователя,
+    # который будет использоваться для login/logout/profile/password reset тестов.
     def setUp(self):
 
         self.user = User.objects.create_user(
@@ -23,6 +24,8 @@ class TestsFrontendAuth(TestCase):
             password='strongpassword123'
         )
 
+    # Проверяем, что страница логина открывается
+    # и возвращает HTTP 200.
     def test_login_page_open(self):
 
         response = self.client.get(
@@ -34,6 +37,8 @@ class TestsFrontendAuth(TestCase):
             200
         )
 
+    # Проверяем, что страница регистрации открывается
+    # и возвращает HTTP 200.
     def test_register_page_open(self):
 
         response = self.client.get(
@@ -45,6 +50,8 @@ class TestsFrontendAuth(TestCase):
             200
         )
 
+    # Проверяем, что пользователь может авторизоваться
+    # через frontend login form.
     def test_user_can_login(self):
 
         response = self.client.post(
@@ -60,6 +67,8 @@ class TestsFrontendAuth(TestCase):
             response.context['user'].is_authenticated
         )
 
+    # Проверяем, что авторизованный пользователь может выйти из аккаунта
+    # через frontend logout view.
     def test_user_can_logout(self):
 
         self.client.login(
@@ -76,6 +85,8 @@ class TestsFrontendAuth(TestCase):
             response.context['user'].is_authenticated
         )
 
+    # Проверяем, что страница профиля защищена авторизацией:
+    # неавторизованный пользователь получает redirect на login.
     def test_profile_requires_auth(self):
 
         response = self.client.get(
@@ -87,6 +98,12 @@ class TestsFrontendAuth(TestCase):
             302
         )
 
+        self.assertIn(
+            reverse("login-template"),
+            response.url
+        )
+
+    # Проверяем, что авторизованный пользователь может открыть страницу профиля.
     def test_authenticated_user_can_open_profile(self):
 
         self.client.login(
@@ -103,12 +120,9 @@ class TestsFrontendAuth(TestCase):
             200
         )
 
-
-    '''
-    тест на сброс пароля по ссылке, проблема в том, что получаемая ссылка имеет = 
-    если из ссылки удалить = то переход на форму смены пароля осуществляется.
-    в тесте не тестирую email, а тестирую внутреннюю Core логику (uid + token + проверка)
-     '''
+    # Проверяем core-логику перехода по ссылке сброса пароля:
+    # генерируем uid и token вручную, затем открываем password_reset_confirm.
+    # Здесь не тестируем отправку email, а только валидность reset-ссылки.
     def test_user_can_reset_password(self):
         user = self.user  # или создавай нового
 
