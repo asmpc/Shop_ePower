@@ -5,6 +5,7 @@ from shop_epower.suppliers.services.stock import get_product_inventory_public
 from django.db import transaction
 
 from .models import Cart, CartItem
+from shop_epower.core.currency import get_base_currency
 
 
 
@@ -63,7 +64,7 @@ def add_product_to_cart(cart, product, quantity=1, user=None):
         defaults={
             "quantity": quantity,
             "price_snapshot": price,
-            "currency_snapshot": "BYN",
+            "currency_snapshot": get_base_currency(),
         },
     )
 
@@ -141,14 +142,14 @@ def merge_session_cart_to_user_cart(request, user, old_session_key=None):
             defaults={
                 "quantity": quantity,
                 "price_snapshot": final_price,
-                "currency_snapshot": "BYN",
+                "currency_snapshot": get_base_currency(),
             },
         )
 
         if not created:
             user_item.quantity += quantity
             user_item.price_snapshot = final_price
-            user_item.currency_snapshot = "BYN"
+            user_item.currency_snapshot = get_base_currency()
             user_item.save(
                 update_fields=[
                     "quantity",

@@ -13,6 +13,9 @@ from shop_epower.catalog.selectors.products import (
 
 class TestProductSelectors(TestCase):
 
+    # Проверяем, что фильтрация товаров по родительской категории
+    # также включает товары из дочерних категорий.
+    # Пример: фильтр по "Cable" должен найти товар из "Power cable".
     def test_product_list_queryset_filter_by_parent_category_includes_child_products(self):
         brand = Brand.objects.create(
             name="Test brand",

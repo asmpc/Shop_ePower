@@ -12,12 +12,12 @@ class CurrencyRate(models.Model):
         unique=True
     )
 
-    rate_to_BYN = models.DecimalField(
+    rate_to_base_currency = models.DecimalField(
         max_digits=12,
         decimal_places=6,
         help_text=(
-            "Введите курс так: 1 единица выбранной валюты = X BYN. "
-            "Например: 1 RUB = 0.038700 BYN, 1 USD = 3.250000 BYN."
+            "Введите курс так: 1 единица выбранной валюты = X базовой валюты проекта. "
+            "Например: если базовая валюта BYN → 1 RUB = 0.038700 BYN."
         ),
     )
 
@@ -30,4 +30,4 @@ class CurrencyRate(models.Model):
         verbose_name_plural = "Currency Rates"
 
     def __str__(self):
-        return f"{self.currency}: {self.rate_to_BYN}"
+        return f"{self.currency}: {self.rate_to_base_currency}"
