@@ -44,12 +44,16 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap5',
     'django_extensions',
+    "django_filters",
 
     # applications
     'shop_epower.accounts',
     'shop_epower.core',
     'shop_epower.catalog',
     'shop_epower.suppliers',
+    'shop_epower.cart',
+
+
 
 ]
 
@@ -77,6 +81,8 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                "shop_epower.cart.context_processors.cart_summary",
+                "shop_epower.core.context_processors.base_currency",
             ],
         },
     },
@@ -166,8 +172,14 @@ REST_FRAMEWORK = {
     ),
 
     'DEFAULT_SCHEMA_CLASS': 'drf_spectacular.openapi.AutoSchema',
-}
 
+    # "DEFAULT_FILTER_BACKENDS": [
+    #     "django_filters.rest_framework.DjangoFilterBackend",
+    #     "rest_framework.filters.SearchFilter",
+    #     "rest_framework.filters.OrderingFilter",
+    # ],
+
+}
 
 
 SIMPLE_JWT = {
@@ -203,3 +215,6 @@ CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
+
+# Shop settings
+SHOP_BASE_CURRENCY = env("SHOP_BASE_CURRENCY", default="BYN")

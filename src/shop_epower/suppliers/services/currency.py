@@ -1,16 +1,22 @@
 from decimal import Decimal, ROUND_HALF_UP
 
-from shop_epower.suppliers.models import CurrencyRate
+from shop_epower.core.currency import get_base_currency
+from shop_epower.suppliers.models import CurrencyRate, SupplierProduct
+from shop_epower.suppliers.services.markup import get_markup_percent_for_product
 
 
 class CurrencyService:
-    BASE_CURRENCY = "BYN"
 
     @classmethod
-    def get_rate_to_byn(cls, currency: str) -> Decimal:
-        currency = currency.upper()
+    def get_base_currency(cls) -> str:
+        return get_base_currency()
 
-        if currency == cls.BASE_CURRENCY:
+    @classmethod
+    def get_rate_to_base_currency(cls, currency: str) -> Decimal:
+        currency = currency.upper()
+        base_currency = cls.get_base_currency()
+
+        if currency == base_currency:
             return Decimal("1")
 
         rate = CurrencyRate.objects.filter(
@@ -22,7 +28,7 @@ class CurrencyService:
                 f"Currency rate for {currency} is not set."
             )
 
-        return rate.rate_to_BYN
+        return rate.rate_to_base_currency
 
     @classmethod
     def convert(
@@ -33,11 +39,11 @@ class CurrencyService:
     ) -> Decimal:
         amount = Decimal(amount)
 
-        from_rate = cls.get_rate_to_byn(from_currency)
-        to_rate = cls.get_rate_to_byn(to_currency)
+        from_rate = cls.get_rate_to_base_currency(from_currency)
+        to_rate = cls.get_rate_to_base_currency(to_currency)
 
-        amount_in_byn = amount * from_rate
-        converted = amount_in_byn / to_rate
+        amount_in_base_currency = amount * from_rate
+        converted = amount_in_base_currency / to_rate
 
         return converted.quantize(
             Decimal("0.01"),
@@ -46,8 +52,6 @@ class CurrencyService:
 
     @classmethod
     def update_product_base_price(cls, product):
-        from shop_epower.suppliers.models import SupplierProduct, GlobalMarkup
-
         supplier_products = SupplierProduct.objects.filter(
             product=product,
             is_active=True,
@@ -59,20 +63,22 @@ class CurrencyService:
         if not supplier_products.exists():
             return
 
-        max_price_byn = max(
+        base_currency = cls.get_base_currency()
+
+        max_price_in_base_currency = max(
             cls.convert(
                 amount=sp.supplier_price,
                 from_currency=sp.currency,
-                to_currency=cls.BASE_CURRENCY,
+                to_currency=base_currency,
             )
             for sp in supplier_products
         )
 
-        markup = GlobalMarkup.objects.first()
-        markup_percent = markup.percent if markup else Decimal("20")
+        markup_percent = get_markup_percent_for_product(product)
 
         product.base_price = (
-            max_price_byn * (Decimal("1") + markup_percent / Decimal("100"))
+            max_price_in_base_currency
+            * (Decimal("1") + markup_percent / Decimal("100"))
         ).quantize(
             Decimal("0.01"),
             rounding=ROUND_HALF_UP,

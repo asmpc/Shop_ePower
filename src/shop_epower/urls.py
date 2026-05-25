@@ -13,4 +13,7 @@ urlpatterns = [
 
     path('catalog/', include('shop_epower.catalog.urls')),
 
+    path("cart/", include("shop_epower.cart.urls")),
+
+
 ]
