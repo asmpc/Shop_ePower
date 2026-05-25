@@ -1,9 +1,10 @@
 from django.core.exceptions import ValidationError
 
-from shop_epower.cart.models import Cart, CartItem
-
-
 from shop_epower.suppliers.services.stock import get_product_inventory_public
+
+from django.db import transaction
+
+from .models import Cart, CartItem
 
 
 
@@ -106,3 +107,59 @@ def remove_product_from_cart(cart, product, quantity=None):
 
 def clear_cart(cart):
     cart.items.all().delete()
+
+
+@transaction.atomic
+def merge_session_cart_to_user_cart(request, user, old_session_key=None):
+    session_key = old_session_key or request.session.session_key
+
+    if not session_key:
+        return False
+
+    try:
+        session_cart = Cart.objects.prefetch_related("items__product").get(
+            session_key=session_key,
+            user=None,
+            is_active=True,
+        )
+    except Cart.DoesNotExist:
+        return False
+
+    user_cart = get_or_create_cart(user=user)
+
+    cart_updated = False
+
+    for session_item in session_cart.items.all():
+        product = session_item.product
+        quantity = session_item.quantity
+
+        final_price = product.get_price_for_user(user)
+
+        user_item, created = CartItem.objects.get_or_create(
+            cart=user_cart,
+            product=product,
+            defaults={
+                "quantity": quantity,
+                "price_snapshot": final_price,
+                "currency_snapshot": "BYN",
+            },
+        )
+
+        if not created:
+            user_item.quantity += quantity
+            user_item.price_snapshot = final_price
+            user_item.currency_snapshot = "BYN"
+            user_item.save(
+                update_fields=[
+                    "quantity",
+                    "price_snapshot",
+                    "currency_snapshot",
+                    "updated_at",
+                ]
+            )
+
+        cart_updated = True
+
+    session_cart.delete()
+
+    return cart_updated
