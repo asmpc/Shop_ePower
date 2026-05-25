@@ -54,95 +54,101 @@
 
         {% for product in products %}
 
-<div class="col-md-3 d-flex">
+<div class="col-md-3 d-flex mb-3">
 
-    <div class="card mb-3 w-100 h-100">
+    <div class="card w-100 h-100 d-flex flex-column">
 
-                    {% if product.images.first %}
-                        <img src="{{ product.images.first.image.url }}"
-                            class="card-img-top product-image">
-                    {% endif %}
+        {% if product.images.first %}
+            <img
+                src="{{ product.images.first.image.url }}"
+                class="card-img-top product-image"
+                alt="{{ product.name }}"
+            >
+        {% endif %}
 
-                <div class="card-body d-flex flex-column">
+        <div class="card-body d-flex flex-column">
 
-                        <h5>{{ product.name }}</h5>
+            <div>
+                <h5>{{ product.name }}</h5>
 
+                <div class="mb-2 js-price-box">
+                    <p class="fs-4 mb-1">
+                        <span
+                            class="js-product-price"
+                            data-base-price="{{ product.final_price|stringformat:'f' }}"
+                        >
+                            {{ product.final_price }} BYN
+                        </span>
+                    </p>
 
-
-<div class="mb-2 js-price-box">
-    <p class="fs-4 mb-1">
-        <span
-            class="js-product-price"
-            data-base-price="{{ product.final_price|stringformat:'f' }}"
-        >
-            {{ product.final_price }} BYN
-        </span>
-    </p>
-
-    <div class="btn-group btn-group-sm" role="group">
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">BYN</button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
-        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
-    </div>
-</div>
-
-
-{% if product.inventory.in_stock %}
-
-    {% if product.inventory.own_stock > 0 %}
-        <p class="text-success">
-            In stock: {{ product.inventory.own_stock }}
-        </p>
-    {% endif %}
-
-    {% if product.inventory.supplier_stock > 0 %}
-        <p class="text-info">
-            Available to order: {{ product.inventory.supplier_stock }}
-            — from {{ product.inventory.min_lead_time }} days
-        </p>
-    {% endif %}
-
-{% else %}
-    <p class="text-danger">Out of stock</p>
-{% endif %}
-
-
-
-                        <p>{{ product.brand.name }}</p>
-
-<form
-    method="post"
-    action="{% url 'cart-add' product.id %}"
-    class="mt-2"
->
-    {% csrf_token %}
-
-    <div class="d-flex justify-content-center mb-2">
-        <input
-            type="number"
-            name="quantity"
-            value="1"
-            min="1"
-            class="form-control form-control-sm text-center"
-            style="width: 80px;"
-        >
-    </div>
-
-    <button type="submit" class="btn btn-sm btn-primary w-100">
-        Add to cart
-    </button>
-</form>
-
-
-        <a href="{% url 'catalog:product_detail' product.slug %}" class="btn btn-primary mt-auto">
-            View
-        </a>
-
+                    <div class="btn-group btn-group-sm" role="group">
+                        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="BYN">BYN</button>
+                        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
+                        <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
                     </div>
-
                 </div>
 
+                {% if product.inventory.in_stock %}
+
+                    {% if product.inventory.own_stock > 0 %}
+                        <p class="text-success mb-2">
+                            In stock: {{ product.inventory.own_stock }}
+                        </p>
+                    {% endif %}
+
+                    {% if product.inventory.supplier_stock > 0 %}
+                        <p class="text-info mb-2">
+                            Available to order: {{ product.inventory.supplier_stock }}
+                            — from {{ product.inventory.min_lead_time }} days
+                        </p>
+                    {% endif %}
+
+                {% else %}
+                    <p class="text-danger mb-2">Out of stock</p>
+                {% endif %}
+
+                <p>{{ product.brand.name }}</p>
             </div>
+
+            <div class="mt-auto">
+
+                <form
+                    method="post"
+                    action="{% url 'cart-add' product.id %}"
+                    class="mb-2"
+                >
+                    {% csrf_token %}
+
+                    <div class="d-flex justify-content-center mb-2">
+                        <input
+                            type="number"
+                            name="quantity"
+                            value="1"
+                            min="1"
+                            class="form-control form-control-sm text-center"
+                            style="width: 80px;"
+                        >
+                    </div>
+
+                    <button type="submit" class="btn btn-sm btn-primary w-100">
+                        Add to cart
+                    </button>
+                </form>
+
+                <a
+                    href="{% url 'catalog:product_detail' product.slug %}"
+                    class="btn btn-primary w-100"
+                >
+                    View
+                </a>
+
+            </div>
+
+        </div>
+
+    </div>
+
+</div>
 
         {% endfor %}
 
