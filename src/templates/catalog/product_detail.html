@@ -219,26 +219,56 @@
         {% endfor %}
     </div>
 
-    <hr>
+        <hr>
 
-    <h4>Variants</h4>
+        <h4>Variants</h4>
 
-    <ul>
-        {% for variant in product.variants.all %}
-            <li>
-                {{ variant.name }}
-                {% if variant.color %}
-                    ({{ variant.color }})
-                {% endif %}
-            </li>
-        {% empty %}
-            <li class="text-muted">
+        {% if variants %}
+
+            <div class="d-flex gap-3 flex-wrap">
+
+                {% for variant in variants %}
+
+                    <a
+                        href="{% url 'catalog:product_detail' variant.slug %}"
+                        class="text-decoration-none text-dark"
+                    >
+                        <div class="card {% if variant.id == product.id %}border-primary{% endif %}" style="width: 120px;">
+
+                            {% with image=variant.images.first %}
+                                {% if image %}
+                                    <img
+                                        src="{{ image.image.url }}"
+                                        class="card-img-top"
+                                        alt="{{ variant.name }}"
+                                        style="height: 90px; object-fit: cover;"
+                                    >
+                                {% endif %}
+                            {% endwith %}
+
+                            <div class="card-body p-2 text-center">
+                                <small>
+                                    {{ variant.name }}
+                                </small>
+                            </div>
+
+                        </div>
+                    </a>
+
+                {% endfor %}
+
+            </div>
+
+        {% else %}
+
+            <p class="text-muted">
                 No variants available.
-            </li>
-        {% endfor %}
-    </ul>
+            </p>
 
-</div>
+        {% endif %}
+    </div>
+
+
 
 {{ currency_rates|json_script:"currency-rates" }}
 

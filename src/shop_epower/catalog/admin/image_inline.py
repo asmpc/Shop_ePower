@@ -12,7 +12,6 @@ class ProductImageInline(admin.TabularInline):
         'alt_text',
         'is_primary',
         'sort_order',
-        'variant',
     )
 
     ordering = (

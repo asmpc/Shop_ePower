@@ -68,6 +68,17 @@ class ProductDetailView(DetailView):
 
         prepare_product_for_user(product, user)
 
+        variant_groups = self.object.variant_groups.filter(is_active=True)
+
+        variants = []
+
+        for group in variant_groups:
+            for product in group.products.exclude(id=self.object.id):
+                variants.append(product)
+
+        context["variants"] = variants
+
+
         from shop_epower.core.currency import get_base_currency
 
         currency_rates = {
@@ -91,6 +102,8 @@ class ProductDetailView(DetailView):
             context["supplier_inventory_details"] = get_supplier_inventory_details(product)
 
         return context
+
+
 
     def get_queryset(self):
         return get_product_detail_queryset()
