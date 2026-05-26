@@ -22,75 +22,57 @@
             <ul class="navbar-nav me-auto">
 
                 <li class="nav-item">
-
                     <a class="nav-link text-light fs-5"
                        href="{% url 'catalog:product_list' %}">
                         Каталог
                     </a>
-
                 </li>
 
             </ul>
 
             <ul class="navbar-nav ms-auto">
 
-
                 <li class="nav-item">
-    <a class="nav-link" href="{% url 'cart-detail' %}">
-        🛒 {{ navbar_cart_total_quantity }} | {{ navbar_cart_total_price }} BYN
-    </a>
-</li>
+                    <a class="nav-link" href="{% url 'cart-detail' %}">
+                        🛒 {{ navbar_cart_total_quantity }} | {{ navbar_cart_total_price }} BYN
+                    </a>
+                </li>
 
                 {% if request.user.is_authenticated %}
 
                     <li class="nav-item">
-
                         <a class="nav-link"
-                           href="{% url 'profile' %}">
-
+                           href="{% url 'accounts:profile_edit' %}">
                             {{ request.user.username }}
-
                         </a>
-
                     </li>
 
                     <li class="nav-item">
-
-                        <form action="{% url 'logout-template' %}"
+                        <form action="{% url 'accounts:logout' %}"
                               method="post"
                               class="d-flex">
-
                             {% csrf_token %}
-
                             <button type="submit"
                                     class="btn btn-link nav-link border-0">
-
                                 Выход
-
                             </button>
-
                         </form>
-
                     </li>
 
                 {% else %}
 
                     <li class="nav-item">
-
                         <a class="nav-link"
-   href="{% url 'login-template' %}?next={{ request.get_full_path }}">
-    Вход
-</a>
-
+                           href="{% url 'accounts:login' %}?next={{ request.get_full_path }}">
+                            Вход
+                        </a>
                     </li>
 
                     <li class="nav-item">
-
                         <a class="nav-link"
-                           href="{% url 'register-template' %}">
+                           href="{% url 'accounts:register' %}">
                             Регистрация
                         </a>
-
                     </li>
 
                 {% endif %}
