@@ -29,7 +29,8 @@ class TestsFrontendAuth(TestCase):
     def test_login_page_open(self):
 
         response = self.client.get(
-            reverse('login-template')
+            reverse('accounts:login'),
+
         )
 
         self.assertEqual(
@@ -42,7 +43,7 @@ class TestsFrontendAuth(TestCase):
     def test_register_page_open(self):
 
         response = self.client.get(
-            reverse('register-template')
+            reverse('accounts:register'),
         )
 
         self.assertEqual(
@@ -55,7 +56,7 @@ class TestsFrontendAuth(TestCase):
     def test_user_can_login(self):
 
         response = self.client.post(
-            reverse('login-template'),
+            reverse('accounts:login'),
             {
                 'username': 'test@test.com',
                 'password': 'strongpassword123',
@@ -77,7 +78,7 @@ class TestsFrontendAuth(TestCase):
         )
 
         response = self.client.post(
-            reverse('logout-template'),
+            reverse('accounts:logout'),
             follow=True
         )
 
@@ -90,7 +91,7 @@ class TestsFrontendAuth(TestCase):
     def test_profile_requires_auth(self):
 
         response = self.client.get(
-            reverse('profile')
+            reverse('accounts:profile')
         )
 
         self.assertEqual(
@@ -99,7 +100,7 @@ class TestsFrontendAuth(TestCase):
         )
 
         self.assertIn(
-            reverse("login-template"),
+            reverse('accounts:login'),
             response.url
         )
 
@@ -112,7 +113,7 @@ class TestsFrontendAuth(TestCase):
         )
 
         response = self.client.get(
-            reverse('profile')
+            reverse('accounts:profile')
         )
 
         self.assertEqual(
@@ -130,7 +131,7 @@ class TestsFrontendAuth(TestCase):
         token = default_token_generator.make_token(user)
 
         reset_url = reverse(
-            'password_reset_confirm',
+            'accounts:password_reset_confirm',
             kwargs={
                 'uidb64': uid,
                 'token': token

@@ -218,3 +218,5 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 
 # Shop settings
 SHOP_BASE_CURRENCY = env("SHOP_BASE_CURRENCY", default="BYN")
+
+LOGIN_URL = 'accounts:login'
