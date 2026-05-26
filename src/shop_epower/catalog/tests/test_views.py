@@ -1,7 +1,8 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.models import Brand, Category, Product, ProductVariantGroup
+
 
 
 class TestCatalogView(TestCase):
@@ -60,16 +61,33 @@ class TestCatalogView(TestCase):
 
         self.assertEqual(response.status_code, 200)
 
-    # Проверяем, что у продукта можно создать вариант (variant),
-    # и что он корректно связан с родительским продуктом.
-    # Это тест на целостность связи Product → Variant.
-    def test_variant_creation(self):
-
-        product = self.product
-
-        variant = product.variants.create(
-            name="White",
-            color="white"
+    # Проверяем, что detail page товара показывает связанные товары-варианты
+    # через ProductVariantGroup, но не показывает текущий товар как вариант самого себя.
+    def test_product_detail_shows_variant_products(self):
+        product2 = Product.objects.create(
+            name="Variant Product Black",
+            slug="variant-product-black",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="VAR-BL-001",
+            base_price=100,
         )
 
-        self.assertEqual(variant.product, product)
+        group = ProductVariantGroup.objects.create(
+            name="Variant Product Colors",
+            variant_type="color",
+        )
+
+        group.products.set([self.product, product2])
+
+        response = self.client.get(
+            reverse(
+                "catalog:product_detail",
+                kwargs={"slug": self.product.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        self.assertContains(response, "Variant Product Black")
+        self.assertContains(response, product2.name)

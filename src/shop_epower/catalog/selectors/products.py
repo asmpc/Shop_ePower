@@ -73,8 +73,9 @@ def get_product_detail_queryset():
         "brand",
         "category",
     ).prefetch_related(
-        "variants",
         "images",
-        "variants__images",
+        "variant_groups",
+        "variant_groups__products",
+        "variant_groups__products__images",
     )
 

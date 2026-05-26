@@ -15,15 +15,6 @@ class ProductImage(BaseModel):
         verbose_name=_('Product')
     )
 
-    variant = models.ForeignKey(
-        'catalog.ProductVariant',
-        on_delete=models.CASCADE,
-        related_name='images',
-        null=True,
-        blank=True,
-        verbose_name=_('Variant')
-    )
-
     image = models.ImageField(
         upload_to='products/',
         verbose_name=_('Image')
@@ -54,11 +45,8 @@ class ProductImage(BaseModel):
 
         indexes = [
             models.Index(fields=['product']),
-            models.Index(fields=['variant']),
             models.Index(fields=['is_primary']),
         ]
 
     def __str__(self):
-
-        target = self.variant or self.product
-        return f"Image for {target}"
+        return f"Image for {self.product}"
