@@ -75,4 +75,23 @@
     {% endfor %}
 </ul>
 
+
+{% if cart_items %}
+    <hr>
+
+    <h3>Checkout</h3>
+
+    <p class="text-muted">
+        Pickup from office. Delivery options will be added later.
+    </p>
+
+    <form method="post" action="{% url 'orders:checkout' %}">
+        {% csrf_token %}
+
+        <button type="submit" class="btn btn-primary">
+            Place Order
+        </button>
+    </form>
+{% endif %}
+
 {% endblock %}

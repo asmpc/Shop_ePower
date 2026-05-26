@@ -1,6 +1,6 @@
 from django.apps import AppConfig
 
 
-class CatalogConfig(AppConfig):
+class OrdersConfig(AppConfig):
     default_auto_field = "django.db.models.BigAutoField"
-    name = 'shop_epower.catalog'
+    name = "shop_epower.orders"
