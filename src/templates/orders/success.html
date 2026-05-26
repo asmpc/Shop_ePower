@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1>Order created</h1>
+
+<p>Your order #{{ order_id }} has been created successfully.</p>
+
+<a href="{% url 'orders:list' %}" class="btn btn-primary">
+    My orders
+</a>
+
+<a href="{% url 'cart-detail' %}" class="btn btn-secondary">
+    Back to cart
+</a>
+
+{% endblock %}
