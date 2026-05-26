@@ -447,3 +447,116 @@ class TestProductListAPI(APITestCase):
         self.assertEqual(response.status_code, status.HTTP_200_OK)
         self.assertNotIn("supplier_inventory_details", response.data)
         self.assertNotIn("cost_summary", response.data)
+
+    def test_product_detail_returns_variants(self):
+        from shop_epower.catalog.models import ProductVariantGroup
+
+        # создаём 2 товара
+        product1 = Product.objects.create(
+            name="Variant Test White",
+            slug="variant-test-white",
+            base_price=100,
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="VAR-001-WH",
+        )
+
+        product2 = Product.objects.create(
+            name="Variant Test Black",
+            slug="variant-test-black",
+            base_price=100,
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="VAR-001-BL",
+        )
+
+        # создаём группу вариантов
+        group = ProductVariantGroup.objects.create(
+            name="Variant Test Group",
+            variant_type="color",
+        )
+
+        group.products.set([product1, product2])
+
+        response = self.client.get(
+            reverse(
+                "api-product-detail",
+                kwargs={"slug": product1.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn("variants", response.data)
+        self.assertEqual(len(response.data["variants"]), 1)
+
+        variant = response.data["variants"][0]
+
+        self.assertEqual(variant["slug"], product2.slug)
+        self.assertEqual(variant["variant_type"], "color")
+
+    def test_product_detail_returns_variants(self):
+        from shop_epower.catalog.models import ProductVariantGroup
+
+        brand = Brand.objects.create(
+            name="Variant brand",
+            slug="variant-brand",
+        )
+
+        category = Category.objects.create(
+            name="Variant category",
+            slug="variant-category",
+        )
+
+        product1 = Product.objects.create(
+            name="Variant Test White",
+            slug="variant-test-white",
+            base_price=100,
+            brand=brand,
+            category=category,
+            manufacturer_article="VAR-001-WH",
+        )
+
+        product2 = Product.objects.create(
+            name="Variant Test Black",
+            slug="variant-test-black",
+            base_price=100,
+            brand=brand,
+            category=category,
+            manufacturer_article="VAR-001-BL",
+        )
+
+        group = ProductVariantGroup.objects.create(
+            name="Variant Test Group",
+            variant_type="color",
+        )
+
+        group.products.set([product1, product2])
+
+        response = self.client.get(
+            reverse(
+                "api-product-detail",
+                kwargs={"slug": product1.slug},
+            )
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_200_OK)
+
+        self.assertIn("variants", response.data)
+
+        self.assertEqual(
+            len(response.data["variants"]),
+            1,
+        )
+
+        variant = response.data["variants"][0]
+
+        self.assertEqual(
+            variant["slug"],
+            product2.slug,
+        )
+
+        self.assertEqual(
+            variant["variant_type"],
+            "color",
+        )
