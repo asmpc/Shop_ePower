@@ -1,7 +1,6 @@
 from django.contrib import admin
 
 from shop_epower.catalog.models import Product
-from .variant_inline import ProductVariantInline
 from .image_inline import ProductImageInline
 from shop_epower.suppliers.services.pricing import recalc_product_base_price
 
@@ -70,7 +69,6 @@ class ProductAdmin(admin.ModelAdmin):
     )
 
     inlines = [
-        ProductVariantInline,
         ProductImageInline,
     ]
 
