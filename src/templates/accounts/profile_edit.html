@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2>Профиль пользователя</h2>
+
+    <form method="post">
+        {% csrf_token %}
+
+        {% if user_form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ user_form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        {% if legal_profile_form.non_field_errors %}
+            <div class="alert alert-danger">
+                {{ legal_profile_form.non_field_errors }}
+            </div>
+        {% endif %}
+
+        <div class="card mb-4 p-3">
+            <h4>Основная информация</h4>
+
+            <div class="mb-2">
+                <label for="{{ user_form.username.id_for_label }}">Username</label>
+                {{ user_form.username }}
+                {% for error in user_form.username.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+
+            <div class="mb-2">
+                <label for="{{ user_form.first_name.id_for_label }}">First name</label>
+                {{ user_form.first_name }}
+                {% for error in user_form.first_name.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-2">
+                <label for="{{ user_form.last_name.id_for_label }}">Last name</label>
+                {{ user_form.last_name }}
+                {% for error in user_form.last_name.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+
+            <div class="mb-2">
+                <label for="{{ user_form.email.id_for_label }}">Email</label>
+                {{ user_form.email }}
+                {% for error in user_form.email.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+
+            <div class="mb-2">
+                <label for="{{ user_form.phone.id_for_label }}">Phone</label>
+                {{ user_form.phone }}
+                {% for error in user_form.phone.errors %}
+                    <div class="text-danger">{{ error }}</div>
+                {% endfor %}
+            </div>
+        </div>
+
+        <div class="card mb-4 p-3">
+            <h4>Юридическое лицо</h4>
+
+            <div class="form-check mb-3">
+                {{ legal_profile_form.is_legal_entity }}
+                <label
+                    class="form-check-label"
+                    for="{{ legal_profile_form.is_legal_entity.id_for_label }}"
+                >
+                    Я представляю юрлицо / ИП
+                </label>
+            </div>
+
+            <div id="legal-fields">
+
+                <div class="mb-2">
+                    <label for="{{ legal_profile_form.company_name.id_for_label }}">
+                        Название организации / ИП
+                    </label>
+                    {{ legal_profile_form.company_name }}
+                    {% for error in legal_profile_form.company_name.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-2">
+                    <label for="{{ legal_profile_form.tax_id.id_for_label }}">
+                        УНП / ИНН
+                    </label>
+                    {{ legal_profile_form.tax_id }}
+                    {% for error in legal_profile_form.tax_id.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-2">
+                    <label for="{{ legal_profile_form.legal_address.id_for_label }}">
+                        Юридический адрес
+                    </label>
+                    {{ legal_profile_form.legal_address }}
+                    {% for error in legal_profile_form.legal_address.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-2">
+                    <label for="{{ legal_profile_form.bank_name.id_for_label }}">
+                        Банк
+                    </label>
+                    {{ legal_profile_form.bank_name }}
+                    {% for error in legal_profile_form.bank_name.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+                <div class="mb-2">
+                    <label for="{{ legal_profile_form.bank_account.id_for_label }}">
+                        Расчётный счёт
+                    </label>
+                    {{ legal_profile_form.bank_account }}
+                    {% for error in legal_profile_form.bank_account.errors %}
+                        <div class="text-danger">{{ error }}</div>
+                    {% endfor %}
+                </div>
+
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Сохранить
+        </button>
+
+    </form>
+
+</div>
+
+<script>
+    const checkbox = document.querySelector('#id_is_legal_entity');
+    const legalFields = document.getElementById('legal-fields');
+
+    function toggleLegalFields() {
+        if (checkbox.checked) {
+            legalFields.style.display = 'block';
+        } else {
+            legalFields.style.display = 'none';
+        }
+    }
+
+    checkbox.addEventListener('change', toggleLegalFields);
+    toggleLegalFields();
+</script>
+
+{% endblock %}

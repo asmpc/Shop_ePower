@@ -17,7 +17,9 @@ from drf_spectacular.utils import extend_schema
 from .serializers import (
     RegisterSerializer,
     LogoutSerializer,
+    UserProfileSerializer,
 )
+from shop_epower.accounts.models import LegalProfile
 
 
 @extend_schema(
@@ -62,3 +64,19 @@ class LogoutAPIView(APIView):
         serializer.save()
 
         return Response(status=status.HTTP_205_RESET_CONTENT)
+
+@extend_schema(
+    tags=["Accounts"],
+    summary="User profile",
+    description="Get or update current user profile",
+)
+class UserProfileAPIView(generics.RetrieveUpdateAPIView):
+    serializer_class = UserProfileSerializer
+    permission_classes = [IsAuthenticated]
+
+    def get_object(self):
+        LegalProfile.objects.get_or_create(
+            user=self.request.user
+        )
+
+        return self.request.user
