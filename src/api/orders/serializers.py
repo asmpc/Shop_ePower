@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from shop_epower.orders.models import Order, OrderItem
+from shop_epower.orders.models import Order, OrderItem, OrderStatus
 
 
 class CheckoutSerializer(serializers.Serializer):
@@ -53,3 +53,8 @@ class OrderDetailSerializer(serializers.ModelSerializer):
             "created_at",
             "items",
         )
+
+class OrderStatusUpdateSerializer(serializers.Serializer):
+    status = serializers.ChoiceField(
+        choices=OrderStatus.choices,
+    )

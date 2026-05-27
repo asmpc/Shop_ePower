@@ -164,3 +164,40 @@ def cancel_new_order(*, order, user):
     order.save(update_fields=["status"])
 
     return order
+
+def update_order_status_by_manager(*, order, user, new_status):
+    if user.role not in ("manager", "admin"):
+        raise ValidationError("Only managers and admins can update order status.")
+
+    allowed_transitions = {
+        OrderStatus.NEW: [
+            OrderStatus.PROCESSING,
+            OrderStatus.CANCELLED,
+        ],
+        OrderStatus.PROCESSING: [
+            OrderStatus.COMPLETED,
+            OrderStatus.CANCELLED,
+        ],
+    }
+
+    allowed_next_statuses = allowed_transitions.get(
+        order.status,
+        [],
+    )
+
+    if new_status not in allowed_next_statuses:
+        raise ValidationError("Invalid order status transition.")
+
+    if new_status == OrderStatus.CANCELLED:
+        for item in order.items.all():
+            for reservation in item.stock_reservations.all():
+                supplier_product = reservation.supplier_product
+                supplier_product.stock_quantity += reservation.quantity
+                supplier_product.save(
+                    update_fields=["stock_quantity"]
+                )
+
+    order.status = new_status
+    order.save(update_fields=["status"])
+
+    return order
