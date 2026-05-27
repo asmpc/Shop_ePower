@@ -6,7 +6,7 @@ from shop_epower.accounts.models import User, PriceCategory
 from shop_epower.catalog.models import Brand, Category
 
 #Цена товара зависит от пользователя и его price_category, иначе — base_price
-class TestPricing(TestCase):
+class TestsPricing(TestCase):
 
     # Подготавливаем данные для тестов pricing:
     # - создаём категорию цен с процентной скидкой

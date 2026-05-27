@@ -19,7 +19,7 @@ from django.contrib.sessions.backends.db import SessionStore
 from django.contrib.auth import get_user_model
 
 
-class TestCartServices(TestCase):
+class TestsCartServices(TestCase):
 
     def setUp(self):
 

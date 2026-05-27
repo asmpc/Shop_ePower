@@ -5,7 +5,7 @@ from shop_epower.catalog.models import Brand, Category, Product, ProductVariantG
 
 
 
-class TestCatalogView(TestCase):
+class TestsCatalogView(TestCase):
 
     # Подготавливаем минимальные данные для каталога:
     # бренд, категория и один продукт.

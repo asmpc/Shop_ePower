@@ -11,7 +11,7 @@ from shop_epower.catalog.selectors.products import (
 )
 
 
-class TestProductSelectors(TestCase):
+class TestsProductSelectors(TestCase):
 
     # Проверяем, что фильтрация товаров по родительской категории
     # также включает товары из дочерних категорий.

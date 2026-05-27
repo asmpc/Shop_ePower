@@ -4,7 +4,7 @@ from shop_epower.catalog.models import Brand, Category, Product, ProductVariantG
 
 
 
-class TestProductModel(TestCase):
+class TestsProductModel(TestCase):
 
     # Создаём общие Brand и Category, которые нужны всем тестам Product.
     def setUp(self):

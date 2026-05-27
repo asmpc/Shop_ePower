@@ -8,7 +8,7 @@ from shop_epower.suppliers.models import Supplier, SupplierProduct
 
 
 #роль пользователя управляет тем, какие данные попадают в context
-class ProductDetailVisibilityTestCase(TestCase):
+class TestsProductDetailVisibility(TestCase):
 
     # Подготавливаем базовые данные для тестов:
     # - продукт

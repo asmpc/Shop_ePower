@@ -57,7 +57,7 @@ class TestsRoleModel(TestCase):
         )
 
 
-class PriceCategoryTests(TestCase):
+class TestsPriceCategory(TestCase):
 
     # Подготавливаем тестовую категорию цен (скидку),
     # которая будет использоваться в тестах.

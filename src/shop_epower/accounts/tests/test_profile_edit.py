@@ -8,7 +8,7 @@ from shop_epower.accounts.models import LegalProfile
 User = get_user_model()
 
 
-class ProfileEditViewTests(TestCase):
+class TestsProfileEditView(TestCase):
 
     def setUp(self):
         self.user = User.objects.create_user(
