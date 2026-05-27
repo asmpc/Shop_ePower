@@ -74,11 +74,23 @@ class ManagerOrderStatusUpdateView(
 
         new_status = request.POST.get("status")
 
+        cancellation_reason = request.POST.get(
+            "cancellation_reason",
+            "",
+        )
+
+        cancellation_comment = request.POST.get(
+            "cancellation_comment",
+            "",
+        )
+
         try:
             update_order_status_by_manager(
                 order=order,
                 user=request.user,
                 new_status=new_status,
+                cancellation_reason=cancellation_reason,
+                cancellation_comment=cancellation_comment,
             )
 
             messages.success(

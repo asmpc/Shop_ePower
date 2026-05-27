@@ -10,6 +10,14 @@ class OrderStatus(models.TextChoices):
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
 
+class OrderCancellationReason(models.TextChoices):
+    CLIENT_REFUSED = "client_refused", "Client refused"
+
+    SUPPLIER_UNAVAILABLE = "supplier_unavailable", "Supplier unavailable"
+
+    DELIVERY_COST = "delivery_cost", "Delivery cost"
+
+    OTHER = "other", "Other"
 
 class Order(models.Model):
     user = models.ForeignKey(
@@ -22,6 +30,16 @@ class Order(models.Model):
         max_length=20,
         choices=OrderStatus.choices,
         default=OrderStatus.NEW,
+    )
+
+    cancellation_reason = models.CharField(
+        max_length=50,
+        choices=OrderCancellationReason.choices,
+        blank=True,
+    )
+
+    cancellation_comment = models.TextField(
+        blank=True,
     )
 
     is_legal_entity = models.BooleanField(

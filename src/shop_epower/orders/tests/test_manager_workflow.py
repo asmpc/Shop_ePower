@@ -246,6 +246,8 @@ class TestsManagerOrderWorkflow(TestCase):
             order=order,
             user=manager,
             new_status=OrderStatus.CANCELLED,
+            cancellation_reason="supplier_unavailable",
+            cancellation_comment="Supplier did not ship the order.",
         )
 
         supplier_product.refresh_from_db()
@@ -253,3 +255,12 @@ class TestsManagerOrderWorkflow(TestCase):
 
         self.assertEqual(updated_order.status, OrderStatus.CANCELLED)
         self.assertEqual(supplier_product.stock_quantity, 10)
+        self.assertEqual(
+            updated_order.cancellation_reason,
+            "supplier_unavailable",
+        )
+
+        self.assertEqual(
+            updated_order.cancellation_comment,
+            "Supplier did not ship the order.",
+        )

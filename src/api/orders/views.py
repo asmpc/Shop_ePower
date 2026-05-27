@@ -197,6 +197,14 @@ class ManagerOrderStatusUpdateAPIView(APIView):
                 order=order,
                 user=request.user,
                 new_status=serializer.validated_data["status"],
+                cancellation_reason=serializer.validated_data.get(
+                    "cancellation_reason",
+                    "",
+                ),
+                cancellation_comment=serializer.validated_data.get(
+                    "cancellation_comment",
+                    "",
+                ),
             )
         except ValidationError as error:
             return Response(
