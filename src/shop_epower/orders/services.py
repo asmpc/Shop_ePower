@@ -3,7 +3,12 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
-from shop_epower.orders.models import Order, OrderItem
+from .models import (
+    Order,
+    OrderItem,
+    OrderStatus,
+    OrderStockReservation,
+)
 from shop_epower.suppliers.models import SupplierProduct
 
 
@@ -23,11 +28,6 @@ def create_order_from_cart(*, user, cart):
     if not cart_items:
         raise ValidationError("Cart is empty.")
 
-    for cart_item in cart_items:
-        reserve_stock_for_order_item(
-            product=cart_item.product,
-            quantity=cart_item.quantity,
-        )
 
     legal_profile = getattr(user, "legal_profile", None)
 
@@ -54,8 +54,14 @@ def create_order_from_cart(*, user, cart):
         total_price=total_price or Decimal("0.00"),
     )
 
-    order_items = [
-        OrderItem(
+    for cart_item in cart_items:
+
+        reservations = reserve_stock_for_order_item(
+            product=cart_item.product,
+            quantity=cart_item.quantity,
+        )
+
+        order_item = OrderItem.objects.create(
             order=order,
             product=cart_item.product,
             product_name=cart_item.product.name,
@@ -63,10 +69,14 @@ def create_order_from_cart(*, user, cart):
             quantity=cart_item.quantity,
             total_price=cart_item.total_price,
         )
-        for cart_item in cart_items
-    ]
 
-    OrderItem.objects.bulk_create(order_items)
+        for reservation in reservations:
+            OrderStockReservation.objects.create(
+                order_item=order_item,
+                supplier_product=reservation["supplier_product"],
+                quantity=reservation["quantity"],
+            )
+
 
     cart.is_active = False
     cart.save(update_fields=["is_active"])
@@ -102,6 +112,8 @@ def reserve_stock_for_order_item(*, product, quantity):
 
     remaining_quantity = quantity
 
+    reservations = []
+
     for supplier_product in supplier_products:
         if remaining_quantity <= 0:
             break
@@ -112,8 +124,43 @@ def reserve_stock_for_order_item(*, product, quantity):
         )
 
         supplier_product.stock_quantity -= quantity_to_reserve
+
         supplier_product.save(
             update_fields=["stock_quantity"]
         )
 
+        reservations.append({
+            "supplier_product": supplier_product,
+            "quantity": quantity_to_reserve,
+        })
+
         remaining_quantity -= quantity_to_reserve
+
+    return reservations
+
+@transaction.atomic
+def cancel_new_order(*, order, user):
+    if order.user_id != user.id:
+        raise ValidationError("Order does not belong to user.")
+
+    if order.status != OrderStatus.NEW:
+        raise ValidationError("Only new orders can be cancelled.")
+
+    reservations = (
+        OrderStockReservation.objects
+        .select_related("supplier_product")
+        .select_for_update()
+        .filter(order_item__order=order)
+    )
+
+    for reservation in reservations:
+        supplier_product = reservation.supplier_product
+        supplier_product.stock_quantity += reservation.quantity
+        supplier_product.save(
+            update_fields=["stock_quantity"]
+        )
+
+    order.status = OrderStatus.CANCELLED
+    order.save(update_fields=["status"])
+
+    return order

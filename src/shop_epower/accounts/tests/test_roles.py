@@ -8,7 +8,7 @@ from shop_epower.accounts.services.roles import (
 )
 
 
-class RoleServiceTestCase(TestCase):
+class TestsRoleService(TestCase):
 
     # Проверяем поведение для неавторизованного пользователя:
     # - считается клиентом (базовый доступ)

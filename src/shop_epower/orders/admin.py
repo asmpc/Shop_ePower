@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Order, OrderItem
+from .models import Order, OrderItem, OrderStockReservation
 
 
 class OrderItemInline(admin.TabularInline):
@@ -11,6 +11,15 @@ class OrderItemInline(admin.TabularInline):
         "unit_price",
         "quantity",
         "total_price",
+    )
+
+class OrderStockReservationInline(admin.TabularInline):
+    model = OrderStockReservation
+    extra = 0
+    readonly_fields = (
+        "supplier_product",
+        "quantity",
+        "created_at",
     )
 
 
@@ -62,3 +71,8 @@ class OrderItemAdmin(admin.ModelAdmin):
     search_fields = (
         "product_name",
     )
+
+    inlines = (
+        OrderStockReservationInline,
+    )
+
