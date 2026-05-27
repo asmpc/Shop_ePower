@@ -7,16 +7,18 @@ from shop_epower.accounts.models import LegalProfile
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
-from shop_epower.orders.services import create_order_from_cart
 from shop_epower.suppliers.models import Supplier, SupplierProduct
 from django.core.exceptions import ValidationError
-
+from shop_epower.orders.services import (
+    create_order_from_cart,
+    cancel_new_order,
+)
 
 
 User = get_user_model()
 
 
-class OrderModelTests(TestCase):
+class TestsOrderModel(TestCase):
 
     # Проверяем, что заказ физлица может быть создан
     # без реквизитов юридического лица.
@@ -417,3 +419,78 @@ class OrderModelTests(TestCase):
 
         self.assertEqual(own_supplier_product.stock_quantity, 0)
         self.assertEqual(external_supplier_product.stock_quantity, 3)
+
+    # Проверяем отмену нового заказа:
+    # если заказ находится в статусе NEW, клиент может его отменить,
+    # статус меняется на CANCELLED, а зарезервированный stock
+    # возвращается обратно поставщику.
+    def test_cancel_new_order_returns_reserved_stock(self):
+        user = User.objects.create_user(
+            email="cancel@example.com",
+            username="cancel",
+            password="testpass123",
+            phone="+10000000008",
+        )
+
+        brand = Brand.objects.create(
+            name="Cancel Brand",
+        )
+
+        category = Category.objects.create(
+            name="Cancel Category",
+        )
+
+        product = Product.objects.create(
+            name="Cancel Product",
+            brand=brand,
+            category=category,
+            manufacturer_article="CANCEL-001",
+            base_price=Decimal("40.00"),
+        )
+
+        supplier = Supplier.objects.create(
+            name="Cancel Supplier",
+            is_own=True,
+            is_active=True,
+        )
+
+        supplier_product = SupplierProduct.objects.create(
+            supplier=supplier,
+            product=product,
+            supplier_article="CANCEL-SUP-001",
+            stock_quantity=10,
+            lead_time_days=0,
+            is_active=True,
+        )
+
+        cart = Cart.objects.create(
+            user=user,
+        )
+
+        CartItem.objects.create(
+            cart=cart,
+            product=product,
+            quantity=3,
+            price_snapshot=Decimal("40.00"),
+        )
+
+        order = create_order_from_cart(
+            user=user,
+            cart=cart,
+        )
+
+        supplier_product.refresh_from_db()
+
+        self.assertEqual(supplier_product.stock_quantity, 7)
+        self.assertEqual(order.status, OrderStatus.NEW)
+
+        cancelled_order = cancel_new_order(
+            order=order,
+            user=user,
+        )
+
+        supplier_product.refresh_from_db()
+        cancelled_order.refresh_from_db()
+
+        self.assertEqual(cancelled_order.status, OrderStatus.CANCELLED)
+        self.assertEqual(supplier_product.stock_quantity, 10)
