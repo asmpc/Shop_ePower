@@ -1,0 +1,197 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">
+    Order #{{ order.id }}
+</h1>
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h4>
+            Customer Information
+        </h4>
+
+        <p>
+            <strong>Name:</strong>
+            {{ order.customer_name }}
+        </p>
+
+        <p>
+            <strong>Email:</strong>
+            {{ order.customer_email }}
+        </p>
+
+        <p>
+            <strong>Phone:</strong>
+            {{ order.customer_phone }}
+        </p>
+
+        <p>
+            <strong>Status:</strong>
+            {{ order.status }}
+        </p>
+
+        {% if order.status == "new" %}
+
+            <form method="post"
+                  action="{% url 'orders:manager_order_status_update' order.id %}"
+                  class="mb-3">
+
+                {% csrf_token %}
+
+                <input type="hidden"
+                       name="status"
+                       value="processing">
+
+                <button type="submit"
+                        class="btn btn-warning">
+                    Move to processing
+                </button>
+
+            </form>
+
+            {% elif order.status == "processing" %}
+
+            <form method="post"
+                  action="{% url 'orders:manager_order_status_update' order.id %}"
+                  class="mb-3">
+
+                {% csrf_token %}
+
+                <input type="hidden"
+                       name="status"
+                       value="completed">
+
+                <button type="submit"
+                        class="btn btn-success">
+                    Complete order
+                </button>
+
+            </form>
+
+            <form method="post"
+                  action="{% url 'orders:manager_order_status_update' order.id %}"
+                  class="mb-3">
+
+                {% csrf_token %}
+
+                <input type="hidden"
+                       name="status"
+                       value="cancelled">
+
+                <button type="submit"
+                        class="btn btn-danger">
+                    Cancel order
+                </button>
+
+            </form>
+
+            {% endif %}
+
+        <p>
+            <strong>Total:</strong>
+            ${{ order.total_price }}
+        </p>
+
+    </div>
+
+</div>
+
+{% if order.is_legal_entity %}
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h4>
+            Legal Entity Information
+        </h4>
+
+        <p>
+            <strong>Company:</strong>
+            {{ order.company_name }}
+        </p>
+
+        <p>
+            <strong>Tax ID:</strong>
+            {{ order.tax_id }}
+        </p>
+
+        <p>
+            <strong>Legal Address:</strong>
+            {{ order.legal_address }}
+        </p>
+
+        <p>
+            <strong>Bank:</strong>
+            {{ order.bank_name }}
+        </p>
+
+        <p>
+            <strong>Bank Account:</strong>
+            {{ order.bank_account }}
+        </p>
+
+    </div>
+
+</div>
+
+{% endif %}
+
+<div class="card mb-4">
+
+    <div class="card-body">
+
+        <h4 class="mb-3">
+            Order Items
+        </h4>
+
+        <table class="table table-bordered">
+
+            <thead>
+                <tr>
+                    <th>Product</th>
+                    <th>Price</th>
+                    <th>Quantity</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+
+            <tbody>
+
+                {% for item in order.items.all %}
+
+                <tr>
+
+                    <td>
+                        {{ item.product_name }}
+                    </td>
+
+                    <td>
+                        ${{ item.unit_price }}
+                    </td>
+
+                    <td>
+                        {{ item.quantity }}
+                    </td>
+
+                    <td>
+                        ${{ item.total_price }}
+                    </td>
+
+                </tr>
+
+                {% endfor %}
+
+            </tbody>
+
+        </table>
+
+    </div>
+
+</div>
+
+{% endblock %}

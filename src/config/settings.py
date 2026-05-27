@@ -52,8 +52,7 @@ INSTALLED_APPS = [
     'shop_epower.catalog',
     'shop_epower.suppliers',
     'shop_epower.cart',
-
-
+    'shop_epower.orders',
 
 ]
 
