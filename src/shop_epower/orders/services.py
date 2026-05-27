@@ -165,7 +165,14 @@ def cancel_new_order(*, order, user):
 
     return order
 
-def update_order_status_by_manager(*, order, user, new_status):
+def update_order_status_by_manager(
+    *,
+    order,
+    user,
+    new_status,
+    cancellation_reason="",
+    cancellation_comment="",
+):
     if user.role not in ("manager", "admin"):
         raise ValidationError("Only managers and admins can update order status.")
 
@@ -197,7 +204,21 @@ def update_order_status_by_manager(*, order, user, new_status):
                     update_fields=["stock_quantity"]
                 )
 
+        order.cancellation_reason = cancellation_reason
+        order.cancellation_comment = cancellation_comment
+
     order.status = new_status
-    order.save(update_fields=["status"])
+
+    update_fields = ["status"]
+
+    if new_status == OrderStatus.CANCELLED:
+        update_fields.extend([
+            "cancellation_reason",
+            "cancellation_comment",
+        ])
+
+    order.save(
+        update_fields=update_fields,
+    )
 
     return order

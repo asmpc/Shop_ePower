@@ -71,6 +71,8 @@ class TestsManagerOrderViews(TestCase):
             ),
             {
                 "status": OrderStatus.CANCELLED,
+                "cancellation_reason": "client_refused",
+                "cancellation_comment": "Client changed their mind.",
             },
         )
 
@@ -82,3 +84,42 @@ class TestsManagerOrderViews(TestCase):
             self.order.status,
             OrderStatus.CANCELLED,
         )
+        self.assertEqual(
+            self.order.cancellation_reason,
+            "client_refused",
+        )
+
+        self.assertEqual(
+            self.order.cancellation_comment,
+            "Client changed their mind.",
+        )
+
+    # Проверяем отображение cancellation info:
+    # после отмены заказа manager detail page
+    # показывает причину и комментарий отмены.
+    def test_manager_detail_page_shows_cancellation_info(self):
+        self.order.status = OrderStatus.CANCELLED
+        self.order.cancellation_reason = "delivery_cost"
+        self.order.cancellation_comment = "Delivery price was too high."
+        self.order.save(
+            update_fields=[
+                "status",
+                "cancellation_reason",
+                "cancellation_comment",
+            ]
+        )
+
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Delivery cost")
+        self.assertContains(response, "Delivery price was too high.")

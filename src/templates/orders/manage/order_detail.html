@@ -34,6 +34,24 @@
             {{ order.status }}
         </p>
 
+        {% if order.status == "cancelled" %}
+
+            <p>
+                <strong>Cancellation reason:</strong>
+                {{ order.get_cancellation_reason_display }}
+            </p>
+
+            {% if order.cancellation_comment %}
+
+            <p>
+                <strong>Cancellation comment:</strong>
+                {{ order.cancellation_comment }}
+            </p>
+
+            {% endif %}
+
+        {% endif %}
+
         {% if order.status == "new" %}
 
             <form method="post"
@@ -77,6 +95,47 @@
                   class="mb-3">
 
                 {% csrf_token %}
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Cancellation reason
+                    </label>
+
+                    <select name="cancellation_reason"
+                            class="form-select">
+
+                        <option value="client_refused">
+                            Client refused
+                        </option>
+
+                        <option value="supplier_unavailable">
+                            Supplier unavailable
+                        </option>
+
+                        <option value="delivery_cost">
+                            Delivery cost
+                        </option>
+
+                        <option value="other">
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+                <div class="mb-3">
+
+                    <label class="form-label">
+                        Comment
+                    </label>
+
+                    <textarea name="cancellation_comment"
+                              class="form-control"
+                              rows="3"></textarea>
+
+                </div>
 
                 <input type="hidden"
                        name="status"
