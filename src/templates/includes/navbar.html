@@ -34,6 +34,20 @@
                         My orders
                     </a>
                 </li>
+                {% if user.is_authenticated %}
+
+                    {% if user.role == "manager" or user.role == "admin" %}
+
+                    <li class="nav-item">
+                        <a class="nav-link text-warning fs-5"
+                           href="{% url 'orders:manager_order_list' %}">
+                            Manage orders
+                        </a>
+                    </li>
+
+                    {% endif %}
+
+                {% endif %}
 
             </ul>
 
