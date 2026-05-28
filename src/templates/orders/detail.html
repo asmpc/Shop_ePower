@@ -5,7 +5,7 @@
 <h1>Order #{{ order.id }}</h1>
 
 <p>Status: {{ order.get_status_display }}</p>
-<p>Total: {{ order.total_price }} BYN</p>
+<p>Total: {{ order.total_price }} {{ order.currency_snapshot }}</p>
 <p>Created: {{ order.created_at }}</p>
 
 <hr>
@@ -41,7 +41,7 @@
 {% if order.delivery_cost %}
     <p>
         Delivery cost:
-        {{ order.delivery_cost }} BYN
+        {{ order.delivery_cost }} {{ order.currency_snapshot }}
     </p>
 {% endif %}
 
@@ -82,9 +82,15 @@
         {% for item in order.items.all %}
             <tr>
                 <td>{{ item.product_name }}</td>
-                <td>{{ item.unit_price }} BYN</td>
+                <td>
+                    {{ item.unit_price }}
+                    {{ item.currency_snapshot }}
+                </td>
                 <td>{{ item.quantity }}</td>
-                <td>{{ item.total_price }} BYN</td>
+                <td>
+                    {{ item.total_price }}
+                    {{ item.currency_snapshot }}
+                </td>
             </tr>
         {% endfor %}
     </tbody>

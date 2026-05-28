@@ -152,7 +152,8 @@
 
         <p>
             <strong>Total:</strong>
-            ${{ order.total_price }}
+            {{ order.total_price }}
+            {{ order.currency_snapshot }}
         </p>
 
         <hr>
@@ -189,11 +190,20 @@
 
             {% endif %}
 
+        {% if order.manager_delivery_comment %}
+
+            <p>
+                <strong>Manager delivery comment:</strong>
+                {{ order.manager_delivery_comment }}
+            </p>
+
+        {% endif %}
+
             {% if order.delivery_cost %}
 
             <p>
                 <strong>Delivery cost:</strong>
-                {{ order.delivery_cost }}
+                {{ order.delivery_cost }} {{ order.currency_snapshot }}
             </p>
 
             {% endif %}
@@ -206,6 +216,67 @@
             </p>
 
         {% endif %}
+
+        <hr>
+
+        <h4>
+            Update Delivery
+        </h4>
+
+        <form method="post"
+              action="{% url 'orders:manager_order_delivery_update' order.id %}"
+              class="mb-4">
+
+            {% csrf_token %}
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Delivery cost ({{ order.currency_snapshot }})
+                </label>
+
+                <input type="number"
+                       name="delivery_cost"
+                       class="form-control"
+                       step="0.01"
+                       min="0"
+                       value="{{ order.delivery_cost }}">
+
+            </div>
+
+            <div class="form-check mb-3">
+
+                <input type="checkbox"
+                       name="delivery_paid_by_customer_on_receipt"
+                       class="form-check-input"
+                       id="deliveryPaidOnReceipt"
+                       {% if order.delivery_paid_by_customer_on_receipt %}checked{% endif %}>
+
+                <label class="form-check-label"
+                       for="deliveryPaidOnReceipt">
+                    Delivery paid by customer on receipt
+                </label>
+
+            </div>
+
+            <div class="mb-3">
+
+                <label class="form-label">
+                    Manager delivery comment
+                </label>
+
+                <textarea name="manager_delivery_comment"
+                          class="form-control"
+                          rows="3">{{ order.manager_delivery_comment }}</textarea>
+
+            </div>
+
+            <button type="submit"
+                    class="btn btn-primary">
+                Update delivery
+            </button>
+
+        </form>
 
     </div>
 
@@ -282,16 +353,18 @@
                     </td>
 
                     <td>
-                        ${{ item.unit_price }}
+                        {{ item.unit_price }} {{ item.currency_snapshot }}
                     </td>
 
                     <td>
                         {{ item.quantity }}
                     </td>
 
-                    <td>
-                        ${{ item.total_price }}
-                    </td>
+                    <p>
+                        <strong>Delivery cost:</strong>
+                        {{ order.delivery_cost }}
+                        {{ order.currency_snapshot }}
+                    </p>
 
                 </tr>
 

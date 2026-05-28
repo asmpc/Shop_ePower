@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from shop_epower.core.currency import get_base_currency
+
 
 class OrderStatus(models.TextChoices):
     NEW = "new", "New"
@@ -78,6 +80,10 @@ class Order(models.Model):
         blank=True,
     )
 
+    manager_delivery_comment = models.TextField(
+        blank=True,
+    )
+
     delivery_cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -138,6 +144,11 @@ class Order(models.Model):
         default=0,
     )
 
+    currency_snapshot = models.CharField(
+        max_length=10,
+        default=get_base_currency,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -180,6 +191,11 @@ class OrderItem(models.Model):
     total_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+    )
+
+    currency_snapshot = models.CharField(
+        max_length=10,
+        default=get_base_currency,
     )
 
     def __str__(self):
