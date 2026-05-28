@@ -4,7 +4,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import Order, OrderStatus, OrderItem
+from shop_epower.catalog.models import Brand, Category, Product
 
 
 User = get_user_model()
@@ -39,6 +40,32 @@ class TestsManagerOrderViews(TestCase):
             delivery_provider="post",
             delivery_address="Frontend address",
             delivery_comment="Frontend comment",
+        )
+
+        self.brand = Brand.objects.create(
+            name="Frontend Delivery Brand",
+        )
+
+        self.category = Category.objects.create(
+            name="Frontend Delivery Category",
+        )
+
+        self.product = Product.objects.create(
+            name="Frontend Delivery Product",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="FRONTEND-DELIVERY-001",
+            base_price=Decimal("100.00"),
+        )
+
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_name=self.product.name,
+            unit_price=Decimal("100.00"),
+            quantity=1,
+            total_price=Decimal("100.00"),
+            currency_snapshot=self.order.currency_snapshot,
         )
 
     # Проверяем manager detail page:
@@ -147,3 +174,74 @@ class TestsManagerOrderViews(TestCase):
         self.assertContains(response, "Post")
         self.assertContains(response, "Frontend address")
         self.assertContains(response, "Frontend comment")
+
+    # Проверяем manager delivery frontend pricing:
+    # manager может обновить стоимость доставки через форму,
+    # и delivery cost прибавляется к total_price.
+    def test_manager_can_update_delivery_cost_from_frontend(self):
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_order_delivery_update",
+                kwargs={"pk": self.order.pk},
+            ),
+            {
+                "delivery_cost": "25.00",
+                "manager_delivery_comment": "Delivery included.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.delivery_cost,
+            Decimal("25.00"),
+        )
+
+        self.assertEqual(
+            self.order.total_price,
+            Decimal("125.00"),
+        )
+
+    # Проверяем manager delivery frontend pricing:
+    # если manager отмечает оплату доставки при получении,
+    # delivery cost сохраняется, но total_price не меняется.
+    def test_manager_can_mark_delivery_as_paid_on_receipt_from_frontend(self):
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_order_delivery_update",
+                kwargs={"pk": self.order.pk},
+            ),
+            {
+                "delivery_cost": "25.00",
+                "delivery_paid_by_customer_on_receipt": "on",
+                "manager_delivery_comment": "Customer pays on receipt.",
+            },
+        )
+
+        self.assertEqual(response.status_code, 302)
+
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.order.delivery_cost,
+            Decimal("25.00"),
+        )
+
+        self.assertEqual(
+            self.order.total_price,
+            Decimal("100.00"),
+        )
+
+        self.assertTrue(
+            self.order.delivery_paid_by_customer_on_receipt,
+        )

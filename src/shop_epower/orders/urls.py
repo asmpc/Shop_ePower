@@ -11,6 +11,7 @@ from shop_epower.orders.views_manager import (
     ManagerOrderListView,
     ManagerOrderDetailView,
     ManagerOrderStatusUpdateView,
+    ManagerOrderDeliveryUpdateView,
 )
 
 
@@ -37,5 +38,10 @@ urlpatterns = [
         "manage/<int:pk>/status/",
         ManagerOrderStatusUpdateView.as_view(),
         name="manager_order_status_update",
+    ),
+    path(
+        "manage/<int:pk>/delivery/",
+        ManagerOrderDeliveryUpdateView.as_view(),
+        name="manager_order_delivery_update",
     ),
 ]
