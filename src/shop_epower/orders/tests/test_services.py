@@ -87,9 +87,9 @@ class TestsOrderServices(TestCase):
         self.assertFalse(order.is_legal_entity)
         self.assertEqual(order.customer_email, "checkout@example.com")
         self.assertEqual(order.customer_phone, "+10000000004")
-        # Проверяем, что доставка пока не используется:
-        # заказ создаётся без адреса, потому что сейчас работает самовывоз.
-        self.assertIsNone(order.delivery_address)
+        # Проверяем, что по умолчанию используется самовывоз:
+        # delivery_address пустой, потому что доставка не выбрана.
+        self.assertEqual(order.delivery_address, "")
         self.assertEqual(order.total_price, Decimal("30.00"))
 
         self.assertEqual(order.items.count(), 1)
@@ -329,3 +329,73 @@ class TestsOrderServices(TestCase):
 
         self.assertEqual(cancelled_order.status, OrderStatus.CANCELLED)
         self.assertEqual(supplier_product.stock_quantity, 10)
+
+    # Проверяем delivery snapshot:
+    # checkout service сохраняет delivery данные
+    # в Order при создании заказа.
+    def test_create_order_from_cart_saves_delivery_data(self):
+        user = User.objects.create_user(
+            email="cancel@example.com",
+            username="cancel",
+            password="testpass123",
+            phone="+10000000008",
+        )
+
+        brand = Brand.objects.create(
+            name="Cancel Brand",
+        )
+
+        category = Category.objects.create(
+            name="Cancel Category",
+        )
+
+        product = Product.objects.create(
+            name="Cancel Product",
+            brand=brand,
+            category=category,
+            manufacturer_article="CANCEL-001",
+            base_price=Decimal("40.00"),
+        )
+
+        supplier = Supplier.objects.create(
+            name="Cancel Supplier",
+            is_own=True,
+            is_active=True,
+        )
+
+        supplier_product = SupplierProduct.objects.create(
+            supplier=supplier,
+            product=product,
+            supplier_article="CANCEL-SUP-001",
+            stock_quantity=10,
+            lead_time_days=0,
+            is_active=True,
+        )
+
+        cart = Cart.objects.create(
+            user=user,
+        )
+
+        CartItem.objects.create(
+            cart=cart,
+            product=product,
+            quantity=3,
+            price_snapshot=Decimal("40.00"),
+        )
+
+        order = create_order_from_cart(
+            user=user,
+            cart=cart,
+            delivery_method="shipping",
+            delivery_provider="post",
+            delivery_address="Test address",
+            delivery_comment="Call before delivery",
+        )
+
+        cart.refresh_from_db()
+        supplier_product.refresh_from_db()
+
+        self.assertEqual(order.delivery_method, "shipping")
+        self.assertEqual(order.delivery_provider, "post")
+        self.assertEqual(order.delivery_address, "Test address")
+        self.assertEqual(order.delivery_comment, "Call before delivery")

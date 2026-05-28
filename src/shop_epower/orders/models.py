@@ -19,6 +19,21 @@ class OrderCancellationReason(models.TextChoices):
 
     OTHER = "other", "Other"
 
+class DeliveryMethod(models.TextChoices):
+    PICKUP = "pickup", "Pickup"
+
+    SHIPPING = "shipping", "Shipping"
+
+class DeliveryProvider(models.TextChoices):
+    POST = "post", "Post"
+
+    TRANSPORT_COMPANY = (
+        "transport_company",
+        "Transport company",
+    )
+
+    OTHER = "other", "Other"
+
 class Order(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -40,6 +55,37 @@ class Order(models.Model):
 
     cancellation_comment = models.TextField(
         blank=True,
+    )
+
+    delivery_method = models.CharField(
+        max_length=20,
+        choices=DeliveryMethod.choices,
+        default=DeliveryMethod.PICKUP,
+    )
+
+    delivery_provider = models.CharField(
+        max_length=50,
+        choices=DeliveryProvider.choices,
+        blank=True,
+    )
+
+    delivery_address = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    delivery_comment = models.TextField(
+        blank=True,
+    )
+
+    delivery_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
+
+    delivery_paid_by_customer_on_receipt = models.BooleanField(
+        default=False,
     )
 
     is_legal_entity = models.BooleanField(

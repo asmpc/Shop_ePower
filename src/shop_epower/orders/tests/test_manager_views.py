@@ -35,6 +35,10 @@ class TestsManagerOrderViews(TestCase):
             customer_email="frontend-client@example.com",
             customer_phone="+10000000040",
             total_price=Decimal("100.00"),
+            delivery_method="shipping",
+            delivery_provider="post",
+            delivery_address="Frontend address",
+            delivery_comment="Frontend comment",
         )
 
     # Проверяем manager detail page:
@@ -123,3 +127,23 @@ class TestsManagerOrderViews(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Delivery cost")
         self.assertContains(response, "Delivery price was too high.")
+
+    # Проверяем delivery display:
+    # manager order detail page показывает delivery информацию.
+    def test_manager_order_detail_page_shows_delivery_info(self):
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Shipping")
+        self.assertContains(response, "Post")
+        self.assertContains(response, "Frontend address")
+        self.assertContains(response, "Frontend comment")
