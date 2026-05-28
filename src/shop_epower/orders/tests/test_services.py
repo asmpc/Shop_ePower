@@ -12,6 +12,10 @@ from shop_epower.orders.services import (
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.suppliers.models import Supplier, SupplierProduct
+from shop_epower.orders.tests.helpers import (
+    create_test_user, create_test_product, create_test_supplier, create_test_supplier_product,
+    create_test_cart_with_item,
+)
 
 
 User = get_user_model()
@@ -24,51 +28,31 @@ class TestsOrderServices(TestCase):
     # создаётся OrderItem, total_price считается по CartItem,
     # а корзина после checkout становится неактивной.
     def test_create_order_from_cart_for_client(self):
-
-        user = User.objects.create_user(
+        user = create_test_user(
             email="checkout@example.com",
             username="checkout",
-            password="testpass123",
             phone="+10000000004",
         )
 
-        brand = Brand.objects.create(
-            name="Checkout Brand",
-        )
-
-        category = Category.objects.create(
-            name="Checkout Category",
-        )
-
-        product = Product.objects.create(
+        product = create_test_product(
             name="Checkout Product",
-            brand=brand,
-            category=category,
+            brand_name="Checkout Brand",
+            category_name="Checkout Category",
             manufacturer_article="CHECKOUT-001",
             base_price=Decimal("15.00"),
         )
 
-        supplier = Supplier.objects.create(
-            name="Own Warehouse",
-            is_own=True,
-            is_active=True,
-        )
+        supplier = create_test_supplier()
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="SUP-CHECKOUT-001",
             stock_quantity=10,
-            lead_time_days=0,
-            is_active=True,
         )
 
-        cart = Cart.objects.create(
+        cart = create_test_cart_with_item(
             user=user,
-        )
-
-        CartItem.objects.create(
-            cart=cart,
             product=product,
             quantity=2,
             price_snapshot=Decimal("15.00"),
