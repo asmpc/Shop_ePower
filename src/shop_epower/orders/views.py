@@ -25,10 +25,34 @@ def checkout_view(request):
         messages.error(request, "Cart not found")
         return redirect("cart-detail")
 
+    delivery_method = request.POST.get(
+        "delivery_method",
+        "pickup",
+    )
+
+    delivery_provider = request.POST.get(
+        "delivery_provider",
+        "",
+    )
+
+    delivery_address = request.POST.get(
+        "delivery_address",
+        "",
+    )
+
+    delivery_comment = request.POST.get(
+        "delivery_comment",
+        "",
+    )
+
     try:
         order = create_order_from_cart(
             user=request.user,
             cart=cart,
+            delivery_method=delivery_method,
+            delivery_provider=delivery_provider,
+            delivery_address=delivery_address,
+            delivery_comment=delivery_comment,
         )
     except Exception as e:
         messages.error(request, str(e))

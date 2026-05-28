@@ -14,7 +14,15 @@ from shop_epower.suppliers.models import SupplierProduct
 
 
 @transaction.atomic
-def create_order_from_cart(*, user, cart):
+def create_order_from_cart(
+    *,
+    user,
+    cart,
+    delivery_method="pickup",
+    delivery_provider="",
+    delivery_address="",
+    delivery_comment="",
+):
     if not user or not user.is_authenticated:
         raise ValidationError("User must be authenticated.")
 
@@ -52,6 +60,10 @@ def create_order_from_cart(*, user, cart):
         bank_name=legal_profile.bank_name if is_legal_entity else "",
         bank_account=legal_profile.bank_account if is_legal_entity else "",
         total_price=total_price or Decimal("0.00"),
+        delivery_method=delivery_method,
+        delivery_provider=delivery_provider,
+        delivery_address=delivery_address,
+        delivery_comment=delivery_comment,
     )
 
     for cart_item in cart_items:

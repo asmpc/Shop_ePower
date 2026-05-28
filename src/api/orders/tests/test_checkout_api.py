@@ -125,3 +125,81 @@ class TestsCheckoutAPI(TestCase):
 
         self.assertEqual(response.status_code, 400)
         self.assertEqual(Order.objects.filter(user=user).count(), 0)
+
+    # Проверяем checkout delivery flow:
+    # checkout API сохраняет delivery данные
+    # в созданном заказе.
+    def test_checkout_api_saves_delivery_data(self):
+        user = User.objects.create_user(
+            email="api@example.com",
+            username="api",
+            password="testpass123",
+            phone="+10000000007",
+        )
+
+        client = APIClient()
+        client.force_authenticate(user=user)
+
+        brand = Brand.objects.create(
+            name="API Brand",
+        )
+
+        category = Category.objects.create(
+            name="API Category",
+        )
+
+        product = Product.objects.create(
+            name="API Product",
+            brand=brand,
+            category=category,
+            manufacturer_article="API-001",
+            base_price=Decimal("50.00"),
+        )
+
+        supplier = Supplier.objects.create(
+            name="API Supplier",
+            is_own=True,
+            is_active=True,
+        )
+
+        SupplierProduct.objects.create(
+            supplier=supplier,
+            product=product,
+            supplier_article="API-SUP-001",
+            stock_quantity=10,
+            lead_time_days=0,
+            is_active=True,
+        )
+
+        cart = Cart.objects.create(
+            user=user,
+        )
+
+        CartItem.objects.create(
+            cart=cart,
+            product=product,
+            quantity=2,
+            price_snapshot=Decimal("50.00"),
+        )
+
+        response = client.post(
+            "/api/orders/checkout/",
+            {
+                "delivery_method": "shipping",
+                "delivery_provider": "post",
+                "delivery_address": "API address",
+                "delivery_comment": "API comment",
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        order = Order.objects.get(
+            id=response.data["order_id"],
+        )
+
+        self.assertEqual(order.delivery_method, "shipping")
+        self.assertEqual(order.delivery_provider, "post")
+        self.assertEqual(order.delivery_address, "API address")
+        self.assertEqual(order.delivery_comment, "API comment")

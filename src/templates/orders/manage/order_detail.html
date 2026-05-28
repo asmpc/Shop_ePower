@@ -155,6 +155,58 @@
             ${{ order.total_price }}
         </p>
 
+        <hr>
+
+            <h4>
+                Delivery Information
+            </h4>
+
+            <p>
+                <strong>Method:</strong>
+                {{ order.get_delivery_method_display }}
+            </p>
+
+            {% if order.delivery_method == "shipping" %}
+
+            <p>
+                <strong>Provider:</strong>
+                {{ order.get_delivery_provider_display }}
+            </p>
+
+            <p>
+                <strong>Address:</strong>
+                {{ order.delivery_address }}
+            </p>
+
+            {% if order.delivery_comment %}
+
+            <p>
+                <strong>Customer comment:</strong>
+                {{ order.delivery_comment }}
+            </p>
+
+            {% endif %}
+
+            {% endif %}
+
+            {% if order.delivery_cost %}
+
+            <p>
+                <strong>Delivery cost:</strong>
+                {{ order.delivery_cost }}
+            </p>
+
+            {% endif %}
+
+            {% if order.delivery_paid_by_customer_on_receipt %}
+
+            <p>
+                <strong>Delivery payment:</strong>
+                Paid by customer on receipt
+            </p>
+
+        {% endif %}
+
     </div>
 
 </div>
