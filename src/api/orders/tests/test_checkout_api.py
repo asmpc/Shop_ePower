@@ -15,13 +15,31 @@ User = get_user_model()
 
 class TestsCheckoutAPI(TestCase):
 
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="api@example.com",
+            username="test_api",
+            password="testpass123",
+            phone="+10000000007",
+        )
+
+        self.brand = Brand.objects.create(
+            name="API Brand",
+        )
+
+        self.category = Category.objects.create(
+            name="API Category",
+        )
+
+        self.client = APIClient()
+
     # Проверяем, что checkout API требует авторизацию:
     # неавторизованный пользователь не может оформить заказ.
     def test_checkout_api_requires_authentication(self):
 
-        client = APIClient()
+        # client = APIClient()
 
-        response = client.post(
+        response = self.client.post(
             "/api/orders/checkout/",
             {},
             format="json",
@@ -34,28 +52,12 @@ class TestsCheckoutAPI(TestCase):
     # получает созданный заказ и статус HTTP 201.
     def test_checkout_api_creates_order(self):
 
-        user = User.objects.create_user(
-            email="api@example.com",
-            username="api",
-            password="testpass123",
-            phone="+10000000007",
-        )
-
-        client = APIClient()
-        client.force_authenticate(user=user)
-
-        brand = Brand.objects.create(
-            name="API Brand",
-        )
-
-        category = Category.objects.create(
-            name="API Category",
-        )
+        self.client.force_authenticate(user=self.user)
 
         product = Product.objects.create(
             name="API Product",
-            brand=brand,
-            category=category,
+            brand=self.brand,
+            category=self.category,
             manufacturer_article="API-001",
             base_price=Decimal("50.00"),
         )
@@ -76,7 +78,7 @@ class TestsCheckoutAPI(TestCase):
         )
 
         cart = Cart.objects.create(
-            user=user,
+            user=self.user,
         )
 
         CartItem.objects.create(
@@ -86,7 +88,7 @@ class TestsCheckoutAPI(TestCase):
             price_snapshot=Decimal("50.00"),
         )
 
-        response = client.post(
+        response = self.client.post(
             "/api/orders/checkout/",
             {},
             format="json",
@@ -96,62 +98,40 @@ class TestsCheckoutAPI(TestCase):
         self.assertIn("order_id", response.data)
         self.assertEqual(response.data["total_price"], "100.00")
 
-        self.assertEqual(Order.objects.filter(user=user).count(), 1)
+        self.assertEqual(Order.objects.filter(user=self.user).count(), 1)
 
     # Проверяем, что checkout API не оформляет пустую корзину:
     # если активная корзина есть, но товаров в ней нет,
     # endpoint возвращает HTTP 400 и заказ не создаётся.
     def test_checkout_api_fails_with_empty_cart(self):
 
-        user = User.objects.create_user(
-            email="empty@example.com",
-            username="empty",
-            password="testpass123",
-        )
-
-        client = APIClient()
-        client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
 
         Cart.objects.create(
-            user=user,
+            user=self.user,
             is_active=True,
         )
 
-        response = client.post(
+        response = self.client.post(
             "/api/orders/checkout/",
             {},
             format="json",
         )
 
         self.assertEqual(response.status_code, 400)
-        self.assertEqual(Order.objects.filter(user=user).count(), 0)
+        self.assertEqual(Order.objects.filter(user=self.user).count(), 0)
 
     # Проверяем checkout delivery flow:
     # checkout API сохраняет delivery данные
     # в созданном заказе.
     def test_checkout_api_saves_delivery_data(self):
-        user = User.objects.create_user(
-            email="api@example.com",
-            username="api",
-            password="testpass123",
-            phone="+10000000007",
-        )
 
-        client = APIClient()
-        client.force_authenticate(user=user)
-
-        brand = Brand.objects.create(
-            name="API Brand",
-        )
-
-        category = Category.objects.create(
-            name="API Category",
-        )
+        self.client.force_authenticate(user=self.user)
 
         product = Product.objects.create(
             name="API Product",
-            brand=brand,
-            category=category,
+            brand=self.brand,
+            category=self.category,
             manufacturer_article="API-001",
             base_price=Decimal("50.00"),
         )
@@ -172,7 +152,7 @@ class TestsCheckoutAPI(TestCase):
         )
 
         cart = Cart.objects.create(
-            user=user,
+            user=self.user,
         )
 
         CartItem.objects.create(
@@ -182,7 +162,7 @@ class TestsCheckoutAPI(TestCase):
             price_snapshot=Decimal("50.00"),
         )
 
-        response = client.post(
+        response = self.client.post(
             "/api/orders/checkout/",
             {
                 "delivery_method": "shipping",
