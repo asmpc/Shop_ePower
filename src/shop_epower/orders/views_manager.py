@@ -7,8 +7,11 @@ from django.contrib import messages
 from django.views import View
 from django.core.exceptions import ValidationError
 
-from shop_epower.orders.models import OrderStatus
-from shop_epower.orders.services import update_order_status_by_manager
+from shop_epower.orders.services import (
+    update_order_status_by_manager,
+    update_order_delivery_by_manager,
+)
+
 
 
 class ManagerOrderListView(
@@ -74,16 +77,81 @@ class ManagerOrderStatusUpdateView(
 
         new_status = request.POST.get("status")
 
+        cancellation_reason = request.POST.get(
+            "cancellation_reason",
+            "",
+        )
+
+        cancellation_comment = request.POST.get(
+            "cancellation_comment",
+            "",
+        )
+
         try:
             update_order_status_by_manager(
                 order=order,
                 user=request.user,
                 new_status=new_status,
+                cancellation_reason=cancellation_reason,
+                cancellation_comment=cancellation_comment,
             )
 
             messages.success(
                 request,
                 "Order status updated successfully.",
+            )
+
+        except ValidationError as error:
+            messages.error(
+                request,
+                error.message,
+            )
+
+        return redirect(
+            "orders:manager_order_detail",
+            pk=order.pk,
+        )
+
+class ManagerOrderDeliveryUpdateView(
+    LoginRequiredMixin,
+    View,
+):
+
+    def post(self, request, pk):
+
+        order = get_object_or_404(
+            Order,
+            pk=pk,
+        )
+
+        delivery_cost = request.POST.get(
+            "delivery_cost",
+            "0",
+        )
+
+        delivery_paid_by_customer_on_receipt = (
+            request.POST.get(
+                "delivery_paid_by_customer_on_receipt",
+            ) == "on"
+        )
+
+        manager_delivery_comment = request.POST.get(
+            "manager_delivery_comment",
+            "",
+        )
+
+        try:
+            update_order_delivery_by_manager(
+                order=order,
+                user=request.user,
+                delivery_cost=delivery_cost,
+                delivery_paid_by_customer_on_receipt=delivery_paid_by_customer_on_receipt,
+                manager_delivery_comment=manager_delivery_comment,
+            )
+
+            messages.success(
+                request,
+                "Delivery information updated successfully.",
             )
 
         except ValidationError as error:

@@ -4,14 +4,16 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
-from shop_epower.orders.models import Order, OrderStatus
-from shop_epower.orders.services import update_order_status_by_manager
+from shop_epower.orders.services import update_order_status_by_manager, update_order_delivery_by_manager
 from shop_epower.suppliers.models import Supplier, SupplierProduct
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
+from shop_epower.orders.models import Order, OrderStatus, OrderItem
+
 
 User = get_user_model()
+
 
 
 class TestsManagerOrderWorkflow(TestCase):
@@ -246,6 +248,8 @@ class TestsManagerOrderWorkflow(TestCase):
             order=order,
             user=manager,
             new_status=OrderStatus.CANCELLED,
+            cancellation_reason="supplier_unavailable",
+            cancellation_comment="Supplier did not ship the order.",
         )
 
         supplier_product.refresh_from_db()
@@ -253,3 +257,12 @@ class TestsManagerOrderWorkflow(TestCase):
 
         self.assertEqual(updated_order.status, OrderStatus.CANCELLED)
         self.assertEqual(supplier_product.stock_quantity, 10)
+        self.assertEqual(
+            updated_order.cancellation_reason,
+            "supplier_unavailable",
+        )
+
+        self.assertEqual(
+            updated_order.cancellation_comment,
+            "Supplier did not ship the order.",
+        )

@@ -10,11 +10,19 @@ from .models import (
     OrderStockReservation,
 )
 from shop_epower.suppliers.models import SupplierProduct
-
+from ..core.currency import get_base_currency
 
 
 @transaction.atomic
-def create_order_from_cart(*, user, cart):
+def create_order_from_cart(
+    *,
+    user,
+    cart,
+    delivery_method="pickup",
+    delivery_provider="",
+    delivery_address="",
+    delivery_comment="",
+):
     if not user or not user.is_authenticated:
         raise ValidationError("User must be authenticated.")
 
@@ -52,6 +60,11 @@ def create_order_from_cart(*, user, cart):
         bank_name=legal_profile.bank_name if is_legal_entity else "",
         bank_account=legal_profile.bank_account if is_legal_entity else "",
         total_price=total_price or Decimal("0.00"),
+        currency_snapshot=get_base_currency(),
+        delivery_method=delivery_method,
+        delivery_provider=delivery_provider,
+        delivery_address=delivery_address,
+        delivery_comment=delivery_comment,
     )
 
     for cart_item in cart_items:
@@ -68,6 +81,7 @@ def create_order_from_cart(*, user, cart):
             unit_price=cart_item.price_snapshot,
             quantity=cart_item.quantity,
             total_price=cart_item.total_price,
+            currency_snapshot=get_base_currency(),
         )
 
         for reservation in reservations:
@@ -165,7 +179,14 @@ def cancel_new_order(*, order, user):
 
     return order
 
-def update_order_status_by_manager(*, order, user, new_status):
+def update_order_status_by_manager(
+    *,
+    order,
+    user,
+    new_status,
+    cancellation_reason="",
+    cancellation_comment="",
+):
     if user.role not in ("manager", "admin"):
         raise ValidationError("Only managers and admins can update order status.")
 
@@ -197,7 +218,64 @@ def update_order_status_by_manager(*, order, user, new_status):
                     update_fields=["stock_quantity"]
                 )
 
+        order.cancellation_reason = cancellation_reason
+        order.cancellation_comment = cancellation_comment
+
     order.status = new_status
-    order.save(update_fields=["status"])
+
+    update_fields = ["status"]
+
+    if new_status == OrderStatus.CANCELLED:
+        update_fields.extend([
+            "cancellation_reason",
+            "cancellation_comment",
+        ])
+
+    order.save(
+        update_fields=update_fields,
+    )
+
+    return order
+
+def update_order_delivery_by_manager(
+    *,
+    order,
+    user,
+    delivery_cost,
+    delivery_paid_by_customer_on_receipt=False,
+    manager_delivery_comment="",
+):
+    if user.role not in ["manager", "admin"]:
+        raise ValidationError(
+            "Only manager or admin can update delivery."
+        )
+
+    delivery_cost = Decimal(delivery_cost or "0.00")
+
+    items_total = sum(
+        item.total_price for item in order.items.all()
+    )
+
+    order.delivery_cost = delivery_cost
+
+    order.delivery_paid_by_customer_on_receipt = (
+        delivery_paid_by_customer_on_receipt
+    )
+
+    order.manager_delivery_comment = manager_delivery_comment
+
+    if delivery_paid_by_customer_on_receipt:
+        order.total_price = items_total
+    else:
+        order.total_price = items_total + delivery_cost
+
+    order.save(
+        update_fields=[
+            "delivery_cost",
+            "delivery_paid_by_customer_on_receipt",
+            "manager_delivery_comment",
+            "total_price",
+        ]
+    )
 
     return order
