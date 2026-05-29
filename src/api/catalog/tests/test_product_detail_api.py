@@ -14,20 +14,22 @@ from .helpers import (
 
 class TestProductDetailAPI(APITestCase):
 
-    # Проверяем, что detail endpoint товара
-    # возвращает основные данные товара,
-    # final_price и публичный inventory.
-    def test_product_detail_returns_product(self):
-        product = create_test_product(
+    def setUp(self):
+        self.product = create_test_product(
             name="Test product",
             slug="test-product",
             base_price=100,
         )
 
+    # Проверяем, что detail endpoint товара
+    # возвращает основные данные товара,
+    # final_price и публичный inventory.
+    def test_product_detail_returns_product(self):
+
         response = self.client.get(
             reverse(
                 "api-product-detail",
-                kwargs={"slug": product.slug},
+                kwargs={"slug": self.product.slug},
             )
         )
 
@@ -49,11 +51,6 @@ class TestProductDetailAPI(APITestCase):
     # возвращает изображения товара
     # и не отдаёт manager-only данные.
     def test_product_detail_returns_images(self):
-        product = create_test_product(
-            name="Test product",
-            slug="test-product",
-            base_price=100,
-        )
 
         image = SimpleUploadedFile(
             name="test.jpg",
@@ -62,7 +59,7 @@ class TestProductDetailAPI(APITestCase):
         )
 
         ProductImage.objects.create(
-            product=product,
+            product=self.product,
             image=image,
             alt_text="Test image",
             is_primary=True,
@@ -72,7 +69,7 @@ class TestProductDetailAPI(APITestCase):
         response = self.client.get(
             reverse(
                 "api-product-detail",
-                kwargs={"slug": product.slug},
+                kwargs={"slug": self.product.slug},
             )
         )
 

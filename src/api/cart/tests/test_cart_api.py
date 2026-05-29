@@ -11,6 +11,26 @@ from shop_epower.catalog.models import Brand, Category, Product
 
 class TestCartAPI(APITestCase):
 
+    def setUp(self):
+        self.brand = Brand.objects.create(
+            name="Test brand",
+            slug="test-brand",
+        )
+
+        self.category = Category.objects.create(
+            name="Test category",
+            slug="test-category",
+        )
+
+        self.product = Product.objects.create(
+            name="Test product",
+            slug="test-product",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="ART-001",
+            base_price=Decimal("10.00"),
+        )
+
     # Проверяем, что новый пользователь получает пустую корзину:
     # - items пустой список
     # - total_price = 0
@@ -44,24 +64,6 @@ class TestCartAPI(APITestCase):
     # создаётся CartItem, увеличивается total_quantity,
     # и в ответе появляется один элемент.
     def test_cart_add_item(self):
-        brand = Brand.objects.create(
-            name="Test brand",
-            slug="test-brand",
-        )
-
-        category = Category.objects.create(
-            name="Test category",
-            slug="test-category",
-        )
-
-        product = Product.objects.create(
-            name="Test product",
-            slug="test-product",
-            brand=brand,
-            category=category,
-            manufacturer_article="ART-001",
-            base_price=Decimal("10.00"),
-        )
 
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -76,7 +78,7 @@ class TestCartAPI(APITestCase):
             response = self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 2,
                 },
                 format="json",
@@ -100,24 +102,6 @@ class TestCartAPI(APITestCase):
     # Проверяем, что повторное добавление того же товара
     # увеличивает quantity, а не создаёт новый элемент.
     def test_cart_add_same_product_increases_quantity(self):
-        brand = Brand.objects.create(
-            name="Test brand",
-            slug="test-brand",
-        )
-
-        category = Category.objects.create(
-            name="Test category",
-            slug="test-category",
-        )
-
-        product = Product.objects.create(
-            name="Test product",
-            slug="test-product",
-            brand=brand,
-            category=category,
-            manufacturer_article="ART-001",
-            base_price=Decimal("10.00"),
-        )
 
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -132,7 +116,7 @@ class TestCartAPI(APITestCase):
             self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 2,
                 },
                 format="json",
@@ -141,7 +125,7 @@ class TestCartAPI(APITestCase):
             response = self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 3,
                 },
                 format="json",
@@ -155,24 +139,6 @@ class TestCartAPI(APITestCase):
     # после удаления корзина становится пустой,
     # total_quantity = 0.
     def test_cart_remove_item(self):
-        brand = Brand.objects.create(
-            name="Test brand",
-            slug="test-brand",
-        )
-
-        category = Category.objects.create(
-            name="Test category",
-            slug="test-category",
-        )
-
-        product = Product.objects.create(
-            name="Test product",
-            slug="test-product",
-            brand=brand,
-            category=category,
-            manufacturer_article="ART-001",
-            base_price=Decimal("10.00"),
-        )
 
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -187,7 +153,7 @@ class TestCartAPI(APITestCase):
             self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 2,
                 },
                 format="json",
@@ -196,7 +162,7 @@ class TestCartAPI(APITestCase):
         response = self.client.post(
             reverse("api-cart-remove"),
             {
-                "product": str(product.id),
+                "product": str(self.product.id),
             },
             format="json",
         )
@@ -219,24 +185,6 @@ class TestCartAPI(APITestCase):
     # Проверяем очистку корзины:
     # все товары удаляются, total_price и total_quantity обнуляются.
     def test_cart_clear(self):
-        brand = Brand.objects.create(
-            name="Test brand",
-            slug="test-brand",
-        )
-
-        category = Category.objects.create(
-            name="Test category",
-            slug="test-category",
-        )
-
-        product = Product.objects.create(
-            name="Test product",
-            slug="test-product",
-            brand=brand,
-            category=category,
-            manufacturer_article="ART-001",
-            base_price=Decimal("10.00"),
-        )
 
         with patch(
             "shop_epower.cart.services.get_product_inventory_public",
@@ -251,7 +199,7 @@ class TestCartAPI(APITestCase):
             self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 2,
                 },
                 format="json",
@@ -284,17 +232,6 @@ class TestCartAPI(APITestCase):
 
     # Проверяем, что нельзя добавить товара больше, чем есть в наличии.
     def test_cart_add_exceeds_stock_fails(self):
-        brand = Brand.objects.create(name="Test brand", slug="test-brand")
-        category = Category.objects.create(name="Test category", slug="test-category")
-
-        product = Product.objects.create(
-            name="Test product",
-            slug="test-product",
-            brand=brand,
-            category=category,
-            manufacturer_article="ART-001",
-            base_price=Decimal("10.00"),
-        )
 
         with patch(
                 "shop_epower.cart.services.get_product_inventory_public",
@@ -309,7 +246,7 @@ class TestCartAPI(APITestCase):
             response = self.client.post(
                 reverse("api-cart-add"),
                 {
-                    "product": str(product.id),
+                    "product": str(self.product.id),
                     "quantity": 5,
                 },
                 format="json",
