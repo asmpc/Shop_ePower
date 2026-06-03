@@ -42,6 +42,12 @@
                         <a class="nav-link text-warning fs-5"
                            href="{% url 'orders:manager_order_list' %}">
                             Manage orders
+
+                            {% if navbar_new_orders_count %}
+                                <span class="badge bg-danger rounded-pill">
+                                    {{ navbar_new_orders_count }}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
 
@@ -49,6 +55,12 @@
                         <a class="nav-link text-info fs-5"
                            href="{% url 'chat:room_list' %}">
                             Chat rooms
+
+                            {% if navbar_unread_chat_messages_count %}
+                                <span class="badge bg-danger rounded-pill">
+                                    {{ navbar_unread_chat_messages_count }}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
 
@@ -68,6 +80,12 @@
                             <a class="nav-link text-info fw-bold"
                                href="{% url 'chat:room_list' %}">
                                 My chats
+
+                                {% if navbar_unread_chat_messages_count %}
+                                  <span class="badge bg-danger rounded-pill">
+                                        {{ navbar_unread_chat_messages_count }}
+                                    </span>
+                                {% endif %}
                             </a>
                         </li>
 

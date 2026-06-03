@@ -47,6 +47,11 @@ def checkout_view(request):
         "",
     )
 
+    order_comment = request.POST.get(
+        "order_comment",
+        "",
+    )
+
     try:
         order = create_order_from_cart(
             user=request.user,
@@ -55,6 +60,7 @@ def checkout_view(request):
             delivery_provider=delivery_provider,
             delivery_address=delivery_address,
             delivery_comment=delivery_comment,
+            order_comment=order_comment,
         )
     except Exception as e:
         messages.error(request, str(e))

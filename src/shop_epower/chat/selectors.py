@@ -188,3 +188,51 @@ def get_chat_rooms_for_order(order):
     )
 
     return _with_last_message(rooms)
+
+def get_unread_chat_messages_count_for_user(user):
+    """
+    Возвращает общее количество непрочитанных chat messages
+    для отображения бейджа в navbar.
+
+    Client:
+    считает непрочитанные сообщения в своих комнатах,
+    кроме собственных сообщений.
+
+    Manager:
+    считает непрочитанные сообщения:
+    - в OPEN комнатах;
+    - в своих IN_PROGRESS комнатах;
+    кроме собственных сообщений.
+
+    Admin:
+    считает все непрочитанные сообщения,
+    кроме собственных сообщений.
+    """
+    if not user.is_authenticated:
+        return 0
+
+    base_queryset = ChatMessage.objects.filter(
+        is_read=False,
+    ).exclude(
+        sender=user,
+    )
+
+    if user.role == "client":
+        return base_queryset.filter(
+            room__user=user,
+        ).count()
+
+    if user.role == "manager":
+        return base_queryset.filter(
+            room__status=ChatRoomStatus.OPEN,
+            room__manager__isnull=True,
+        ).count() + base_queryset.filter(
+            room__status=ChatRoomStatus.IN_PROGRESS,
+            room__manager=user,
+        ).count()
+
+    if user.role == "admin":
+        return base_queryset.count()
+
+    return 0
+

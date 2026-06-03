@@ -84,6 +84,8 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 "shop_epower.cart.context_processors.cart_summary",
                 "shop_epower.core.context_processors.base_currency",
+                "shop_epower.cart.context_processors.chat_unread_summary",
+                "shop_epower.cart.context_processors.new_orders_summary",
             ],
         },
     },
