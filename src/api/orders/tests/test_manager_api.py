@@ -171,6 +171,8 @@ class TestsManagerOrdersAPI(TestCase):
             f"/api/orders/manage/{self.order.id}/status/",
             {
                 "status": OrderStatus.CANCELLED,
+                "cancellation_reason": "supplier_unavailable",
+                "cancellation_comment": "Supplier failed to ship.",
             },
             format="json",
         )
@@ -182,4 +184,13 @@ class TestsManagerOrdersAPI(TestCase):
         self.assertEqual(
             self.order.status,
             OrderStatus.CANCELLED,
+        )
+        self.assertEqual(
+            self.order.cancellation_reason,
+            "supplier_unavailable",
+        )
+
+        self.assertEqual(
+            self.order.cancellation_comment,
+            "Supplier failed to ship.",
         )

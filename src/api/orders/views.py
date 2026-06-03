@@ -45,11 +45,36 @@ class CheckoutAPIView(APIView):
                 status=status.HTTP_400_BAD_REQUEST,
             )
 
+        delivery_method = request.data.get(
+            "delivery_method",
+            "pickup",
+        )
+
+        delivery_provider = request.data.get(
+            "delivery_provider",
+            "",
+        )
+
+        delivery_address = request.data.get(
+            "delivery_address",
+            "",
+        )
+
+        delivery_comment = request.data.get(
+            "delivery_comment",
+            "",
+        )
+
         try:
             order = create_order_from_cart(
                 user=request.user,
                 cart=cart,
+                delivery_method=delivery_method,
+                delivery_provider=delivery_provider,
+                delivery_address=delivery_address,
+                delivery_comment=delivery_comment,
             )
+
         except ValidationError as error:
             return Response(
                 {"detail": error.messages},
@@ -197,6 +222,14 @@ class ManagerOrderStatusUpdateAPIView(APIView):
                 order=order,
                 user=request.user,
                 new_status=serializer.validated_data["status"],
+                cancellation_reason=serializer.validated_data.get(
+                    "cancellation_reason",
+                    "",
+                ),
+                cancellation_comment=serializer.validated_data.get(
+                    "cancellation_comment",
+                    "",
+                ),
             )
         except ValidationError as error:
             return Response(
