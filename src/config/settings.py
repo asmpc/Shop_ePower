@@ -54,6 +54,7 @@ INSTALLED_APPS = [
     'shop_epower.cart',
     'shop_epower.orders',
     'shop_epower.notifications',
+    'shop_epower.chat',
 
 ]
 

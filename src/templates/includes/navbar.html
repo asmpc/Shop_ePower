@@ -45,6 +45,13 @@
                         </a>
                     </li>
 
+                    <li class="nav-item">
+                        <a class="nav-link text-info fs-5"
+                           href="{% url 'chat:room_list' %}">
+                            Chat rooms
+                        </a>
+                    </li>
+
                     {% endif %}
 
                 {% endif %}
@@ -52,6 +59,28 @@
             </ul>
 
             <ul class="navbar-nav ms-auto">
+
+                {% if request.user.is_authenticated %}
+
+                    {% if request.user.role == "client" %}
+
+                        <li class="nav-item">
+                            <a class="nav-link text-info fw-bold"
+                               href="{% url 'chat:room_list' %}">
+                                My chats
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-success fw-bold"
+                               href="{% url 'chat:room_create' %}">
+                                Create chat
+                            </a>
+                        </li>
+
+                    {% endif %}
+
+                {% endif %}
 
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'cart-detail' %}">

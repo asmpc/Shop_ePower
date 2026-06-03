@@ -9,6 +9,8 @@ from django.views.decorators.http import require_POST
 
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import cancel_new_order
+from shop_epower.chat.selectors import get_chat_rooms_for_order
+
 
 
 @login_required
@@ -92,12 +94,15 @@ def order_detail_view(request, order_id):
         user=request.user,
     )
 
+    chat_rooms = get_chat_rooms_for_order(order)
+
     return render(
         request,
         "orders/detail.html",
         {
             "order": order,
             "can_cancel": order.status == OrderStatus.NEW,
+            "chat_rooms": chat_rooms,
         },
     )
 
