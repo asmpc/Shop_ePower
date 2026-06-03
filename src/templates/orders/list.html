@@ -2,56 +2,68 @@
 
 {% block content %}
 
-<h1>My orders</h1>
+<h1 class="mb-4">
+    My Orders
+</h1>
 
-{% if orders %}
-    <table class="table">
-        <thead>
-            <tr>
-                <th>Order</th>
-                <th>Status</th>
-                <th>Total</th>
-                <th>Legal entity</th>
-                <th>Created</th>
-            </tr>
-        </thead>
+{% for order in orders %}
 
-        <tbody>
-            {% for order in orders %}
-                <tr>
-                    <td>#{{ order.id }}</td>
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-center">
 
-                    <td>
-                        {{ order.get_status_display }}
-                    </td>
+                <div class="col-md-3 mb-3 mb-md-0">
+                    <a href="{% url 'orders:detail' order.id %}" class="h5 mb-0">
+                        Order #{{ order.id }}
+                    </a>
 
-                    <td>
-                    {{ order.total_price }} {{ order.currency_snapshot }}
-                    </td>
+                    {% if order.status == "new" %}
+                        <span class="badge bg-success ms-2">NEW</span>
+                    {% elif order.status == "processing" %}
+                        <span class="badge bg-primary ms-2">PROCESSING</span>
+                    {% elif order.status == "completed" %}
+                        <span class="badge bg-secondary ms-2">COMPLETED</span>
+                    {% elif order.status == "cancelled" %}
+                        <span class="badge bg-danger ms-2">CANCELLED</span>
+                    {% endif %}
+                </div>
 
-                    <td>
+                <div class="col-md-2 border-start">
+                    <div class="text-muted">Total</div>
+                    <div>{{ order.total_price }} {{ order.currency_snapshot }}</div>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <div class="text-muted">Legal entity</div>
+                    <div>
                         {% if order.is_legal_entity %}
                             Yes
                         {% else %}
                             No
                         {% endif %}
-                    </td>
+                    </div>
+                </div>
 
-                    <td>
-                        {{ order.created_at }}
-                    </td>
-                    <td>
-                        <a href="{% url 'orders:detail' order.id %}">
-                            #{{ order.id }}
-                        </a>
-                    </td>
+                <div class="col-md-3 border-start">
+                    <div class="text-muted">Created</div>
+                    <div>{{ order.created_at }}</div>
+                </div>
 
-                </tr>
-            {% endfor %}
-        </tbody>
-    </table>
-{% else %}
+                <div class="col-md-2 text-md-end mt-3 mt-md-0">
+                    <a href="{% url 'orders:detail' order.id %}"
+                       class="btn btn-outline-secondary">
+                        Open
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+
+{% empty %}
+
     <p>You have no orders yet.</p>
-{% endif %}
+
+{% endfor %}
 
 {% endblock %}

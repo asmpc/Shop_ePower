@@ -11,6 +11,7 @@ from shop_epower.orders.services import (
     update_order_status_by_manager,
     update_order_delivery_by_manager,
 )
+from shop_epower.chat.selectors import get_chat_rooms_for_order
 
 
 
@@ -62,6 +63,15 @@ class ManagerOrderDetailView(
             .select_related("user")
             .prefetch_related("items")
         )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["chat_rooms"] = get_chat_rooms_for_order(
+            self.object,
+        )
+
+        return context
 
 class ManagerOrderStatusUpdateView(
     LoginRequiredMixin,

@@ -17,5 +17,7 @@ urlpatterns = [
 
     path("orders/", include("shop_epower.orders.urls")),
 
+    path("chat/", include("shop_epower.chat.urls")),
+
 
 ]
