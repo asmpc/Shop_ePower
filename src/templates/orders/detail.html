@@ -5,8 +5,52 @@
 <h1>Order #{{ order.id }}</h1>
 
 <p>Status: {{ order.get_status_display }}</p>
-<p>Total: {{ order.total_price }} BYN</p>
+<p>Total: {{ order.total_price }} {{ order.currency_snapshot }}</p>
 <p>Created: {{ order.created_at }}</p>
+
+<hr>
+
+<h3>Delivery</h3>
+
+<p>
+    Method:
+    {{ order.get_delivery_method_display }}
+</p>
+
+{% if order.delivery_method == "shipping" %}
+
+    <p>
+        Provider:
+        {{ order.get_delivery_provider_display }}
+    </p>
+
+    <p>
+        Address:
+        {{ order.delivery_address }}
+    </p>
+
+    {% if order.delivery_comment %}
+        <p>
+            Comment:
+            {{ order.delivery_comment }}
+        </p>
+    {% endif %}
+
+{% endif %}
+
+{% if order.delivery_cost %}
+    <p>
+        Delivery cost:
+        {{ order.delivery_cost }} {{ order.currency_snapshot }}
+    </p>
+{% endif %}
+
+{% if order.delivery_paid_by_customer_on_receipt %}
+    <p>
+        Delivery payment:
+        Paid by customer on receipt
+    </p>
+{% endif %}
 
 {% if order.is_legal_entity %}
     <hr>
@@ -38,9 +82,15 @@
         {% for item in order.items.all %}
             <tr>
                 <td>{{ item.product_name }}</td>
-                <td>{{ item.unit_price }} BYN</td>
+                <td>
+                    {{ item.unit_price }}
+                    {{ item.currency_snapshot }}
+                </td>
                 <td>{{ item.quantity }}</td>
-                <td>{{ item.total_price }} BYN</td>
+                <td>
+                    {{ item.total_price }}
+                    {{ item.currency_snapshot }}
+                </td>
             </tr>
         {% endfor %}
     </tbody>

@@ -19,6 +19,24 @@ class TestsOrdersAPI(TestCase):
     def setUp(self):
         self.client = APIClient()
 
+        self.user = User.objects.create_user(
+            email="list@example.com",
+            username="test_order",
+            password="testpass123",
+        )
+
+        self.owner = User.objects.create_user(
+            email="owner@example.com",
+            username="test_owner",
+            password="testpass123",
+        )
+
+        self.stranger = User.objects.create_user(
+            email="stranger@example.com",
+            username="test_stranger",
+            password="testpass123",
+        )
+
     # Вспомогательный helper для создания полноценного заказа через API.
     # Создаёт: - бренд - категорию - продукт - поставщика - supplier stock - корзину - checkout
     # Возвращает: - созданный order - supplier_product (для проверки stock)
@@ -81,11 +99,6 @@ class TestsOrdersAPI(TestCase):
     # пользователь видит только свои заказы,
     # чужие заказы в выдачу не попадают.
     def test_orders_list_api_returns_only_user_orders(self):
-        user = User.objects.create_user(
-            email="list@example.com",
-            username="list",
-            password="testpass123",
-        )
 
         other_user = User.objects.create_user(
             email="other-list@example.com",
@@ -93,9 +106,9 @@ class TestsOrdersAPI(TestCase):
             password="testpass123",
         )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
         user_order, _ = self.create_order_for_user(
-            user=user,
+            user=self.user,
             email_prefix="list",
         )
 
@@ -105,7 +118,7 @@ class TestsOrdersAPI(TestCase):
             email_prefix="otherlist",
         )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
 
         response = self.client.get(
             "/api/orders/",
@@ -119,16 +132,11 @@ class TestsOrdersAPI(TestCase):
     # пользователь может получить только свой заказ,
     # а данные заказа и items корректно сериализуются.
     def test_order_detail_api_returns_user_order(self):
-        user = User.objects.create_user(
-            email="detail@example.com",
-            username="detail",
-            password="testpass123",
-        )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
 
         order, _ = self.create_order_for_user(
-            user=user,
+            user=self.user,
             email_prefix="detail",
         )
 
@@ -156,26 +164,15 @@ class TestsOrdersAPI(TestCase):
     # Проверяем защиту detail API:
     # пользователь не может получить чужой заказ.
     def test_order_detail_api_blocks_foreign_order(self):
-        owner = User.objects.create_user(
-            email="owner@example.com",
-            username="owner",
-            password="testpass123",
-        )
 
-        stranger = User.objects.create_user(
-            email="stranger@example.com",
-            username="stranger",
-            password="testpass123",
-        )
-
-        self.client.force_authenticate(user=owner)
+        self.client.force_authenticate(user=self.owner)
 
         order, _ = self.create_order_for_user(
-            user=owner,
+            user=self.owner,
             email_prefix="foreign",
         )
 
-        self.client.force_authenticate(user=stranger)
+        self.client.force_authenticate(user=self.stranger)
 
         response = self.client.get(
             f"/api/orders/{order.id}/",
@@ -188,16 +185,11 @@ class TestsOrdersAPI(TestCase):
     # статус меняется на CANCELLED,
     # а stock возвращается обратно поставщику.
     def test_cancel_order_api_restores_stock(self):
-        user = User.objects.create_user(
-            email="cancel-api@example.com",
-            username="cancel-api",
-            password="testpass123",
-        )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
 
         order, supplier_product = self.create_order_for_user(
-            user=user,
+            user=self.user,
             email_prefix="cancelapi",
         )
 
@@ -237,16 +229,11 @@ class TestsOrdersAPI(TestCase):
     # заказ не может быть отменён,
     # если его статус уже не NEW.
     def test_cancel_order_api_rejects_non_new_status(self):
-        user = User.objects.create_user(
-            email="processing@example.com",
-            username="processing",
-            password="testpass123",
-        )
 
-        self.client.force_authenticate(user=user)
+        self.client.force_authenticate(user=self.user)
 
         order, _ = self.create_order_for_user(
-            user=user,
+            user=self.user,
             email_prefix="processing",
         )
 
@@ -271,26 +258,15 @@ class TestsOrdersAPI(TestCase):
     # Проверяем защиту cancel API:
     # пользователь не может отменить чужой заказ.
     def test_cancel_order_api_blocks_foreign_order(self):
-        owner = User.objects.create_user(
-            email="owner-cancel@example.com",
-            username="owner-cancel",
-            password="testpass123",
-        )
 
-        stranger = User.objects.create_user(
-            email="stranger-cancel@example.com",
-            username="stranger-cancel",
-            password="testpass123",
-        )
-
-        self.client.force_authenticate(user=owner)
+        self.client.force_authenticate(user=self.owner)
 
         order, _ = self.create_order_for_user(
-            user=owner,
+            user=self.owner,
             email_prefix="foreigncancel",
         )
 
-        self.client.force_authenticate(user=stranger)
+        self.client.force_authenticate(user=self.stranger)
 
         response = self.client.post(
             f"/api/orders/{order.id}/cancel/",

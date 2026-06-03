@@ -58,3 +58,13 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     status = serializers.ChoiceField(
         choices=OrderStatus.choices,
     )
+
+    cancellation_reason = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )
+
+    cancellation_comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+    )

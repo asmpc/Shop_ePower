@@ -1,6 +1,8 @@
 from django.conf import settings
 from django.db import models
 
+from shop_epower.core.currency import get_base_currency
+
 
 class OrderStatus(models.TextChoices):
     NEW = "new", "New"
@@ -10,6 +12,29 @@ class OrderStatus(models.TextChoices):
     COMPLETED = "completed", "Completed"
     CANCELLED = "cancelled", "Cancelled"
 
+class OrderCancellationReason(models.TextChoices):
+    CLIENT_REFUSED = "client_refused", "Client refused"
+
+    SUPPLIER_UNAVAILABLE = "supplier_unavailable", "Supplier unavailable"
+
+    DELIVERY_COST = "delivery_cost", "Delivery cost"
+
+    OTHER = "other", "Other"
+
+class DeliveryMethod(models.TextChoices):
+    PICKUP = "pickup", "Pickup"
+
+    SHIPPING = "shipping", "Shipping"
+
+class DeliveryProvider(models.TextChoices):
+    POST = "post", "Post"
+
+    TRANSPORT_COMPANY = (
+        "transport_company",
+        "Transport company",
+    )
+
+    OTHER = "other", "Other"
 
 class Order(models.Model):
     user = models.ForeignKey(
@@ -22,6 +47,51 @@ class Order(models.Model):
         max_length=20,
         choices=OrderStatus.choices,
         default=OrderStatus.NEW,
+    )
+
+    cancellation_reason = models.CharField(
+        max_length=50,
+        choices=OrderCancellationReason.choices,
+        blank=True,
+    )
+
+    cancellation_comment = models.TextField(
+        blank=True,
+    )
+
+    delivery_method = models.CharField(
+        max_length=20,
+        choices=DeliveryMethod.choices,
+        default=DeliveryMethod.PICKUP,
+    )
+
+    delivery_provider = models.CharField(
+        max_length=50,
+        choices=DeliveryProvider.choices,
+        blank=True,
+    )
+
+    delivery_address = models.TextField(
+        blank=True,
+        null=True,
+    )
+
+    delivery_comment = models.TextField(
+        blank=True,
+    )
+
+    manager_delivery_comment = models.TextField(
+        blank=True,
+    )
+
+    delivery_cost = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+    )
+
+    delivery_paid_by_customer_on_receipt = models.BooleanField(
+        default=False,
     )
 
     is_legal_entity = models.BooleanField(
@@ -74,6 +144,11 @@ class Order(models.Model):
         default=0,
     )
 
+    currency_snapshot = models.CharField(
+        max_length=10,
+        default=get_base_currency,
+    )
+
     created_at = models.DateTimeField(
         auto_now_add=True,
     )
@@ -116,6 +191,11 @@ class OrderItem(models.Model):
     total_price = models.DecimalField(
         max_digits=12,
         decimal_places=2,
+    )
+
+    currency_snapshot = models.CharField(
+        max_length=10,
+        default=get_base_currency,
     )
 
     def __str__(self):
