@@ -27,6 +27,7 @@ def create_order_from_cart(
     delivery_provider="",
     delivery_address="",
     delivery_comment="",
+    order_comment="",
 ):
     if not user or not user.is_authenticated:
         raise ValidationError("User must be authenticated.")
@@ -70,6 +71,7 @@ def create_order_from_cart(
         delivery_provider=delivery_provider,
         delivery_address=delivery_address,
         delivery_comment=delivery_comment,
+        order_comment=order_comment,
     )
 
     for cart_item in cart_items:

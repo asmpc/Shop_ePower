@@ -80,6 +80,10 @@ class Order(models.Model):
         blank=True,
     )
 
+    order_comment = models.TextField(
+        blank=True,
+    )
+
     manager_delivery_comment = models.TextField(
         blank=True,
     )

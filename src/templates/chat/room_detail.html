@@ -34,9 +34,15 @@
             <strong>Order:</strong>
 
             {% if room.order %}
-                <a href="{% url 'orders:detail' room.order.pk %}">
-                    #{{ room.order.pk }}
-                </a>
+                {% if request.user.role == "manager" or request.user.role == "admin" %}
+                    <a href="{% url 'orders:manager_order_detail' room.order.pk %}">
+                        #{{ room.order.pk }}
+                    </a>
+                {% else %}
+                    <a href="{% url 'orders:detail' room.order.pk %}">
+                        #{{ room.order.pk }}
+                    </a>
+                {% endif %}
             {% else %}
                 General question
             {% endif %}

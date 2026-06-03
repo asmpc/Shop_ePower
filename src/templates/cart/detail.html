@@ -81,28 +81,30 @@
 
     <h3>Checkout</h3>
 
-        <form method="post" action="{% url 'orders:checkout' %}">
-            {% csrf_token %}
+    <form method="post" action="{% url 'orders:checkout' %}">
+        {% csrf_token %}
 
-            <div class="mb-3">
-                <label class="form-label">
-                    Delivery method
-                </label>
+        <div class="mb-3">
+            <label class="form-label">
+                Delivery method
+            </label>
 
-                <select
-                    name="delivery_method"
-                    class="form-select"
-                >
-                    <option value="pickup">
-                        Pickup
-                    </option>
+            <select
+                name="delivery_method"
+                class="form-select"
+                id="delivery-method"
+            >
+                <option value="pickup">
+                    Pickup
+                </option>
 
-                    <option value="shipping">
-                        Shipping
-                    </option>
-                </select>
-            </div>
+                <option value="shipping">
+                    Shipping
+                </option>
+            </select>
+        </div>
 
+        <div id="shipping-fields" style="display: none;">
             <div class="mb-3">
                 <label class="form-label">
                     Delivery provider
@@ -151,11 +153,40 @@
                     class="form-control"
                     rows="3"></textarea>
             </div>
+        </div>
 
-            <button type="submit" class="btn btn-primary">
-                Place Order
-            </button>
-        </form>
-    {% endif %}
+        <div class="mb-3">
+            <label class="form-label">
+                Order comment
+            </label>
+
+            <textarea
+                name="order_comment"
+                class="form-control"
+                rows="3"
+                placeholder="Additional information for manager..."></textarea>
+        </div>
+
+        <button type="submit" class="btn btn-primary">
+            Place Order
+        </button>
+    </form>
+
+    <script>
+        const deliveryMethodSelect = document.getElementById("delivery-method");
+        const shippingFields = document.getElementById("shipping-fields");
+
+        function toggleShippingFields() {
+            if (deliveryMethodSelect.value === "shipping") {
+                shippingFields.style.display = "block";
+            } else {
+                shippingFields.style.display = "none";
+            }
+        }
+
+        deliveryMethodSelect.addEventListener("change", toggleShippingFields);
+        toggleShippingFields();
+    </script>
+{% endif %}
 
 {% endblock %}
