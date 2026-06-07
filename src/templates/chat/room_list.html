@@ -4,6 +4,18 @@
 
 <h1 class="mb-4">Chat rooms</h1>
 
+<form method="get" class="mb-3 d-flex gap-2 align-items-center">
+    <label class="form-label">Filter by status:</label>
+    <select name="status" class="form-select w-auto">
+        <option value="all" {% if request.GET.status == "all" %}selected{% endif %}>All</option>
+        <option value="open" {% if request.GET.status == "open" %}selected{% endif %}>Open</option>
+        <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>In Progress</option>
+        <option value="closed" {% if request.GET.status == "closed" %}selected{% endif %}>Closed</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Apply</button>
+    <a href="{% url 'chat:room_list' %}" class="btn btn-outline-secondary">Reset</a>
+</form>
+
 {% if request.user.role == "manager" %}
 
     <h2 class="mb-3">Available rooms</h2>

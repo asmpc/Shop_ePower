@@ -22,6 +22,12 @@ def take_chat_room(room: ChatRoom, manager):
     """
     if room.status != ChatRoomStatus.OPEN:
         raise ValueError("Room is already taken or closed")
+
+    if manager.role not in ["manager", "admin"]:
+        raise PermissionError(
+            "Only managers or admins can take a chat room."
+        )
+
     room.manager = manager
     room.status = ChatRoomStatus.IN_PROGRESS
     room.save(update_fields=["manager", "status", "updated_at"])
