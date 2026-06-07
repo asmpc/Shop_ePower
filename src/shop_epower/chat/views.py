@@ -54,21 +54,26 @@ def _check_room_access(user, room):
 @login_required
 def room_list(request):
     user = request.user
+    status_filter = request.GET.get("status")
 
     if user.role == "admin":
-        rooms = get_all_chat_rooms_for_admin(user)
-
-        return render(
-            request,
-            "chat/room_list.html",
-            {
-                "rooms": rooms,
-            },
-        )
+        rooms = get_all_chat_rooms_for_admin(user=user)
+        if status_filter and status_filter != "all":
+            rooms = rooms.filter(status=status_filter)
+        return render(request, "chat/room_list.html", {"rooms": rooms})
 
     if user.role == "manager":
         available_rooms = get_available_chat_rooms_for_manager()
         active_rooms = get_active_chat_rooms_for_manager(user)
+
+        if status_filter and status_filter != "all":
+            if status_filter == "open":
+                available_rooms = available_rooms.filter(status="open")
+            elif status_filter == "in_progress":
+                active_rooms = active_rooms.filter(status="in_progress")
+            elif status_filter == "closed":
+                available_rooms = available_rooms.filter(status="closed")
+                active_rooms = active_rooms.filter(status="closed")
 
         return render(
             request,
@@ -80,14 +85,9 @@ def room_list(request):
         )
 
     rooms = get_chat_rooms_for_user(user)
-
-    return render(
-        request,
-        "chat/room_list.html",
-        {
-            "rooms": rooms,
-        },
-    )
+    if status_filter and status_filter != "all":
+        rooms = rooms.filter(status=status_filter)
+    return render(request, "chat/room_list.html", {"rooms": rooms})
 
 
 @login_required

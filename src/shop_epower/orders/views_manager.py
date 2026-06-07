@@ -28,17 +28,19 @@ class ManagerOrderListView(
     ordering = ["-created_at"]
 
     def get_queryset(self):
-
         user = self.request.user
 
         if user.role not in ["manager", "admin"]:
             return Order.objects.none()
 
-        return (
-            Order.objects
-            .select_related("user")
-            .prefetch_related("items")
-        )
+        qs = Order.objects.select_related("user").prefetch_related("items")
+
+        # фильтр по GET-параметру status
+        status = self.request.GET.get("status", "all")
+        if status != "all":
+            qs = qs.filter(status=status)
+
+        return qs
 
 
 class ManagerOrderDetailView(
