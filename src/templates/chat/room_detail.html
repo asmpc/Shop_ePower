@@ -1,0 +1,225 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1>Chat room #{{ room.id }}</h1>
+
+        {% if room.status == "open" %}
+            <span class="badge bg-success">OPEN</span>
+        {% elif room.status == "in_progress" %}
+            <span class="badge bg-primary">IN PROGRESS</span>
+        {% elif room.status == "closed" %}
+            <span class="badge bg-secondary">CLOSED</span>
+        {% endif %}
+    </div>
+
+    <a href="{% url 'chat:room_list' %}" class="btn btn-outline-secondary">
+        Back to chats
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Chat information
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">
+            <strong>Client:</strong> {{ room.user }}
+        </p>
+
+        <p class="mb-1">
+            <strong>Order:</strong>
+
+            {% if room.order %}
+                {% if request.user.role == "manager" or request.user.role == "admin" %}
+                    <a href="{% url 'orders:manager_order_detail' room.order.pk %}">
+                        #{{ room.order.pk }}
+                    </a>
+                {% else %}
+                    <a href="{% url 'orders:detail' room.order.pk %}">
+                        #{{ room.order.pk }}
+                    </a>
+                {% endif %}
+            {% else %}
+                General question
+            {% endif %}
+        </p>
+
+        {% if room.manager %}
+            <p class="mb-0">
+                <strong>Manager:</strong> {{ room.manager }}
+            </p>
+        {% else %}
+            <p class="mb-0">
+                <strong>Manager:</strong> not assigned
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% if room.status == "open" %}
+    {% if request.user.role == "manager" or request.user.role == "admin" %}
+        <div class="mb-4">
+            <form method="post"
+                  action="{% url 'chat:room_take' room.pk %}">
+                {% csrf_token %}
+
+                <button type="submit"
+                        class="btn btn-primary">
+                    Take room
+                </button>
+            </form>
+        </div>
+    {% endif %}
+{% endif %}
+
+<h2 class="mb-3">Messages</h2>
+
+<div class="mb-4">
+    {% for message in chat_messages %}
+
+        {% if message.sender == room.user %}
+            <div class="d-flex justify-content-start mb-3">
+                <div class="card bg-light border-secondary"
+                     style="max-width: 75%;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-3">
+                            <strong>Client</strong>
+                            <small class="text-muted">
+                                {{ message.created_at }}
+                            </small>
+                        </div>
+
+                        <p class="mt-2 mb-0">
+                            {{ message.text }}
+                        </p>
+
+                        {% for attachment in message.attachments.all %}
+                            <p class="mt-2 mb-0">
+                                <a href="{{ attachment.file.url }}">
+                                    {{ attachment.original_name }}
+                                </a>
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% else %}
+            <div class="d-flex justify-content-end mb-3">
+                <div class="card border-primary"
+                     style="max-width: 75%;">
+                    <div class="card-body">
+                        <div class="d-flex justify-content-between gap-3">
+                            <strong>Manager/Admin</strong>
+                            <small class="text-muted">
+                                {{ message.created_at }}
+                            </small>
+                        </div>
+
+                        <p class="mt-2 mb-0">
+                            {{ message.text }}
+                        </p>
+
+                        {% for attachment in message.attachments.all %}
+                            <p class="mt-2 mb-0">
+                                <a href="{{ attachment.file.url }}">
+                                    {{ attachment.original_name }}
+                                </a>
+                            </p>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+    {% empty %}
+        <p>No messages yet.</p>
+    {% endfor %}
+</div>
+
+{% if room.status != "closed" %}
+
+    {% if request.user == room.user %}
+
+        <div class="mb-3">
+            <form method="post"
+                  action="{% url 'chat:room_close' room.pk %}"
+                  onsubmit="return confirm('Are you sure you want to close this chat?');">
+                {% csrf_token %}
+
+                <button type="submit"
+                        class="btn btn-danger">
+                    Close chat
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                Send message
+            </div>
+
+            <div class="card-body">
+                <form method="post"
+                      action="{% url 'chat:room_send' room.pk %}"
+                      enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+
+                    <button type="submit"
+                            class="btn btn-success">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    {% elif request.user == room.manager %}
+
+        <div class="mb-3">
+            <form method="post"
+                  action="{% url 'chat:room_close' room.pk %}"
+                  onsubmit="return confirm('Are you sure you want to close this chat?');">
+                {% csrf_token %}
+
+                <button type="submit"
+                        class="btn btn-danger">
+                    Close chat
+                </button>
+            </form>
+        </div>
+
+        <div class="card">
+            <div class="card-header">
+                Send message
+            </div>
+
+            <div class="card-body">
+                <form method="post"
+                      action="{% url 'chat:room_send' room.pk %}"
+                      enctype="multipart/form-data">
+                    {% csrf_token %}
+                    {{ form.as_p }}
+
+                    <button type="submit"
+                            class="btn btn-success">
+                        Send
+                    </button>
+                </form>
+            </div>
+        </div>
+
+    {% endif %}
+
+{% else %}
+
+    <div class="alert alert-secondary">
+        This chat room is closed.
+    </div>
+
+{% endif %}
+
+{% endblock %}

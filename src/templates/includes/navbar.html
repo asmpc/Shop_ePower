@@ -42,6 +42,25 @@
                         <a class="nav-link text-warning fs-5"
                            href="{% url 'orders:manager_order_list' %}">
                             Manage orders
+
+                            {% if navbar_new_orders_count %}
+                                <span class="badge bg-success">
+                                    {{ navbar_new_orders_count }}
+                                </span>
+                            {% endif %}
+                        </a>
+                    </li>
+
+                    <li class="nav-item">
+                        <a class="nav-link text-info fs-5"
+                           href="{% url 'chat:room_list' %}">
+                            Chat rooms
+
+                            {% if navbar_unread_chat_messages_count %}
+                                <span class="badge bg-danger rounded-pill">
+                                    {{ navbar_unread_chat_messages_count }}
+                                </span>
+                            {% endif %}
                         </a>
                     </li>
 
@@ -52,6 +71,34 @@
             </ul>
 
             <ul class="navbar-nav ms-auto">
+
+                {% if request.user.is_authenticated %}
+
+                    {% if request.user.role == "client" %}
+
+                        <li class="nav-item">
+                            <a class="nav-link text-info fw-bold"
+                               href="{% url 'chat:room_list' %}">
+                                My chats
+
+                                {% if navbar_unread_chat_messages_count %}
+                                  <span class="badge bg-danger rounded-pill">
+                                        {{ navbar_unread_chat_messages_count }}
+                                    </span>
+                                {% endif %}
+                            </a>
+                        </li>
+
+                        <li class="nav-item">
+                            <a class="nav-link text-success fw-bold"
+                               href="{% url 'chat:room_create' %}">
+                                Create chat
+                            </a>
+                        </li>
+
+                    {% endif %}
+
+                {% endif %}
 
                 <li class="nav-item">
                     <a class="nav-link" href="{% url 'cart-detail' %}">
