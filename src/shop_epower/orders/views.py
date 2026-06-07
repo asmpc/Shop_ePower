@@ -9,6 +9,8 @@ from django.views.decorators.http import require_POST
 
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import cancel_new_order
+from shop_epower.chat.selectors import get_chat_rooms_for_order
+
 
 
 @login_required
@@ -45,6 +47,11 @@ def checkout_view(request):
         "",
     )
 
+    order_comment = request.POST.get(
+        "order_comment",
+        "",
+    )
+
     try:
         order = create_order_from_cart(
             user=request.user,
@@ -53,6 +60,7 @@ def checkout_view(request):
             delivery_provider=delivery_provider,
             delivery_address=delivery_address,
             delivery_comment=delivery_comment,
+            order_comment=order_comment,
         )
     except Exception as e:
         messages.error(request, str(e))
@@ -92,12 +100,15 @@ def order_detail_view(request, order_id):
         user=request.user,
     )
 
+    chat_rooms = get_chat_rooms_for_order(order)
+
     return render(
         request,
         "orders/detail.html",
         {
             "order": order,
             "can_cancel": order.status == OrderStatus.NEW,
+            "chat_rooms": chat_rooms,
         },
     )
 

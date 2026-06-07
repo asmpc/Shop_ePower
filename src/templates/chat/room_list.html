@@ -1,0 +1,240 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Chat rooms</h1>
+
+<form method="get" class="mb-3 d-flex gap-2 align-items-center">
+    <label class="form-label">Filter by status:</label>
+    <select name="status" class="form-select w-auto">
+        <option value="all" {% if request.GET.status == "all" %}selected{% endif %}>All</option>
+        <option value="open" {% if request.GET.status == "open" %}selected{% endif %}>Open</option>
+        <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>In Progress</option>
+        <option value="closed" {% if request.GET.status == "closed" %}selected{% endif %}>Closed</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Apply</button>
+    <a href="{% url 'chat:room_list' %}" class="btn btn-outline-secondary">Reset</a>
+</form>
+
+{% if request.user.role == "manager" %}
+
+    <h2 class="mb-3">Available rooms</h2>
+
+    {% for room in available_rooms %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                            Room #{{ room.id }}
+                        </a>
+
+                        {% if room.unread_messages_count %}
+                            <span class="badge bg-danger ms-2">
+                                {{ room.unread_messages_count }}
+                            </span>
+                        {% endif %}
+
+                        <span class="badge bg-success ms-2">
+                            OPEN
+                        </span>
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Client</div>
+                        <div>{{ room.user }}</div>
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Order</div>
+                        <div>
+                            {% if room.order %}
+                                <a href="{% url 'orders:detail' room.order.id %}">
+                                    #{{ room.order.id }}
+                                </a>
+                            {% else %}
+                                General question
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 border-start">
+                        <div class="text-muted">Last message</div>
+                        <div>
+                            {% if room.last_message_text %}
+                                {{ room.last_message_sender_username }}:
+                                {{ room.last_message_text|truncatechars:60 }}
+                            {% else %}
+                                No messages yet
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 text-md-end mt-3 mt-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}"
+                           class="btn btn-outline-secondary">
+                            Open
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    {% empty %}
+
+        <p>No available rooms.</p>
+
+    {% endfor %}
+
+    <h2 class="mt-4 mb-3">My active rooms</h2>
+
+    {% for room in active_rooms %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                            Room #{{ room.id }}
+                        </a>
+
+                        {% if room.unread_messages_count %}
+                            <span class="badge bg-danger ms-2">
+                                {{ room.unread_messages_count }}
+                            </span>
+                        {% endif %}
+
+                        <span class="badge bg-primary ms-2">
+                            IN PROGRESS
+                        </span>
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Client</div>
+                        <div>{{ room.user }}</div>
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Order</div>
+                        <div>
+                            {% if room.order %}
+                                <a href="{% url 'orders:detail' room.order.id %}">
+                                    #{{ room.order.id }}
+                                </a>
+                            {% else %}
+                                General question
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 border-start">
+                        <div class="text-muted">Last message</div>
+                        <div>
+                            {% if room.last_message_text %}
+                                {{ room.last_message_sender_username }}:
+                                {{ room.last_message_text|truncatechars:60 }}
+                            {% else %}
+                                No messages yet
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 text-md-end mt-3 mt-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}"
+                           class="btn btn-outline-secondary">
+                            Open
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    {% empty %}
+
+        <p>No active rooms.</p>
+
+    {% endfor %}
+
+{% else %}
+
+    {% for room in rooms %}
+
+        <div class="card mb-3">
+            <div class="card-body">
+                <div class="row align-items-center">
+
+                    <div class="col-md-3 mb-3 mb-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                            Room #{{ room.id }}
+                        </a>
+
+                        {% if room.unread_messages_count %}
+                            <span class="badge bg-danger ms-2">
+                                {{ room.unread_messages_count }}
+                            </span>
+                        {% endif %}
+
+                        {% if room.status == "open" %}
+                            <span class="badge bg-success ms-2">OPEN</span>
+                        {% elif room.status == "in_progress" %}
+                            <span class="badge bg-primary ms-2">IN PROGRESS</span>
+                        {% elif room.status == "closed" %}
+                            <span class="badge bg-secondary ms-2">CLOSED</span>
+                        {% endif %}
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Client</div>
+                        <div>{{ room.user }}</div>
+                    </div>
+
+                    <div class="col-md-2 border-start">
+                        <div class="text-muted">Order</div>
+                        <div>
+                            {% if room.order %}
+                                <a href="{% url 'orders:detail' room.order.id %}">
+                                    #{{ room.order.id }}
+                                </a>
+                            {% else %}
+                                General question
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-3 border-start">
+                        <div class="text-muted">Last message</div>
+                        <div>
+                            {% if room.last_message_text %}
+                                {{ room.last_message_sender_username }}:
+                                {{ room.last_message_text|truncatechars:60 }}
+                            {% else %}
+                                No messages yet
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-2 text-md-end mt-3 mt-md-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}"
+                           class="btn btn-outline-secondary">
+                            Open
+                        </a>
+                    </div>
+
+                </div>
+            </div>
+        </div>
+
+    {% empty %}
+
+        <p>No chat rooms.</p>
+
+    {% endfor %}
+
+{% endif %}
+
+{% endblock %}

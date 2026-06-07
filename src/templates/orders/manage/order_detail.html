@@ -2,81 +2,227 @@
 
 {% block content %}
 
-<h1 class="mb-4">
-    Order #{{ order.id }}
-</h1>
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1>Order #{{ order.id }}</h1>
+
+        {% if order.status == "new" %}
+            <span class="badge bg-success">NEW</span>
+        {% elif order.status == "processing" %}
+            <span class="badge bg-primary">PROCESSING</span>
+        {% elif order.status == "completed" %}
+            <span class="badge bg-secondary">COMPLETED</span>
+        {% elif order.status == "cancelled" %}
+            <span class="badge bg-danger">CANCELLED</span>
+        {% endif %}
+    </div>
+
+    <a href="{% url 'orders:manager_order_list' %}" class="btn btn-outline-secondary">
+        Back to orders
+    </a>
+</div>
 
 <div class="card mb-4">
+    <div class="card-header">
+        Customer information
+    </div>
 
     <div class="card-body">
-
-        <h4>
-            Customer Information
-        </h4>
-
-        <p>
-            <strong>Name:</strong>
-            {{ order.customer_name }}
+        <p class="mb-1">
+            <strong>Name:</strong> {{ order.customer_name }}
         </p>
 
-        <p>
-            <strong>Email:</strong>
-            {{ order.customer_email }}
+        <p class="mb-1">
+            <strong>Email:</strong> {{ order.customer_email }}
         </p>
 
-        <p>
-            <strong>Phone:</strong>
-            {{ order.customer_phone }}
+        <p class="mb-1">
+            <strong>Phone:</strong> {{ order.customer_phone }}
         </p>
 
-        <p>
-            <strong>Status:</strong>
-            {{ order.status }}
+        <p class="mb-0">
+            <strong>Total:</strong>
+            {{ order.total_price }} {{ order.currency_snapshot }}
         </p>
+    </div>
+</div>
 
-        {% if order.status == "cancelled" %}
+{% if order.order_comment %}
+    <div class="card mb-4 border-warning">
+        <div class="card-header">
+            Customer notes
+        </div>
 
-            <p>
+        <div class="card-body">
+            <p class="mb-0">
+                {{ order.order_comment }}
+            </p>
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        Related chats
+    </div>
+
+    <div class="card-body">
+        {% for room in chat_rooms %}
+            <div class="mb-3">
+
+                <p class="mb-1">
+                    <a href="{% url 'chat:room_detail' room.pk %}">
+                        Chat room #{{ room.id }}
+                    </a>
+
+                    {% if room.unread_messages_count %}
+                        <span class="badge bg-danger">
+                            {{ room.unread_messages_count }}
+                        </span>
+                    {% endif %}
+
+                    {% if room.status == "open" %}
+                        <span class="badge bg-success">OPEN</span>
+                    {% elif room.status == "in_progress" %}
+                        <span class="badge bg-primary">IN PROGRESS</span>
+                    {% elif room.status == "closed" %}
+                        <span class="badge bg-secondary">CLOSED</span>
+                    {% endif %}
+                </p>
+
+                <p class="mb-1">
+                    Client: {{ room.user }}
+                </p>
+
+                {% if room.manager %}
+                    <p class="mb-1">
+                        Manager: {{ room.manager }}
+                    </p>
+                {% endif %}
+
+                {% if room.last_message_text %}
+                    <p class="text-muted mb-0">
+                        Last message:
+                        {{ room.last_message_sender_username }}:
+                        {{ room.last_message_text|truncatechars:100 }}
+                    </p>
+                {% endif %}
+
+            </div>
+
+            {% if not forloop.last %}
+                <hr>
+            {% endif %}
+
+        {% empty %}
+            <p class="mb-0">
+                No chats for this order yet.
+            </p>
+        {% endfor %}
+    </div>
+</div>
+
+{% if order.status == "cancelled" %}
+    <div class="card mb-4 border-danger">
+        <div class="card-header">
+            Cancellation information
+        </div>
+
+        <div class="card-body">
+            <p class="mb-1">
                 <strong>Cancellation reason:</strong>
                 {{ order.get_cancellation_reason_display }}
             </p>
 
             {% if order.cancellation_comment %}
+                <p class="mb-0">
+                    <strong>Cancellation comment:</strong>
+                    {{ order.cancellation_comment }}
+                </p>
+            {% endif %}
+        </div>
+    </div>
+{% endif %}
 
-            <p>
-                <strong>Cancellation comment:</strong>
-                {{ order.cancellation_comment }}
+<div class="card mb-4">
+    <div class="card-header">
+        Delivery information
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">
+            <strong>Method:</strong>
+            {{ order.get_delivery_method_display }}
+        </p>
+
+        {% if order.delivery_method == "shipping" %}
+            <p class="mb-1">
+                <strong>Provider:</strong>
+                {{ order.get_delivery_provider_display }}
             </p>
 
-            {% endif %}
+            <p class="mb-1">
+                <strong>Address:</strong>
+                {{ order.delivery_address }}
+            </p>
 
+            {% if order.delivery_comment %}
+                <p class="mb-1">
+                    <strong>Customer comment:</strong>
+                    {{ order.delivery_comment }}
+                </p>
+            {% endif %}
         {% endif %}
 
-        {% if order.status == "new" %}
+        {% if order.manager_delivery_comment %}
+            <p class="mb-1">
+                <strong>Manager delivery comment:</strong>
+                {{ order.manager_delivery_comment }}
+            </p>
+        {% endif %}
 
+        {% if order.delivery_cost %}
+            <p class="mb-1">
+                <strong>Delivery cost:</strong>
+                {{ order.delivery_cost }} {{ order.currency_snapshot }}
+            </p>
+        {% endif %}
+
+        {% if order.delivery_paid_by_customer_on_receipt %}
+            <p class="mb-0">
+                <strong>Delivery payment:</strong>
+                Paid by customer on receipt
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+{% if order.status == "new" %}
+    <div class="mb-4">
+        <form method="post"
+              action="{% url 'orders:manager_order_status_update' order.id %}">
+            {% csrf_token %}
+
+            <input type="hidden"
+                   name="status"
+                   value="processing">
+
+            <button type="submit"
+                    class="btn btn-warning">
+                Move to processing
+            </button>
+        </form>
+    </div>
+{% elif order.status == "processing" %}
+    <div class="card mb-4">
+        <div class="card-header">
+            Order actions
+        </div>
+
+        <div class="card-body">
             <form method="post"
                   action="{% url 'orders:manager_order_status_update' order.id %}"
                   class="mb-3">
-
-                {% csrf_token %}
-
-                <input type="hidden"
-                       name="status"
-                       value="processing">
-
-                <button type="submit"
-                        class="btn btn-warning">
-                    Move to processing
-                </button>
-
-            </form>
-
-            {% elif order.status == "processing" %}
-
-            <form method="post"
-                  action="{% url 'orders:manager_order_status_update' order.id %}"
-                  class="mb-3">
-
                 {% csrf_token %}
 
                 <input type="hidden"
@@ -87,24 +233,19 @@
                         class="btn btn-success">
                     Complete order
                 </button>
-
             </form>
 
             <form method="post"
-                  action="{% url 'orders:manager_order_status_update' order.id %}"
-                  class="mb-3">
-
+                  action="{% url 'orders:manager_order_status_update' order.id %}">
                 {% csrf_token %}
 
                 <div class="mb-3">
-
                     <label class="form-label">
                         Cancellation reason
                     </label>
 
                     <select name="cancellation_reason"
                             class="form-select">
-
                         <option value="client_refused">
                             Client refused
                         </option>
@@ -120,13 +261,10 @@
                         <option value="other">
                             Other
                         </option>
-
                     </select>
-
                 </div>
 
                 <div class="mb-3">
-
                     <label class="form-label">
                         Comment
                     </label>
@@ -134,7 +272,6 @@
                     <textarea name="cancellation_comment"
                               class="form-control"
                               rows="3"></textarea>
-
                 </div>
 
                 <input type="hidden"
@@ -145,92 +282,22 @@
                         class="btn btn-danger">
                     Cancel order
                 </button>
-
             </form>
+        </div>
+    </div>
+{% endif %}
 
-            {% endif %}
+<div class="card mb-4">
+    <div class="card-header">
+        Update delivery
+    </div>
 
-        <p>
-            <strong>Total:</strong>
-            {{ order.total_price }}
-            {{ order.currency_snapshot }}
-        </p>
-
-        <hr>
-
-            <h4>
-                Delivery Information
-            </h4>
-
-            <p>
-                <strong>Method:</strong>
-                {{ order.get_delivery_method_display }}
-            </p>
-
-            {% if order.delivery_method == "shipping" %}
-
-            <p>
-                <strong>Provider:</strong>
-                {{ order.get_delivery_provider_display }}
-            </p>
-
-            <p>
-                <strong>Address:</strong>
-                {{ order.delivery_address }}
-            </p>
-
-            {% if order.delivery_comment %}
-
-            <p>
-                <strong>Customer comment:</strong>
-                {{ order.delivery_comment }}
-            </p>
-
-            {% endif %}
-
-            {% endif %}
-
-        {% if order.manager_delivery_comment %}
-
-            <p>
-                <strong>Manager delivery comment:</strong>
-                {{ order.manager_delivery_comment }}
-            </p>
-
-        {% endif %}
-
-            {% if order.delivery_cost %}
-
-            <p>
-                <strong>Delivery cost:</strong>
-                {{ order.delivery_cost }} {{ order.currency_snapshot }}
-            </p>
-
-            {% endif %}
-
-            {% if order.delivery_paid_by_customer_on_receipt %}
-
-            <p>
-                <strong>Delivery payment:</strong>
-                Paid by customer on receipt
-            </p>
-
-        {% endif %}
-
-        <hr>
-
-        <h4>
-            Update Delivery
-        </h4>
-
+    <div class="card-body">
         <form method="post"
-              action="{% url 'orders:manager_order_delivery_update' order.id %}"
-              class="mb-4">
-
+              action="{% url 'orders:manager_order_delivery_update' order.id %}">
             {% csrf_token %}
 
             <div class="mb-3">
-
                 <label class="form-label">
                     Delivery cost ({{ order.currency_snapshot }})
                 </label>
@@ -241,11 +308,9 @@
                        step="0.01"
                        min="0"
                        value="{{ order.delivery_cost }}">
-
             </div>
 
             <div class="form-check mb-3">
-
                 <input type="checkbox"
                        name="delivery_paid_by_customer_on_receipt"
                        class="form-check-input"
@@ -256,11 +321,9 @@
                        for="deliveryPaidOnReceipt">
                     Delivery paid by customer on receipt
                 </label>
-
             </div>
 
             <div class="mb-3">
-
                 <label class="form-label">
                     Manager delivery comment
                 </label>
@@ -268,114 +331,81 @@
                 <textarea name="manager_delivery_comment"
                           class="form-control"
                           rows="3">{{ order.manager_delivery_comment }}</textarea>
-
             </div>
 
             <button type="submit"
                     class="btn btn-primary">
                 Update delivery
             </button>
-
         </form>
-
     </div>
-
 </div>
 
 {% if order.is_legal_entity %}
+    <div class="card mb-4">
+        <div class="card-header">
+            Legal entity information
+        </div>
 
-<div class="card mb-4">
+        <div class="card-body">
+            <p class="mb-1">
+                <strong>Company:</strong> {{ order.company_name }}
+            </p>
 
-    <div class="card-body">
+            <p class="mb-1">
+                <strong>Tax ID:</strong> {{ order.tax_id }}
+            </p>
 
-        <h4>
-            Legal Entity Information
-        </h4>
+            <p class="mb-1">
+                <strong>Legal address:</strong> {{ order.legal_address }}
+            </p>
 
-        <p>
-            <strong>Company:</strong>
-            {{ order.company_name }}
-        </p>
+            <p class="mb-1">
+                <strong>Bank:</strong> {{ order.bank_name }}
+            </p>
 
-        <p>
-            <strong>Tax ID:</strong>
-            {{ order.tax_id }}
-        </p>
-
-        <p>
-            <strong>Legal Address:</strong>
-            {{ order.legal_address }}
-        </p>
-
-        <p>
-            <strong>Bank:</strong>
-            {{ order.bank_name }}
-        </p>
-
-        <p>
-            <strong>Bank Account:</strong>
-            {{ order.bank_account }}
-        </p>
-
+            <p class="mb-0">
+                <strong>Bank account:</strong> {{ order.bank_account }}
+            </p>
+        </div>
     </div>
-
-</div>
-
 {% endif %}
 
 <div class="card mb-4">
-
-    <div class="card-body">
-
-        <h4 class="mb-3">
-            Order Items
-        </h4>
-
-        <table class="table table-bordered">
-
-            <thead>
-                <tr>
-                    <th>Product</th>
-                    <th>Price</th>
-                    <th>Quantity</th>
-                    <th>Total</th>
-                </tr>
-            </thead>
-
-            <tbody>
-
-                {% for item in order.items.all %}
-
-                <tr>
-
-                    <td>
-                        {{ item.product_name }}
-                    </td>
-
-                    <td>
-                        {{ item.unit_price }} {{ item.currency_snapshot }}
-                    </td>
-
-                    <td>
-                        {{ item.quantity }}
-                    </td>
-
-                    <p>
-                        <strong>Delivery cost:</strong>
-                        {{ order.delivery_cost }}
-                        {{ order.currency_snapshot }}
-                    </p>
-
-                </tr>
-
-                {% endfor %}
-
-            </tbody>
-
-        </table>
-
+    <div class="card-header">
+        Order items
     </div>
 
+    <div class="card-body">
+        {% for item in order.items.all %}
+            <div class="card mb-3 border-secondary">
+                <div class="card-body">
+                    <h5 class="mb-2">
+                        {{ item.product_name }}
+                    </h5>
+
+                    <p class="mb-1">
+                        <strong>Price:</strong>
+                        {{ item.unit_price }} {{ item.currency_snapshot }}
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Quantity:</strong>
+                        {{ item.quantity }}
+                    </p>
+
+                    <p class="mb-0">
+                        <strong>Total:</strong>
+                        {{ item.total_price }} {{ item.currency_snapshot }}
+                    </p>
+                </div>
+            </div>
+        {% empty %}
+            <p class="mb-0">
+                No order items.
+            </p>
+        {% endfor %}
+    </div>
 </div>
 
 {% endblock %}
