@@ -1,10 +1,83 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+<div class="card w-100 h-100 d-flex flex-column product-card">
 
-</body>
-</html>
+    {% with image=product.images.first %}
+        {% if image %}
+            <img
+                src="{{ image.image.url }}"
+                class="card-img-top product-image"
+                alt="{{ product.name }}"
+            >
+        {% endif %}
+    {% endwith %}
+
+    <div class="card-body d-flex flex-column">
+
+        <h6 class="card-title text-center mb-2">
+            {{ product.name }}
+        </h6>
+
+        <p class="text-muted text-center mb-2">
+            {{ product.brand.name }}
+        </p>
+
+        <div
+            class="mb-2 js-price-box text-center"
+            data-base-currency="{{ base_currency }}"
+        >
+            <strong>
+                <span
+                    class="js-product-price"
+                    data-base-price="{{ product.final_price|stringformat:'f' }}"
+                >
+                    {{ product.final_price }} {{ base_currency }}
+                </span>
+            </strong>
+        </div>
+
+        {% if product.inventory.in_stock %}
+            <p class="text-success text-center small mb-2">
+                In stock
+            </p>
+        {% else %}
+            <p class="text-danger text-center small mb-2">
+                Out of stock
+            </p>
+        {% endif %}
+
+        <div class="mt-auto">
+
+            <form
+                method="post"
+                action="{% url 'cart-add' product.id %}"
+                class="mb-2"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="number"
+                    name="quantity"
+                    value="1"
+                    min="1"
+                    class="form-control form-control-sm text-center mb-2"
+                >
+
+                <button
+                    type="submit"
+                    class="btn btn-sm btn-primary w-100"
+                >
+                    Add to cart
+                </button>
+            </form>
+
+            <a
+                href="{% url 'catalog:product_detail' product.slug %}"
+                class="btn btn-sm btn-outline-secondary w-100"
+            >
+                View
+            </a>
+
+        </div>
+
+    </div>
+
+</div>

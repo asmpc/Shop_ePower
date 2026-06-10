@@ -21,12 +21,42 @@ from shop_epower.core.currency import get_base_currency
 
 
 
+class CategoryListView(ListView):
+
+    model = Category
+    template_name = "catalog/category_list.html"
+    context_object_name = "categories"
+
+    def get_queryset(self):
+        return Category.objects.filter(
+            parent__isnull=True,
+            is_active=True,
+        ).prefetch_related(
+            "children",
+        )
+
+
 class ProductListView(ListView):
 
     model = Product
     template_name = 'catalog/product_list.html'
     context_object_name = 'products'
     paginate_by = 12
+
+    def get_paginate_by(self, queryset):
+        per_page = self.request.GET.get("per_page", self.paginate_by)
+
+        allowed_values = [12, 24, 48]
+
+        try:
+            per_page = int(per_page)
+        except ValueError:
+            return self.paginate_by
+
+        if per_page not in allowed_values:
+            return self.paginate_by
+
+        return per_page
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -38,7 +68,12 @@ class ProductListView(ListView):
             prepare_product_for_user(product, user)
 
         context['brands'] = Brand.objects.filter(is_active=True)
-        context['categories'] = Category.objects.filter(is_active=True)
+        context["categories"] = Category.objects.filter(
+            parent__isnull=True,
+            is_active=True,
+        ).prefetch_related(
+            "children",
+        )
 
         currency_rates = {
             rate.currency: float(rate.rate_to_base_currency)
@@ -48,6 +83,35 @@ class ProductListView(ListView):
         currency_rates[get_base_currency()] = 1
 
         context["currency_rates"] = currency_rates
+        context["per_page"] = self.get_paginate_by(self.get_queryset())
+
+        params = self.request.GET.copy()
+        params.pop("page", None)
+
+        base_filter_params = params.copy()
+        base_filter_params.pop("category", None)
+
+        base_filter_query = base_filter_params.urlencode()
+
+        context["base_filter_query"] = base_filter_query
+
+        if base_filter_query:
+            context["base_filter_query_prefix"] = f"{base_filter_query}&"
+        else:
+            context["base_filter_query_prefix"] = ""
+
+        category_only_params = params.copy()
+        category_only_params.pop("search", None)
+        category_only_params.pop("brand", None)
+        category_only_params.pop("sort", None)
+
+        context["category_only_query"] = category_only_params.urlencode()
+
+        pagination_params = self.request.GET.copy()
+        pagination_params.pop("page", None)
+
+        context["pagination_query"] = pagination_params.urlencode()
+
         return context
 
     def get_queryset(self):
