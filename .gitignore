@@ -135,6 +135,13 @@ Test/
 
 # Static files
 static
+src/static
 
 # Cache file
 cache
+
+# media
+src/media
+
+# locale
+locale

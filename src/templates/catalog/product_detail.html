@@ -5,309 +5,188 @@
 
 <div class="container mt-4">
 
-    <h2 class="mb-3">
-        {{ product.name }}
-    </h2>
-
-    <div
-        class="mb-3 js-price-box"
-        data-base-currency="{{ base_currency }}"
+    <div class="row">
+        <!-- Left column: main image + gallery + back button -->
+        <div class="col-md-6">
+            {% if product.images.first %}
+                <div
+    class="border rounded d-flex justify-content-center align-items-center mb-3"
+    style="height: 500px;"
+>
+    <img
+        id="main-product-image"
+        src="{{ product.images.first.image.url }}"
+        alt="{{ product.name }}"
+        style="
+            max-width: 100%;
+            max-height: 100%;
+            object-fit: contain;
+        "
     >
-        <p class="fs-4 mb-1">
-            <span
-                class="js-product-price"
-                data-base-price="{{ product.final_price|stringformat:'f' }}"
-            >
-                {{ product.final_price }} {{ base_currency }}
-            </span>
-        </p>
+</div>
+            {% endif %}
 
-        <div class="btn-group btn-group-sm" role="group">
-            <button
-                type="button"
-                class="btn btn-outline-secondary js-currency-btn"
-                data-currency="{{ base_currency }}"
-            >
-                {{ base_currency }}
-            </button>
+            {% if product.images.count > 1 %}
+                <div class="d-flex flex-wrap gap-2">
+                    {% for img in product.images.all %}
+                        <img src="{{ img.image.url }}" class="img-thumbnail clickable-thumb" style="width: 80px; height: 80px; object-fit: cover; cursor: pointer;" alt="{{ product.name }}">
+                    {% endfor %}
+                </div>
+            {% endif %}
 
-            <button
-                type="button"
-                class="btn btn-outline-secondary js-currency-btn"
-                data-currency="RUB"
-            >
-                RUB
-            </button>
+            <div class="mt-2">
+                <a href="{% url 'catalog:product_list' %}?category={{ product.category.slug }}" class="btn btn-sm btn-outline-secondary">Back to {{ product.category.name }}</a>
+            </div>
+        </div>
 
-            <button
-                type="button"
-                class="btn btn-outline-secondary js-currency-btn"
-                data-currency="USD"
-            >
-                USD
-            </button>
+        <!-- Right column: info, price, cart -->
+        <div class="col-md-6">
+
+            <h2>{{ product.name }}</h2>
+
+            <div class="js-price-box mb-3" data-base-currency="{{ base_currency }}">
+                <span class="fs-4 js-product-price" data-base-price="{{ product.final_price|stringformat:'f' }}">
+                    {{ product.final_price }} {{ base_currency }}
+                </span>
+                <div class="btn-group btn-group-sm mt-1">
+                    <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="{{ base_currency }}">{{ base_currency }}</button>
+                    <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="RUB">RUB</button>
+                    <button type="button" class="btn btn-outline-secondary js-currency-btn" data-currency="USD">USD</button>
+                </div>
+            </div>
+
+            {% if product.inventory.in_stock %}
+                {% if product.inventory.own_stock > 0 %}
+                    <p class="text-success mb-1">In stock: {{ product.inventory.own_stock }}</p>
+                {% endif %}
+                {% if product.inventory.supplier_stock > 0 %}
+                    <p class="text-info mb-1">Available to order: {{ product.inventory.supplier_stock }} — from {{ product.inventory.min_lead_time }} days</p>
+                {% endif %}
+            {% else %}
+                <p class="text-danger mb-1">Out of stock</p>
+            {% endif %}
+
+            <form method="post" action="{% url 'cart-add' product.id %}" class="mb-3">
+                {% csrf_token %}
+                <div class="mb-2">
+                    <input type="number" name="quantity" value="1" min="1" class="form-control" style="max-width: 120px;">
+                </div>
+                <button type="submit" class="btn btn-primary w-100">Add to cart</button>
+            </form>
+
+            <p><strong>Brand:</strong> {{ product.brand.name }}</p>
+            <p><strong>Category:</strong> {{ product.category.name }}</p>
+
+            {% if product.description %}
+                <p>{{ product.description }}</p>
+            {% endif %}
+
+            {% if variants %}
+                <h5>Variants</h5>
+                <div class="d-flex flex-wrap gap-3">
+                    {% for variant in variants %}
+                        <a href="{% url 'catalog:product_detail' variant.slug %}" class="text-decoration-none text-dark">
+                            <div class="card {% if variant.id == product.id %}border-primary{% endif %}" style="width: 120px;">
+                                {% if variant.images.first %}
+                                    <img src="{{ variant.images.first.image.url }}" class="card-img-top" style="height: 90px; object-fit: cover;" alt="{{ variant.name }}">
+                                {% endif %}
+                                <div class="card-body p-2 text-center">
+                                    <small>{{ variant.name }}</small>
+                                </div>
+                            </div>
+                        </a>
+                    {% endfor %}
+                </div>
+            {% endif %}
+
         </div>
     </div>
-
-    {% if product.inventory.in_stock %}
-
-        {% if product.inventory.own_stock > 0 %}
-            <p class="text-success">
-                In stock: {{ product.inventory.own_stock }}
-            </p>
-        {% endif %}
-
-        {% if product.inventory.supplier_stock > 0 %}
-            <p class="text-info">
-                Available to order:
-                {{ product.inventory.supplier_stock }}
-                — from {{ product.inventory.min_lead_time }} days
-            </p>
-        {% endif %}
-
-    {% else %}
-
-        <p class="text-danger">
-            Out of stock
-        </p>
-
-    {% endif %}
-
-    <form
-        method="post"
-        action="{% url 'cart-add' product.id %}"
-        class="mt-3 mb-4"
-    >
-        {% csrf_token %}
-
-        <div class="mb-2">
-            <label for="quantity" class="form-label">
-                Quantity
-            </label>
-
-            <input
-                type="number"
-                name="quantity"
-                id="quantity"
-                value="1"
-                min="1"
-                class="form-control"
-                style="max-width: 120px;"
-            >
-        </div>
-
-        <button type="submit" class="btn btn-primary">
-            Add to cart
-        </button>
-    </form>
-
-    <p>
-        <strong>Brand:</strong> {{ product.brand.name }}
-    </p>
-
-    <p>
-        <strong>Category:</strong> {{ product.category.name }}
-    </p>
-
-    {% if product.description %}
-        <p>
-            {{ product.description }}
-        </p>
-    {% endif %}
 
     {% if is_manager %}
-
         <hr>
-
-        <h4>Manager information</h4>
-
-        {% if supplier_inventory_details %}
-
-            <h5>Supplier inventory</h5>
-
-            <table class="table table-sm table-bordered">
-                <thead>
-                    <tr>
-                        <th>Supplier</th>
-                        <th>Article</th>
-                        <th>Supplier price</th>
-                        <th>Currency</th>
-                        <th>Stock</th>
-                        <th>Lead time</th>
-                    </tr>
-                </thead>
-
-                <tbody>
-                    {% for item in supplier_inventory_details %}
+        <div class="card p-3 mb-3">
+            {% if supplier_inventory_details %}
+                <h5>Supplier inventory</h5>
+                <table class="table table-sm table-bordered">
+                    <thead>
                         <tr>
-                            <td>{{ item.supplier.name }}</td>
-                            <td>{{ item.supplier_article }}</td>
-                            <td>{{ item.supplier_price }}</td>
-                            <td>{{ item.currency }}</td>
-                            <td>{{ item.stock_quantity }}</td>
-                            <td>{{ item.lead_time_days }} days</td>
+                            <th>Supplier</th>
+                            <th>Article</th>
+                            <th>Supplier price</th>
+                            <th>Currency</th>
+                            <th>Stock</th>
+                            <th>Lead time</th>
                         </tr>
-                    {% endfor %}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody>
+                        {% for item in supplier_inventory_details %}
+                            <tr>
+                                <td>{{ item.supplier.name }}</td>
+                                <td>{{ item.supplier_article }}</td>
+                                <td>{{ item.supplier_price }}</td>
+                                <td>{{ item.currency }}</td>
+                                <td>{{ item.stock_quantity }}</td>
+                                <td>{{ item.lead_time_days }} days</td>
+                            </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            {% else %}
+                <p class="text-muted">No supplier inventory available.</p>
+            {% endif %}
 
-        {% else %}
-
-            <p class="text-muted">
-                No supplier inventory available.
-            </p>
-
-        {% endif %}
-
-        {% if cost_summary %}
-
-            <h5>Cost summary</h5>
-
-            <table class="table table-sm table-bordered">
-                <tbody>
-                    <tr>
-                        <th>Base price</th>
-                        <td>
-                            {{ cost_summary.base_price }} {{ base_currency }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Max supplier cost</th>
-                        <td>
-                            {{ cost_summary.max_supplier_cost }} {{ base_currency }}
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Markup percent</th>
-                        <td>
-                            {{ cost_summary.markup_percent }}%
-                        </td>
-                    </tr>
-
-                    <tr>
-                        <th>Margin</th>
-                        <td>
-                            {{ cost_summary.margin_amount }} {{ base_currency }}
-                        </td>
-                    </tr>
-                </tbody>
-            </table>
-
-        {% endif %}
-
+            {% if cost_summary %}
+                <h5>Cost summary</h5>
+                <table class="table table-sm table-bordered">
+                    <tbody>
+                        <tr><th>Base price</th><td>{{ cost_summary.base_price }} {{ base_currency }}</td></tr>
+                        <tr><th>Max supplier cost</th><td>{{ cost_summary.max_supplier_cost }} {{ base_currency }}</td></tr>
+                        <tr><th>Markup percent</th><td>{{ cost_summary.markup_percent }}%</td></tr>
+                        <tr><th>Margin</th><td>{{ cost_summary.margin_amount }} {{ base_currency }}</td></tr>
+                    </tbody>
+                </table>
+            {% endif %}
+        </div>
     {% endif %}
 
-    <hr>
-
-    <h4>Images</h4>
-
-    <div class="row">
-        {% for img in product.images.all %}
-            <div class="col-md-3">
-                <img
-                    src="{{ img.image.url }}"
-                    class="img-fluid mb-2"
-                    alt="{{ product.name }}"
-                >
-            </div>
-        {% empty %}
-            <p class="text-muted">
-                No images available.
-            </p>
-        {% endfor %}
-    </div>
-
-        <hr>
-
-        <h4>Variants</h4>
-
-        {% if variants %}
-
-            <div class="d-flex gap-3 flex-wrap">
-
-                {% for variant in variants %}
-
-                    <a
-                        href="{% url 'catalog:product_detail' variant.slug %}"
-                        class="text-decoration-none text-dark"
-                    >
-                        <div class="card {% if variant.id == product.id %}border-primary{% endif %}" style="width: 120px;">
-
-                            {% with image=variant.images.first %}
-                                {% if image %}
-                                    <img
-                                        src="{{ image.image.url }}"
-                                        class="card-img-top"
-                                        alt="{{ variant.name }}"
-                                        style="height: 90px; object-fit: cover;"
-                                    >
-                                {% endif %}
-                            {% endwith %}
-
-                            <div class="card-body p-2 text-center">
-                                <small>
-                                    {{ variant.name }}
-                                </small>
-                            </div>
-
-                        </div>
-                    </a>
-
-                {% endfor %}
-
-            </div>
-
-        {% else %}
-
-            <p class="text-muted">
-                No variants available.
-            </p>
-
-        {% endif %}
-    </div>
-
-
+</div>
 
 {{ currency_rates|json_script:"currency-rates" }}
 
 <script>
-    const currencyRates = JSON.parse(
-        document.getElementById("currency-rates").textContent
-    );
-
-    document.addEventListener("click", function (event) {
+document.addEventListener("DOMContentLoaded", function() {
+    // Currency conversion
+    const currencyRates = JSON.parse(document.getElementById("currency-rates").textContent);
+    document.addEventListener("click", function(event) {
         const button = event.target.closest(".js-currency-btn");
-
-        if (!button) {
-            return;
-        }
-
+        if (!button) return;
         const currency = button.dataset.currency;
         const priceBox = button.closest(".js-price-box");
         const priceElement = priceBox.querySelector(".js-product-price");
-
         const baseCurrency = priceBox.dataset.baseCurrency;
         const basePrice = Number(priceElement.dataset.basePrice);
-
         let convertedPrice;
-
-        if (currency === baseCurrency) {
-            convertedPrice = basePrice;
-        } else {
+        if (currency === baseCurrency) convertedPrice = basePrice;
+        else {
             const rate = Number(currencyRates[currency]);
-
             if (!rate) {
                 priceElement.textContent = "Currency rate not set";
                 return;
             }
-
             convertedPrice = basePrice / rate;
         }
-
         priceElement.textContent = `${convertedPrice.toFixed(2)} ${currency}`;
     });
+
+    // Gallery click to replace main image
+    const mainImage = document.getElementById("main-product-image");
+    const thumbs = document.querySelectorAll(".clickable-thumb");
+    thumbs.forEach(function(thumb) {
+        thumb.addEventListener("click", function() {
+            mainImage.src = this.src;
+        });
+    });
+});
 </script>
 
 {% endblock %}
