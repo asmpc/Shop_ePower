@@ -1,10 +1,86 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <title>Title</title>
-</head>
-<body>
+{% extends "base.html" %}
+{% load static %}
 
-</body>
-</html>
+{% block content %}
+
+<div class="container mt-4">
+
+    <h2 class="mb-4">
+        Catalog
+    </h2>
+
+    <div class="row">
+
+        {% for category in categories %}
+
+            <div class="col-md-3 mb-4">
+
+                <div class="card h-100">
+
+                    {% if category.image %}
+                        <img
+                            src="{{ category.image.url }}"
+                            class="card-img-top"
+                            alt="{{ category.name }}"
+                            style="height: 180px; object-fit: contain;"
+                        >
+                    {% endif %}
+
+                    <div class="card-body">
+
+                        <h5 class="card-title">
+                            <a
+                                href="{% url 'catalog:product_list' %}?category={{ category.slug }}"
+                                class="text-decoration-none text-dark"
+                            >
+                                {{ category.name }}
+                            </a>
+                        </h5>
+
+                        {% if category.children.all %}
+
+                            <ul class="list-unstyled small mb-3">
+
+                                {% for child in category.children.all|slice:":5" %}
+                                    {% if child.is_active %}
+                                        <li>
+                                            <a
+                                                href="{% url 'catalog:product_list' %}?category={{ child.slug }}"
+                                                class="text-decoration-none"
+                                            >
+                                                {{ child.name }}
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                {% endfor %}
+
+                            </ul>
+
+                        {% endif %}
+
+                        <a
+                            href="{% url 'catalog:product_list' %}?category={{ category.slug }}"
+                            class="btn btn-sm btn-primary w-100"
+                        >
+                            View products
+                        </a>
+
+                    </div>
+
+                </div>
+
+            </div>
+
+        {% empty %}
+
+            <p class="text-muted">
+                No categories found.
+            </p>
+
+        {% endfor %}
+
+    </div>
+
+</div>
+
+{% endblock %}

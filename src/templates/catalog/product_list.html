@@ -5,195 +5,213 @@
 
 <div class="container mt-4">
 
+    <h2 class="mb-4">
+        Products
+    </h2>
+
     <form method="get" class="mb-4">
 
-        <input
-            type="text"
-            name="search"
-            placeholder="Search products..."
-            value="{{ request.GET.search }}"
-            class="form-control mb-2"
-        >
+        <div class="row g-2">
 
-        <select name="brand" class="form-control mb-2">
-            <option value="">All brands</option>
-
-            {% for b in brands %}
-                <option
-                    value="{{ b.slug }}"
-                    {% if request.GET.brand == b.slug %}selected{% endif %}
+            <div class="col-md-4">
+                <input
+                    type="text"
+                    name="search"
+                    placeholder="Search products..."
+                    value="{{ request.GET.search }}"
+                    class="form-control"
                 >
-                    {{ b.name }}
-                </option>
-            {% endfor %}
-        </select>
+            </div>
 
-        <select name="category" class="form-control mb-2">
-            <option value="">All categories</option>
+            <div class="col-md-3">
+                <select name="brand" class="form-control">
+                    <option value="">All brands</option>
 
-            {% for c in categories %}
-                <option
-                    value="{{ c.slug }}"
-                    {% if request.GET.category == c.slug %}selected{% endif %}
+                    {% for b in brands %}
+                        <option
+                            value="{{ b.slug }}"
+                            {% if request.GET.brand == b.slug %}selected{% endif %}
+                        >
+                            {{ b.name }}
+                        </option>
+                    {% endfor %}
+                </select>
+            </div>
+
+            <div class="col-md-3">
+                <select name="sort" class="form-control">
+                    <option value="">Default</option>
+                    <option value="name" {% if request.GET.sort == "name" %}selected{% endif %}>
+                        Name A-Z
+                    </option>
+                    <option value="name_desc" {% if request.GET.sort == "name_desc" %}selected{% endif %}>
+                        Name Z-A
+                    </option>
+                    <option value="newest" {% if request.GET.sort == "newest" %}selected{% endif %}>
+                        Newest
+                    </option>
+                </select>
+            </div>
+
+            <div class="col-md-2">
+                <button class="btn btn-primary w-100 mb-2">
+                    Apply
+                </button>
+
+                <a
+                    href="{% url 'catalog:product_list' %}{% if category_only_query %}?{{ category_only_query }}{% endif %}"
+                    class="btn btn-outline-secondary w-100"
                 >
-                    {{ c.name }}
-                </option>
-            {% endfor %}
-        </select>
+                    Reset filters
+                </a>
+            </div>
 
-        <select name="sort" class="form-control mb-2">
-            <option value="">Default</option>
-            <option value="name">Name A-Z</option>
-            <option value="name_desc">Name Z-A</option>
-            <option value="newest">Newest</option>
-        </select>
+        </div>
 
-        <button class="btn btn-primary">
-            Apply
-        </button>
+        {% if request.GET.category %}
+            <input
+                type="hidden"
+                name="category"
+                value="{{ request.GET.category }}"
+            >
+        {% endif %}
+
+        {% if request.GET.per_page %}
+            <input type="hidden" name="per_page" value="{{ request.GET.per_page }}">
+        {% endif %}
 
     </form>
 
-    <h2 class="mb-3">Catalog</h2>
-
     <div class="row">
 
-        {% for product in products %}
+        <!-- Left sidebar: categories -->
+<aside class="col-md-3 mb-4">
 
-            <div class="col-md-3 d-flex mb-3">
+    <div class="card">
 
-                <div class="card w-100 h-100 d-flex flex-column">
+        <div class="card-header d-flex justify-content-between align-items-center">
+            <span>Categories</span>
 
-                    {% if product.images.first %}
-                        <img
-                            src="{{ product.images.first.image.url }}"
-                            class="card-img-top product-image"
-                            alt="{{ product.name }}"
-                        >
+            <a
+                href="{% url 'catalog:product_list' %}{% if base_filter_query %}?{{ base_filter_query }}{% endif %}"
+                class="btn btn-sm btn-outline-secondary"
+            >
+                Reset
+            </a>
+        </div>
+
+        <ul class="list-group list-group-flush">
+
+            {% for category in categories %}
+
+                <li class="list-group-item">
+
+                    <a
+                        href="{% url 'catalog:product_list' %}?{{ base_filter_query_prefix }}category={{ category.slug }}"
+                        class="text-decoration-none {% if request.GET.category == category.slug %}fw-bold{% endif %}"
+                    >
+                        {{ category.name }}
+                    </a>
+
+                    {% if category.children.all %}
+
+                        <ul class="list-unstyled small ms-3 mt-2 mb-0">
+
+                            {% for child in category.children.all %}
+
+                                {% if child.is_active %}
+
+                                    <li class="mb-1">
+
+                                        <a
+                                            href="{% url 'catalog:product_list' %}?{{ base_filter_query_prefix }}category={{ child.slug }}"
+                                            class="text-decoration-none {% if request.GET.category == child.slug %}fw-bold text-primary{% endif %}"
+                                        >
+                                            {{ child.name }}
+                                        </a>
+
+                                    </li>
+
+                                {% endif %}
+
+                            {% endfor %}
+
+                        </ul>
+
                     {% endif %}
 
-                    <div class="card-body d-flex flex-column">
+                </li>
 
-                        <div class="mb-3">
+            {% endfor %}
 
-                            <h5 class="card-title">
-                                {{ product.name }}
-                            </h5>
+        </ul>
 
-                            <div
-                                class="mb-2 js-price-box"
-                                data-base-currency="{{ base_currency }}"
-                            >
-                                <p class="fs-4 mb-1">
-                                    <span
-                                        class="js-product-price"
-                                        data-base-price="{{ product.final_price|stringformat:'f' }}"
-                                    >
-                                        {{ product.final_price }} {{ base_currency }}
-                                    </span>
-                                </p>
+    </div>
 
-                                <div class="btn-group btn-group-sm" role="group">
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary js-currency-btn"
-                                        data-currency="{{ base_currency }}"
-                                    >
-                                        {{ base_currency }}
-                                    </button>
+</aside>
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary js-currency-btn"
-                                        data-currency="RUB"
-                                    >
-                                        RUB
-                                    </button>
+        <!-- Right: products -->
+        <section class="col-md-9">
 
-                                    <button
-                                        type="button"
-                                        class="btn btn-outline-secondary js-currency-btn"
-                                        data-currency="USD"
-                                    >
-                                        USD
-                                    </button>
-                                </div>
-                            </div>
+            <!-- Pagination controls (top) -->
+<form method="get" class="d-flex justify-content-between align-items-center mb-3">
 
-                            {% if product.inventory.in_stock %}
+    {% if request.GET.category %}
+        <input type="hidden" name="category" value="{{ request.GET.category }}">
+    {% endif %}
 
-                                {% if product.inventory.own_stock > 0 %}
-                                    <p class="text-success mb-2">
-                                        In stock: {{ product.inventory.own_stock }}
-                                    </p>
-                                {% endif %}
+    {% if request.GET.search %}
+        <input type="hidden" name="search" value="{{ request.GET.search }}">
+    {% endif %}
 
-                                {% if product.inventory.supplier_stock > 0 %}
-                                    <p class="text-info mb-2">
-                                        Available to order:
-                                        {{ product.inventory.supplier_stock }}
-                                        — from {{ product.inventory.min_lead_time }} days
-                                    </p>
-                                {% endif %}
+    {% if request.GET.brand %}
+        <input type="hidden" name="brand" value="{{ request.GET.brand }}">
+    {% endif %}
 
-                            {% else %}
+    {% if request.GET.sort %}
+        <input type="hidden" name="sort" value="{{ request.GET.sort }}">
+    {% endif %}
 
-                                <p class="text-danger mb-2">
-                                    Out of stock
-                                </p>
+    <div>
+        <label>
+            Show
 
-                            {% endif %}
+            <select
+                name="per_page"
+                class="form-select d-inline-block w-auto"
+                onchange="this.form.submit()"
+            >
+                <option value="12" {% if per_page == 12 %}selected{% endif %}>12</option>
+                <option value="24" {% if per_page == 24 %}selected{% endif %}>24</option>
+                <option value="48" {% if per_page == 48 %}selected{% endif %}>48</option>
+            </select>
 
-                            <p class="mb-2">
-                                {{ product.brand.name }}
-                            </p>
+            per page
+        </label>
+    </div>
 
-                        </div>
+    <div>
+        Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+    </div>
 
-                        <div class="mt-auto">
+</form>
 
-                            <form
-                                method="post"
-                                action="{% url 'cart-add' product.id %}"
-                                class="mb-2"
-                            >
-                                {% csrf_token %}
+            <div class="row">
 
-                                <div class="d-flex justify-content-center mb-2">
-                                    <input
-                                        type="number"
-                                        name="quantity"
-                                        value="1"
-                                        min="1"
-                                        class="form-control form-control-sm text-center"
-                                        style="width: 80px;"
-                                    >
-                                </div>
-
-                                <button
-                                    type="submit"
-                                    class="btn btn-sm btn-primary w-100"
-                                >
-                                    Add to cart
-                                </button>
-                            </form>
-
-                            <a
-                                href="{% url 'catalog:product_detail' product.slug %}"
-                                class="btn btn-primary w-100"
-                            >
-                                View
-                            </a>
-
-                        </div>
-
+                {% for product in products %}
+                    <div class="col-md-4 d-flex mb-4">
+                        {% include "catalog/includes/product_card.html" %}
                     </div>
-
-                </div>
+                {% empty %}
+                    <p class="text-muted">No products found.</p>
+                {% endfor %}
 
             </div>
 
-        {% endfor %}
+            <!-- Pagination controls (bottom) -->
+            {% include "catalog/includes/pagination.html" %}
+
+        </section>
 
     </div>
 
@@ -209,9 +227,7 @@
     document.addEventListener("click", function (event) {
         const button = event.target.closest(".js-currency-btn");
 
-        if (!button) {
-            return;
-        }
+        if (!button) return;
 
         const currency = button.dataset.currency;
         const priceBox = button.closest(".js-price-box");
@@ -226,12 +242,10 @@
             convertedPrice = basePrice;
         } else {
             const rate = Number(currencyRates[currency]);
-
             if (!rate) {
                 priceElement.textContent = "Currency rate not set";
                 return;
             }
-
             convertedPrice = basePrice / rate;
         }
 
