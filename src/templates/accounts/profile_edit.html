@@ -4,7 +4,7 @@
 
 <div class="container mt-4">
 
-    <h2>Профиль пользователя</h2>
+    <h2>User profile</h2>
 
     <form method="post">
         {% csrf_token %}
@@ -22,7 +22,7 @@
         {% endif %}
 
         <div class="card mb-4 p-3">
-            <h4>Основная информация</h4>
+            <h4>Basic information</h4>
 
             <div class="mb-2">
                 <label for="{{ user_form.username.id_for_label }}">Username</label>
@@ -68,7 +68,7 @@
         </div>
 
         <div class="card mb-4 p-3">
-            <h4>Юридическое лицо</h4>
+            <h4>Legal entity</h4>
 
             <div class="form-check mb-3">
                 {{ legal_profile_form.is_legal_entity }}
@@ -76,7 +76,7 @@
                     class="form-check-label"
                     for="{{ legal_profile_form.is_legal_entity.id_for_label }}"
                 >
-                    Я представляю юрлицо / ИП
+                    I represent a legal entity / an individual entrepreneur
                 </label>
             </div>
 
@@ -84,7 +84,7 @@
 
                 <div class="mb-2">
                     <label for="{{ legal_profile_form.company_name.id_for_label }}">
-                        Название организации / ИП
+                        Legal Entity / Individual Entrepreneur Name
                     </label>
                     {{ legal_profile_form.company_name }}
                     {% for error in legal_profile_form.company_name.errors %}
@@ -94,7 +94,7 @@
 
                 <div class="mb-2">
                     <label for="{{ legal_profile_form.tax_id.id_for_label }}">
-                        УНП / ИНН
+                        UNP / INN
                     </label>
                     {{ legal_profile_form.tax_id }}
                     {% for error in legal_profile_form.tax_id.errors %}
@@ -104,7 +104,7 @@
 
                 <div class="mb-2">
                     <label for="{{ legal_profile_form.legal_address.id_for_label }}">
-                        Юридический адрес
+                        Registered address
                     </label>
                     {{ legal_profile_form.legal_address }}
                     {% for error in legal_profile_form.legal_address.errors %}
@@ -114,7 +114,7 @@
 
                 <div class="mb-2">
                     <label for="{{ legal_profile_form.bank_name.id_for_label }}">
-                        Банк
+                        Bank
                     </label>
                     {{ legal_profile_form.bank_name }}
                     {% for error in legal_profile_form.bank_name.errors %}
@@ -124,7 +124,7 @@
 
                 <div class="mb-2">
                     <label for="{{ legal_profile_form.bank_account.id_for_label }}">
-                        Расчётный счёт
+                        Business account
                     </label>
                     {{ legal_profile_form.bank_account }}
                     {% for error in legal_profile_form.bank_account.errors %}
@@ -136,7 +136,7 @@
         </div>
 
         <button type="submit" class="btn btn-primary">
-            Сохранить
+            Save
         </button>
 
     </form>
