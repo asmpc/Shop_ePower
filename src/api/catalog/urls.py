@@ -1,5 +1,3 @@
-# shop_epower/api/catalog/urls.py
-
 from django.urls import path
 
 from .views import (
