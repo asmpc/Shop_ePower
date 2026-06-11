@@ -122,3 +122,25 @@ def mark_payment_cancelled(
     )
 
     return payment
+
+def reset_payment_to_pending(
+    *,
+    payment,
+    manager_comment="",
+):
+    if payment.status == PaymentStatus.PENDING:
+        raise ValidationError(
+            "Only non-pending payment can be reset to pending."
+        )
+
+    payment.status = PaymentStatus.PENDING
+    payment.manager_comment = manager_comment
+    payment.save(
+        update_fields=[
+            "status",
+            "manager_comment",
+            "updated_at",
+        ]
+    )
+
+    return payment

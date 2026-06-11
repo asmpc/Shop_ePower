@@ -16,6 +16,7 @@ from shop_epower.payments.services import (
     mark_payment_paid,
     mark_payment_failed,
     mark_payment_cancelled,
+    reset_payment_to_pending,
 )
 
 from shop_epower.payments.tests.helpers import (
@@ -185,6 +186,91 @@ class TestsPaymentServices(TestCase):
 
         with self.assertRaises(ValidationError):
             mark_payment_failed(
+                payment=payment,
+            )
+
+    # Проверяем исправление ошибки оплаты:
+    # оплаченный платеж можно вернуть в PENDING через service layer.
+    def test_reset_paid_payment_to_pending(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_paid(
+            payment=payment,
+        )
+
+        reset_payment_to_pending(
+            payment=payment,
+            manager_comment="Payment was marked as paid by mistake.",
+        )
+
+        payment.refresh_from_db()
+
+        self.assertEqual(
+            payment.status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            payment.manager_comment,
+            "Payment was marked as paid by mistake.",
+        )
+
+    # Проверяем исправление неуспешной оплаты:
+    # failed payment можно вернуть в PENDING.
+    def test_reset_failed_payment_to_pending(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_failed(
+            payment=payment,
+        )
+
+        reset_payment_to_pending(
+            payment=payment,
+            manager_comment="Retry payment.",
+        )
+
+        payment.refresh_from_db()
+
+        self.assertEqual(
+            payment.status,
+            PaymentStatus.PENDING,
+        )
+
+    # Проверяем исправление отмененной оплаты:
+    # cancelled payment можно вернуть в PENDING.
+    def test_reset_cancelled_payment_to_pending(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_cancelled(
+            payment=payment,
+        )
+
+        reset_payment_to_pending(
+            payment=payment,
+        )
+
+        payment.refresh_from_db()
+
+        self.assertEqual(
+            payment.status,
+            PaymentStatus.PENDING,
+        )
+
+    # Проверяем защиту payment workflow:
+    # payment в статусе PENDING нельзя reset-ить в PENDING повторно.
+    def test_cannot_reset_pending_payment_to_pending(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        with self.assertRaises(ValidationError):
+            reset_payment_to_pending(
                 payment=payment,
             )
 
