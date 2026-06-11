@@ -44,7 +44,7 @@ INSTALLED_APPS = [
     'crispy_forms',
     'crispy_bootstrap5',
     'django_extensions',
-    "django_filters",
+    'django_filters',
 
     # applications
     'shop_epower.accounts',
@@ -55,6 +55,7 @@ INSTALLED_APPS = [
     'shop_epower.orders',
     'shop_epower.notifications',
     'shop_epower.chat',
+    'shop_epower.payments',
 
 ]
 

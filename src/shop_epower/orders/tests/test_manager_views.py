@@ -6,6 +6,13 @@ from django.urls import reverse
 
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
 from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.core.currency import get_base_currency
+from shop_epower.payments.models import (
+    Payment,
+    PaymentMethod,
+    PaymentProvider,
+    PaymentStatus,
+)
 
 
 User = get_user_model()
@@ -40,6 +47,15 @@ class TestsManagerOrderViews(TestCase):
             delivery_provider="post",
             delivery_address="Frontend address",
             delivery_comment="Frontend comment",
+        )
+
+        self.payment = Payment.objects.create(
+            order=self.order,
+            method=PaymentMethod.INVOICE,
+            status=PaymentStatus.PENDING,
+            provider=PaymentProvider.MANUAL,
+            amount=self.order.total_price,
+            currency_snapshot=get_base_currency(),
         )
 
         self.brand = Brand.objects.create(
@@ -244,4 +260,31 @@ class TestsManagerOrderViews(TestCase):
 
         self.assertTrue(
             self.order.delivery_paid_by_customer_on_receipt,
+        )
+
+    # Проверяем, что менеджер получает информацию об оплате
+    # в контексте страницы детализации заказа.
+    def test_manager_order_detail_contains_payment_in_context(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertIn(
+            "payment",
+            response.context,
+        )
+
+        self.assertEqual(
+            response.context["payment"],
+            self.payment,
         )

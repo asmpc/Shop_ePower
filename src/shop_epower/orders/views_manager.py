@@ -62,7 +62,10 @@ class ManagerOrderDetailView(
 
         return (
             Order.objects
-            .select_related("user")
+            .select_related(
+                "user",
+                "payment"
+            )
             .prefetch_related("items")
         )
 
@@ -72,6 +75,11 @@ class ManagerOrderDetailView(
         context["chat_rooms"] = get_chat_rooms_for_order(
             self.object,
         )
+
+        try:
+            context["payment"] = self.object.payment
+        except Order.payment.RelatedObjectDoesNotExist:
+            context["payment"] = None
 
         return context
 
