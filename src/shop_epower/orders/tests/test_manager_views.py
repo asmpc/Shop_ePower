@@ -13,6 +13,7 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
+from shop_epower.payments.services import mark_payment_paid
 
 
 User = get_user_model()
@@ -433,4 +434,98 @@ class TestsManagerOrderViews(TestCase):
         self.assertEqual(
             self.payment.manager_comment,
             "Admin confirmed payment.",
+        )
+
+    # Проверяем, что клиент не может изменять статус оплаты.
+    def test_client_cannot_mark_payment_as_paid(self):
+        self.client.force_login(self.client_user)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_paid",
+                args=[self.order.id],
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.PENDING,
+        )
+
+    # Проверяем, что администратор может вернуть
+    # платеж из PAID в PENDING.
+    def test_admin_can_reset_payment_to_pending(self):
+        mark_payment_paid(
+            payment=self.payment,
+        )
+
+        self.client.force_login(
+            self.admin,
+        )
+
+        response = self.client.post(
+            reverse(
+                "orders:admin_reset_payment_to_pending",
+                args=[self.order.id],
+            ),
+            data={
+                "manager_comment": "Wrong payment.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            ),
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            self.payment.manager_comment,
+            "Wrong payment.",
+        )
+
+    # Проверяем, что менеджер не может
+    # вернуть платеж в PENDING.
+    def test_manager_cannot_reset_payment_to_pending(self):
+        mark_payment_paid(
+            payment=self.payment,
+        )
+
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.post(
+            reverse(
+                "orders:admin_reset_payment_to_pending",
+                args=[self.order.id],
+            ),
+        )
+
+        self.assertEqual(
+            response.status_code,
+            403,
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.PAID,
         )

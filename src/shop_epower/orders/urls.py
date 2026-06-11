@@ -15,6 +15,7 @@ from shop_epower.orders.views_manager import (
     ManagerMarkPaymentPaidView,
     ManagerMarkPaymentFailedView,
     ManagerMarkPaymentCancelledView,
+    AdminResetPaymentToPendingView,
 )
 
 
@@ -66,4 +67,10 @@ urlpatterns = [
         ManagerMarkPaymentCancelledView.as_view(),
         name="manager_mark_payment_cancelled",
     ),
+    path(
+        "manage/orders/<int:pk>/payment/reset-to-pending/",
+        AdminResetPaymentToPendingView.as_view(),
+        name="admin_reset_payment_to_pending",
+    ),
+
 ]

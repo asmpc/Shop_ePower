@@ -18,6 +18,7 @@ from shop_epower.payments.services import (
     mark_payment_paid,
     mark_payment_failed,
     mark_payment_cancelled,
+    reset_payment_to_pending,
 )
 
 
@@ -90,6 +91,7 @@ class ManagerOrderDetailView(
 
         return context
 
+
 class ManagerPaymentActionMixin(
     LoginRequiredMixin,
 ):
@@ -111,6 +113,66 @@ class ManagerPaymentActionMixin(
             "orders:manager_order_detail",
             args=[self.kwargs["pk"]],
         )
+
+
+class AdminPaymentActionMixin(
+    LoginRequiredMixin,
+):
+    def dispatch(self, request, *args, **kwargs):
+
+        if request.user.role != "admin":
+            return HttpResponseForbidden()
+
+        return super().dispatch(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    def get_order(self):
+        return get_object_or_404(
+            Order.objects.select_related("payment"),
+            pk=self.kwargs["pk"],
+        )
+
+    def get_success_url(self):
+        return reverse(
+            "orders:manager_order_detail",
+            args=[self.kwargs["pk"]],
+        )
+
+
+class AdminResetPaymentToPendingView(
+    AdminPaymentActionMixin,
+    View,
+):
+    def post(self, request, *args, **kwargs):
+        order = self.get_order()
+
+        try:
+            reset_payment_to_pending(
+                payment=order.payment,
+                manager_comment=request.POST.get(
+                    "manager_comment",
+                    "",
+                ),
+            )
+
+            messages.success(
+                request,
+                "Payment reset to pending.",
+            )
+
+        except ValidationError as error:
+            messages.error(
+                request,
+                error.message,
+            )
+
+        return redirect(
+            self.get_success_url(),
+        )
+
 
 class ManagerMarkPaymentPaidView(
     ManagerPaymentActionMixin,
@@ -162,6 +224,7 @@ class ManagerMarkPaymentCancelledView(
             self.get_success_url(),
         )
 
+
 class ManagerOrderStatusUpdateView(
     LoginRequiredMixin,
     View,
@@ -210,6 +273,7 @@ class ManagerOrderStatusUpdateView(
             "orders:manager_order_detail",
             pk=order.pk,
         )
+
 
 class ManagerOrderDeliveryUpdateView(
     LoginRequiredMixin,
