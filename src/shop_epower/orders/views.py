@@ -10,6 +10,13 @@ from django.views.decorators.http import require_POST
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import cancel_new_order
 from shop_epower.chat.selectors import get_chat_rooms_for_order
+from django.core.exceptions import ValidationError
+
+from shop_epower.payments.services import (
+    create_payment_for_order,
+    validate_payment_method_for_delivery,
+)
+from shop_epower.payments.models import PaymentMethod
 
 
 
@@ -30,6 +37,11 @@ def checkout_view(request):
     delivery_method = request.POST.get(
         "delivery_method",
         "pickup",
+    )
+
+    payment_method = request.POST.get(
+        "payment_method",
+        PaymentMethod.ON_RECEIPT,
     )
 
     delivery_provider = request.POST.get(
@@ -53,6 +65,11 @@ def checkout_view(request):
     )
 
     try:
+        validate_payment_method_for_delivery(
+            delivery_method=delivery_method,
+            payment_method=payment_method,
+        )
+
         order = create_order_from_cart(
             user=request.user,
             cart=cart,
@@ -62,6 +79,16 @@ def checkout_view(request):
             delivery_comment=delivery_comment,
             order_comment=order_comment,
         )
+
+        create_payment_for_order(
+            order=order,
+            method=payment_method,
+        )
+
+    except ValidationError as error:
+        messages.error(request, error.message)
+        return redirect("cart-detail")
+
     except Exception as e:
         messages.error(request, str(e))
         return redirect("cart-detail")
@@ -83,6 +110,11 @@ def order_list_view(request):
         .prefetch_related("items")
         .order_by("-created_at")
     )
+
+    status = request.GET.get("status")
+
+    if status and status != "all":
+        orders = orders.filter(status=status)
 
     return render(
         request,

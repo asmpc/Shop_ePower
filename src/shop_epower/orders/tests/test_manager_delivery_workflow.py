@@ -85,6 +85,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             user=manager,
             delivery_cost=Decimal("25.00"),
             delivery_paid_by_customer_on_receipt=False,
+            delivery_method="shipping",
             manager_delivery_comment="Delivery included in order total.",
         )
 
@@ -159,6 +160,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             user=manager,
             delivery_cost=Decimal("25.00"),
             delivery_paid_by_customer_on_receipt=True,
+            delivery_method="shipping",
             manager_delivery_comment="Customer pays delivery on receipt.",
         )
 
