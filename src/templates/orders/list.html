@@ -6,6 +6,22 @@
     My Orders
 </h1>
 
+<form method="get" class="mb-3 d-flex gap-2 align-items-center">
+    <label for="status">Filter by status:</label>
+    <select name="status" id="status" class="form-select w-auto">
+        <option value="all" {% if request.GET.status == "all" or not request.GET.status %}selected{% endif %}>All</option>
+        <option value="new" {% if request.GET.status == "new" %}selected{% endif %}>New</option>
+        <option value="processing" {% if request.GET.status == "processing" %}selected{% endif %}>Processing</option>
+        <option value="completed" {% if request.GET.status == "completed" %}selected{% endif %}>Completed</option>
+        <option value="cancelled" {% if request.GET.status == "cancelled" %}selected{% endif %}>Cancelled</option>
+    </select>
+    <button type="submit" class="btn btn-primary">Apply</button>
+    <a href="{% url 'orders:list' %}"
+           class="btn btn-outline-secondary">
+            Reset
+        </a>
+</form>
+
 {% for order in orders %}
 
     <div class="card mb-3">
