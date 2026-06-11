@@ -147,6 +147,26 @@ class ManagerOrderDeliveryUpdateView(
             ) == "on"
         )
 
+        delivery_method = request.POST.get(
+            "delivery_method",
+            "pickup",
+        )
+
+        delivery_provider = request.POST.get(
+            "delivery_provider",
+            "",
+        )
+
+        delivery_address = request.POST.get(
+            "delivery_address",
+            "",
+        )
+
+        delivery_comment = request.POST.get(
+            "delivery_comment",
+            "",
+        )
+
         manager_delivery_comment = request.POST.get(
             "manager_delivery_comment",
             "",
@@ -156,6 +176,10 @@ class ManagerOrderDeliveryUpdateView(
             update_order_delivery_by_manager(
                 order=order,
                 user=request.user,
+                delivery_method=delivery_method,
+                delivery_provider=delivery_provider,
+                delivery_address=delivery_address,
+                delivery_comment=delivery_comment,
                 delivery_cost=delivery_cost,
                 delivery_paid_by_customer_on_receipt=delivery_paid_by_customer_on_receipt,
                 manager_delivery_comment=manager_delivery_comment,
