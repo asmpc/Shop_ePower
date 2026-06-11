@@ -12,7 +12,11 @@ from shop_epower.orders.views_manager import (
     ManagerOrderDetailView,
     ManagerOrderStatusUpdateView,
     ManagerOrderDeliveryUpdateView,
+    ManagerMarkPaymentPaidView,
+    ManagerMarkPaymentFailedView,
+    ManagerMarkPaymentCancelledView,
 )
+
 
 
 app_name = "orders"
@@ -43,5 +47,23 @@ urlpatterns = [
         "manage/<int:pk>/delivery/",
         ManagerOrderDeliveryUpdateView.as_view(),
         name="manager_order_delivery_update",
+    ),
+
+    path(
+        "manage/orders/<int:pk>/payment/mark-paid/",
+        ManagerMarkPaymentPaidView.as_view(),
+        name="manager_mark_payment_paid",
+    ),
+
+    path(
+        "manage/orders/<int:pk>/payment/mark-failed/",
+        ManagerMarkPaymentFailedView.as_view(),
+        name="manager_mark_payment_failed",
+    ),
+
+    path(
+        "manage/orders/<int:pk>/payment/mark-cancelled/",
+        ManagerMarkPaymentCancelledView.as_view(),
+        name="manager_mark_payment_cancelled",
     ),
 ]

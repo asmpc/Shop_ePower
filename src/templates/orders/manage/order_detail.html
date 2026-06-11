@@ -239,6 +239,79 @@
             {{ payment.manager_comment|default:"-" }}
         </p>
 
+        {% if payment.status == "pending" %}
+
+            <hr>
+
+            <h5 class="mb-3">Payment actions</h5>
+
+            <form method="post" class="mb-4">
+                {% csrf_token %}
+
+                <label
+                    for="manager_comment"
+                    class="form-label fw-bold"
+                >
+                    Manager comment
+                </label>
+
+                <input
+                    type="text"
+                    id="manager_comment"
+                    name="manager_comment"
+                    class="form-control mb-3"
+                    placeholder="Enter manager comment (optional)"
+                >
+
+                <div class="row g-3 align-items-start">
+
+                    <div class="col-md-5">
+                        <button
+                            type="submit"
+                            formaction="{% url 'orders:manager_mark_payment_paid' order.id %}"
+                            class="btn btn-success w-100 py-2"
+                        >
+                            ✓ Mark as paid
+                        </button>
+
+                        <div class="form-text">
+                            The payment was successfully received.
+                        </div>
+                    </div>
+
+                    <div class="col-md-3">
+                        <button
+                            type="submit"
+                            formaction="{% url 'orders:manager_mark_payment_cancelled' order.id %}"
+                            class="btn btn-secondary w-100 py-2"
+                        >
+                            ⊖ Mark as cancelled
+                        </button>
+
+                        <div class="form-text">
+                            The payment was cancelled.
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <button
+                            type="submit"
+                            formaction="{% url 'orders:manager_mark_payment_failed' order.id %}"
+                            class="btn btn-danger w-100 py-2"
+                        >
+                            ✖ Mark as failed
+                        </button>
+
+                        <div class="form-text">
+                            The payment failed or was declined.
+                        </div>
+                    </div>
+
+                </div>
+            </form>
+
+        {% endif %}
+
     {% else %}
 
         <p>No payment information.</p>
@@ -270,7 +343,7 @@
         <div class="card-body">
             <form method="post"
                   action="{% url 'orders:manager_order_status_update' order.id %}"
-                  class="mb-3">
+                  class="mb-2">
                 {% csrf_token %}
 
                 <input type="hidden"
@@ -278,59 +351,77 @@
                        value="completed">
 
                 <button type="submit"
-                        class="btn btn-success">
+                        class="btn btn-success"
+                        style="width: 160px;">
                     Complete order
                 </button>
             </form>
 
-            <form method="post"
-                  action="{% url 'orders:manager_order_status_update' order.id %}">
-                {% csrf_token %}
+            <button
+                class="btn btn-outline-danger btn-sm mb-3"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#cancelOrderForm"
+                aria-expanded="false"
+                aria-controls="cancelOrderForm"
+                style="width: 160px;"
+            >
+                Cancel order...
+            </button>
 
-                <div class="mb-3">
-                    <label class="form-label">
-                        Cancellation reason
-                    </label>
+            <div
+                class="collapse"
+                id="cancelOrderForm"
+            >
+                <form method="post"
+                      action="{% url 'orders:manager_order_status_update' order.id %}">
+                    {% csrf_token %}
 
-                    <select name="cancellation_reason"
-                            class="form-select">
-                        <option value="client_refused">
-                            Client refused
-                        </option>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Cancellation reason
+                        </label>
 
-                        <option value="supplier_unavailable">
-                            Supplier unavailable
-                        </option>
+                        <select name="cancellation_reason"
+                                class="form-select">
+                            <option value="client_refused">
+                                Client refused
+                            </option>
 
-                        <option value="delivery_cost">
-                            Delivery cost
-                        </option>
+                            <option value="supplier_unavailable">
+                                Supplier unavailable
+                            </option>
 
-                        <option value="other">
-                            Other
-                        </option>
-                    </select>
-                </div>
+                            <option value="delivery_cost">
+                                Delivery cost
+                            </option>
 
-                <div class="mb-3">
-                    <label class="form-label">
-                        Comment
-                    </label>
+                            <option value="other">
+                                Other
+                            </option>
+                        </select>
+                    </div>
 
-                    <textarea name="cancellation_comment"
-                              class="form-control"
-                              rows="3"></textarea>
-                </div>
+                    <div class="mb-3">
+                        <label class="form-label">
+                            Comment
+                        </label>
 
-                <input type="hidden"
-                       name="status"
-                       value="cancelled">
+                        <textarea name="cancellation_comment"
+                                  class="form-control"
+                                  rows="3"></textarea>
+                    </div>
 
-                <button type="submit"
-                        class="btn btn-danger">
-                    Cancel order
-                </button>
-            </form>
+                    <input type="hidden"
+                           name="status"
+                           value="cancelled">
+
+                    <button type="submit"
+                            class="btn btn-danger">
+                        Cancel order
+                    </button>
+                </form>
+            </div>
         </div>
     </div>
 {% endif %}
@@ -350,7 +441,11 @@
                     Delivery method
                 </label>
 
-                <select name="delivery_method" class="form-select">
+                <select name="delivery_method" class="form<select
+                    name="delivery_method"
+                    class="form-select"
+                    id="deliveryMethodSelect"
+                >
                     <option value="pickup" {% if order.delivery_method == "pickup" %}selected{% endif %}>
                         Pickup
                     </option>
@@ -360,6 +455,8 @@
                     </option>
                 </select>
             </div>
+
+            <div id="shippingDeliveryFields">
 
             <div class="mb-3">
                 <label class="form-label">
@@ -444,7 +541,7 @@
                           class="form-control"
                           rows="3">{{ order.manager_delivery_comment }}</textarea>
             </div>
-
+        </div>
             <button type="submit"
                     class="btn btn-primary">
                 Update delivery
@@ -452,6 +549,7 @@
         </form>
     </div>
 </div>
+
 {% endif %}
 {% if order.is_legal_entity %}
     <div class="card mb-4">
@@ -520,4 +618,25 @@
     </div>
 </div>
 
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const deliveryMethodSelect = document.getElementById("deliveryMethodSelect");
+        const shippingDeliveryFields = document.getElementById("shippingDeliveryFields");
+
+        function toggleShippingDeliveryFields() {
+            if (deliveryMethodSelect.value === "shipping") {
+                shippingDeliveryFields.classList.remove("d-none");
+            } else {
+                shippingDeliveryFields.classList.add("d-none");
+            }
+        }
+
+        toggleShippingDeliveryFields();
+
+        deliveryMethodSelect.addEventListener(
+            "change",
+            toggleShippingDeliveryFields
+        );
+    });
+</script>
 {% endblock %}
