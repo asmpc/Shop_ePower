@@ -84,6 +84,11 @@ def order_list_view(request):
         .order_by("-created_at")
     )
 
+    status = request.GET.get("status")
+
+    if status and status != "all":
+        orders = orders.filter(status=status)
+
     return render(
         request,
         "orders/list.html",
