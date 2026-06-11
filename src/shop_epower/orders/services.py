@@ -256,6 +256,10 @@ def update_order_delivery_by_manager(
     *,
     order,
     user,
+    delivery_method,
+    delivery_provider="",
+    delivery_address="",
+    delivery_comment="",
     delivery_cost,
     delivery_paid_by_customer_on_receipt=False,
     manager_delivery_comment="",
@@ -265,18 +269,26 @@ def update_order_delivery_by_manager(
             "Only manager or admin can update delivery."
         )
 
+    if order.status != OrderStatus.PROCESSING:
+        raise ValidationError(
+            "Delivery can be updated only for processing orders."
+        )
+
     delivery_cost = Decimal(delivery_cost or "0.00")
 
     items_total = sum(
         item.total_price for item in order.items.all()
     )
 
-    order.delivery_cost = delivery_cost
+    order.delivery_method = delivery_method
+    order.delivery_provider = delivery_provider
+    order.delivery_address = delivery_address
+    order.delivery_comment = delivery_comment
 
+    order.delivery_cost = delivery_cost
     order.delivery_paid_by_customer_on_receipt = (
         delivery_paid_by_customer_on_receipt
     )
-
     order.manager_delivery_comment = manager_delivery_comment
 
     if delivery_paid_by_customer_on_receipt:
@@ -286,6 +298,10 @@ def update_order_delivery_by_manager(
 
     order.save(
         update_fields=[
+            "delivery_method",
+            "delivery_provider",
+            "delivery_address",
+            "delivery_comment",
             "delivery_cost",
             "delivery_paid_by_customer_on_receipt",
             "manager_delivery_comment",
