@@ -197,6 +197,54 @@
     </div>
 </div>
 
+<hr>
+
+    <h4>Payment information</h4>
+
+    {% if payment %}
+
+        <p>
+            <strong>Method:</strong>
+            {{ payment.get_method_display }}
+        </p>
+
+        <p>
+            <strong>Status:</strong>
+            {{ payment.get_status_display }}
+        </p>
+
+        <p>
+            <strong>Provider:</strong>
+            {{ payment.get_provider_display }}
+        </p>
+
+        <p>
+            <strong>Amount:</strong>
+            {{ payment.amount }}
+            {{ payment.currency_snapshot }}
+        </p>
+
+        <p>
+            <strong>Transaction ID:</strong>
+            {{ payment.transaction_id|default:"-" }}
+        </p>
+
+        <p>
+            <strong>Provider payment ID:</strong>
+            {{ payment.provider_payment_id|default:"-" }}
+        </p>
+
+        <p>
+            <strong>Manager comment:</strong>
+            {{ payment.manager_comment|default:"-" }}
+        </p>
+
+    {% else %}
+
+        <p>No payment information.</p>
+
+    {% endif %}
+
 {% if order.status == "new" %}
     <div class="mb-4">
         <form method="post"

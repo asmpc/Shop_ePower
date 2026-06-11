@@ -104,6 +104,37 @@
             </select>
         </div>
 
+        <div class="mb-3">
+            <label class="form-label">
+                Payment method
+            </label>
+
+            <select
+                name="payment_method"
+                class="form-select"
+                id="payment-method"
+            >
+                <option value="on_receipt" id="payment-on-receipt">
+                    On receipt
+                </option>
+
+                <option value="invoice">
+                    By invoice
+                </option>
+
+                <option value="online">
+                    Online payment
+                </option>
+            </select>
+
+            <div
+                class="form-text text-muted"
+                id="payment-method-help"
+            >
+                Payment on receipt is available only for pickup.
+            </div>
+        </div>
+
         <div id="shipping-fields" style="display: none;">
             <div class="mb-3">
                 <label class="form-label">
@@ -176,16 +207,29 @@
         const deliveryMethodSelect = document.getElementById("delivery-method");
         const shippingFields = document.getElementById("shipping-fields");
 
-        function toggleShippingFields() {
-            if (deliveryMethodSelect.value === "shipping") {
+        const paymentMethodSelect = document.getElementById("payment-method");
+        const paymentOnReceiptOption = document.getElementById("payment-on-receipt");
+
+        function toggleCheckoutFields() {
+            const isShipping = deliveryMethodSelect.value === "shipping";
+
+            if (isShipping) {
                 shippingFields.style.display = "block";
+
+                paymentOnReceiptOption.disabled = true;
+
+                if (paymentMethodSelect.value === "on_receipt") {
+                    paymentMethodSelect.value = "invoice";
+                }
             } else {
                 shippingFields.style.display = "none";
+
+                paymentOnReceiptOption.disabled = false;
             }
         }
 
-        deliveryMethodSelect.addEventListener("change", toggleShippingFields);
-        toggleShippingFields();
+        deliveryMethodSelect.addEventListener("change", toggleCheckoutFields);
+        toggleCheckoutFields();
     </script>
 {% endif %}
 
