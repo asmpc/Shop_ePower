@@ -28,6 +28,13 @@ class TestsManagerOrderViews(TestCase):
             role="manager",
         )
 
+        self.admin = User.objects.create_user(
+            email="admin@test.com",
+            username="admin",
+            password="testpass123",
+            role="admin",
+        )
+
         self.client_user = User.objects.create_user(
             email="frontend-client@example.com",
             username="frontend-client",
@@ -287,4 +294,143 @@ class TestsManagerOrderViews(TestCase):
         self.assertEqual(
             response.context["payment"],
             self.payment,
+        )
+
+    # Проверяем, что менеджер может отметить оплату
+    # как успешно оплаченную.
+    def test_manager_can_mark_payment_as_paid(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_paid",
+                args=[self.order.id],
+            ),
+            data={
+                "manager_comment": "Invoice paid.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            ),
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.PAID,
+        )
+
+        self.assertEqual(
+            self.payment.manager_comment,
+            "Invoice paid.",
+        )
+
+    # Проверяем, что менеджер может отметить оплату
+    # как неуспешную.
+    def test_manager_can_mark_payment_as_failed(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_failed",
+                args=[self.order.id],
+            ),
+            data={
+                "manager_comment": "Bank declined payment.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            ),
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.FAILED,
+        )
+
+        self.assertEqual(
+            self.payment.manager_comment,
+            "Bank declined payment.",
+        )
+
+    # Проверяем, что менеджер может отменить оплату.
+    def test_manager_can_mark_payment_as_cancelled(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_cancelled",
+                args=[self.order.id],
+            ),
+            data={
+                "manager_comment": "Payment cancelled.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            ),
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.CANCELLED,
+        )
+
+        self.assertEqual(
+            self.payment.manager_comment,
+            "Payment cancelled.",
+        )
+
+    # Проверяем, что администратор тоже может отметить оплату
+    # как успешно оплаченную.
+    def test_admin_can_mark_payment_as_paid(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_paid",
+                args=[self.order.id],
+            ),
+            data={
+                "manager_comment": "Admin confirmed payment.",
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.id],
+            ),
+        )
+
+        self.payment.refresh_from_db()
+
+        self.assertEqual(
+            self.payment.status,
+            PaymentStatus.PAID,
+        )
+
+        self.assertEqual(
+            self.payment.manager_comment,
+            "Admin confirmed payment.",
         )

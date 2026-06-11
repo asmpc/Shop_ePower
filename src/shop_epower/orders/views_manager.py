@@ -1,17 +1,24 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 
-from shop_epower.orders.models import Order
 from django.shortcuts import get_object_or_404, redirect
+from django.http import HttpResponseForbidden
+from django.urls import reverse
 from django.contrib import messages
 from django.views import View
 from django.core.exceptions import ValidationError
 
+from shop_epower.orders.models import Order
 from shop_epower.orders.services import (
     update_order_status_by_manager,
     update_order_delivery_by_manager,
 )
 from shop_epower.chat.selectors import get_chat_rooms_for_order
+from shop_epower.payments.services import (
+    mark_payment_paid,
+    mark_payment_failed,
+    mark_payment_cancelled,
+)
 
 
 
@@ -82,6 +89,78 @@ class ManagerOrderDetailView(
             context["payment"] = None
 
         return context
+
+class ManagerPaymentActionMixin(
+    LoginRequiredMixin,
+):
+    def dispatch(self, request, *args, **kwargs):
+
+        if request.user.role not in ["manager", "admin"]:
+            return HttpResponseForbidden()
+
+        return super().dispatch(request, *args, **kwargs)
+
+    def get_order(self):
+        return get_object_or_404(
+            Order.objects.select_related("payment"),
+            pk=self.kwargs["pk"],
+        )
+
+    def get_success_url(self):
+        return reverse(
+            "orders:manager_order_detail",
+            args=[self.kwargs["pk"]],
+        )
+
+class ManagerMarkPaymentPaidView(
+    ManagerPaymentActionMixin,
+    View,
+):
+    def post(self, request, *args, **kwargs):
+        order = self.get_order()
+
+        mark_payment_paid(
+            payment=order.payment,
+            manager_comment=request.POST.get("manager_comment", ""),
+        )
+
+        return redirect(
+            self.get_success_url(),
+        )
+
+
+class ManagerMarkPaymentFailedView(
+    ManagerPaymentActionMixin,
+    View,
+):
+    def post(self, request, *args, **kwargs):
+        order = self.get_order()
+
+        mark_payment_failed(
+            payment=order.payment,
+            manager_comment=request.POST.get("manager_comment", ""),
+        )
+
+        return redirect(
+            self.get_success_url(),
+        )
+
+
+class ManagerMarkPaymentCancelledView(
+    ManagerPaymentActionMixin,
+    View,
+):
+    def post(self, request, *args, **kwargs):
+        order = self.get_order()
+
+        mark_payment_cancelled(
+            payment=order.payment,
+            manager_comment=request.POST.get("manager_comment", ""),
+        )
+
+        return redirect(
+            self.get_success_url(),
+        )
 
 class ManagerOrderStatusUpdateView(
     LoginRequiredMixin,
