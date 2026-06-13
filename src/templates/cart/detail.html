@@ -128,6 +128,22 @@
             </select>
 
             <div
+                id="online-payment-warning"
+                class="alert alert-warning mt-3 d-none"
+            >
+                <strong>Online payment</strong><br>
+
+                Online payment integration is currently under approval.
+
+                At the moment you can pay:
+
+                <ul class="mb-0 mt-2">
+                    <li>By invoice</li>
+                    <li>On receipt</li>
+                </ul>
+            </div>
+
+            <div
                 class="form-text text-muted"
                 id="payment-method-help"
             >
@@ -232,5 +248,32 @@
         toggleCheckoutFields();
     </script>
 {% endif %}
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+
+        const paymentMethodSelect =
+            document.getElementById("payment-method");
+
+        const onlinePaymentWarning =
+            document.getElementById("online-payment-warning");
+
+        function toggleOnlinePaymentWarning() {
+
+            if (paymentMethodSelect.value === "online") {
+                onlinePaymentWarning.classList.remove("d-none");
+            } else {
+                onlinePaymentWarning.classList.add("d-none");
+            }
+        }
+
+        toggleOnlinePaymentWarning();
+
+        paymentMethodSelect.addEventListener(
+            "change",
+            toggleOnlinePaymentWarning
+        );
+    });
+</script>
 
 {% endblock %}

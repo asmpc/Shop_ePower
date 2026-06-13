@@ -1,0 +1,63 @@
+from decimal import Decimal
+
+from django.contrib.auth import get_user_model
+from django.test import TestCase
+
+from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.models import Order
+from shop_epower.payments.models import (
+    PaymentMethod,
+    PaymentProvider,
+)
+from shop_epower.payments.services import (
+    create_payment_for_order,
+    create_mock_payment_url,
+)
+
+
+User = get_user_model()
+
+
+class TestsPaymentProviderServices(TestCase):
+
+    def setUp(self):
+        self.user = User.objects.create_user(
+            email="client@test.com",
+            username="client",
+            password="testpass123",
+        )
+
+        self.order = Order.objects.create(
+            user=self.user,
+            customer_name="Test Client",
+            customer_email="client@test.com",
+            total_price=Decimal("100.00"),
+            currency_snapshot=get_base_currency(),
+        )
+
+    # Проверяем создание mock payment URL:
+    # online payment должен получить ссылку на mock checkout.
+    def test_create_mock_payment_url_for_online_payment(self):
+        payment = create_payment_for_order(
+            order=self.order,
+            method=PaymentMethod.ONLINE,
+        )
+
+        payment_url = create_mock_payment_url(
+            payment=payment,
+        )
+
+        self.assertIn(
+            "/payments/mock/",
+            payment_url,
+        )
+
+        self.assertIn(
+            payment.transaction_id,
+            payment_url,
+        )
+
+        self.assertEqual(
+            payment.provider,
+            PaymentProvider.MOCK,
+        )
