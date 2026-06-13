@@ -154,6 +154,44 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        Payment information
+    </div>
+
+    <div class="card-body">
+        {% if payment %}
+            <p class="mb-1">
+                <strong>Method:</strong>
+                {{ payment.get_method_display }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Status:</strong>
+                {{ payment.get_status_display }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Amount:</strong>
+                {{ payment.amount }} {{ payment.currency_snapshot }}
+            </p>
+
+            {% if payment.method == "online" and payment.status == "pending" %}
+                <div class="alert alert-warning mt-3 mb-0">
+                    Online payment integration is currently under approval.
+                    At the moment you can pay by invoice or on receipt.
+                </div>
+            {% endif %}
+
+        {% else %}
+            <p class="mb-0">
+                Payment information is not available.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
+
 {% if order.is_legal_entity %}
     <div class="card mb-4">
         <div class="card-header">
