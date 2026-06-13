@@ -84,6 +84,11 @@ class ManagerOrderDetailView(
             self.object,
         )
 
+        context["back_url"] = self.request.GET.get(
+            "next",
+            reverse("orders:manager_order_list"),
+        )
+
         try:
             context["payment"] = self.object.payment
         except Order.payment.RelatedObjectDoesNotExist:

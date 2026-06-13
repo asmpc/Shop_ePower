@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1>Payment #{{ payment.id }}</h1>
+
+        {% if payment.status == "pending" %}
+            <span class="badge bg-warning text-dark">PENDING</span>
+        {% elif payment.status == "paid" %}
+            <span class="badge bg-success">PAID</span>
+        {% elif payment.status == "failed" %}
+            <span class="badge bg-danger">FAILED</span>
+        {% elif payment.status == "cancelled" %}
+            <span class="badge bg-secondary">CANCELLED</span>
+        {% endif %}
+    </div>
+
+    <a href="{{ back_url }}" class="btn btn-outline-secondary">
+        Back
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Payment information
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1"><strong>Order:</strong> #{{ payment.order.id }}</p>
+        <p class="mb-1"><strong>Customer:</strong> {{ payment.order.customer_email }}</p>
+        <p class="mb-1"><strong>Method:</strong> {{ payment.get_method_display }}</p>
+        <p class="mb-1"><strong>Status:</strong> {{ payment.get_status_display }}</p>
+        <p class="mb-1"><strong>Provider:</strong> {{ payment.get_provider_display }}</p>
+        <p class="mb-1"><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency_snapshot }}</p>
+        <p class="mb-1"><strong>Transaction ID:</strong> {{ payment.transaction_id }}</p>
+        <p class="mb-1"><strong>Provider payment ID:</strong> {{ payment.provider_payment_id|default:"-" }}</p>
+        <p class="mb-1"><strong>Manager comment:</strong> {{ payment.manager_comment|default:"-" }}</p>
+        <p class="mb-1"><strong>Created:</strong> {{ payment.created_at }}</p>
+        <p class="mb-0"><strong>Updated:</strong> {{ payment.updated_at }}</p>
+    </div>
+</div>
+
+<a
+    href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
+    class="btn btn-outline-primary"
+>
+    Open order
+</a>
+
+{% endblock %}
