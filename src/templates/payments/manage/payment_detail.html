@@ -42,6 +42,55 @@
     </div>
 </div>
 
+<div class="card mb-4">
+    <div class="card-header">
+        Payment history
+    </div>
+
+    <div class="card-body">
+        {% for history_item in payment.history.all %}
+            <div class="mb-3">
+                <p class="mb-1">
+                    <strong>
+                        {{ history_item.old_status|upper }}
+                        →
+                        {{ history_item.new_status|upper }}
+                    </strong>
+                </p>
+
+                <p class="mb-1">
+                    <strong>Changed by:</strong>
+
+                    {% if history_item.changed_by %}
+                        {{ history_item.changed_by.username }}
+                    {% else %}
+                        System
+                    {% endif %}
+                </p>
+
+                {% if history_item.comment %}
+                    <p class="mb-1">
+                        <strong>Comment:</strong>
+                        {{ history_item.comment }}
+                    </p>
+                {% endif %}
+
+                <p class="text-muted mb-0">
+                    {{ history_item.created_at }}
+                </p>
+            </div>
+
+            {% if not forloop.last %}
+                <hr>
+            {% endif %}
+        {% empty %}
+            <p class="mb-0">
+                No payment history yet.
+            </p>
+        {% endfor %}
+    </div>
+</div>
+
 <a
     href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
     class="btn btn-outline-primary"

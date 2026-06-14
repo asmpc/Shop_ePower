@@ -161,6 +161,7 @@ class AdminResetPaymentToPendingView(
                     "manager_comment",
                     "",
                 ),
+                changed_by=request.user,
             )
 
             messages.success(
@@ -189,6 +190,7 @@ class ManagerMarkPaymentPaidView(
         mark_payment_paid(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
         return redirect(
@@ -206,6 +208,7 @@ class ManagerMarkPaymentFailedView(
         mark_payment_failed(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
         return redirect(
@@ -223,6 +226,7 @@ class ManagerMarkPaymentCancelledView(
         mark_payment_cancelled(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
         return redirect(

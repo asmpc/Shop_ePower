@@ -4,3 +4,4 @@ from .payment import (
     PaymentStatus,
     PaymentProvider,
 )
+from .payment_history import PaymentHistory

@@ -1,8 +1,16 @@
 from django.contrib import admin
 from django.test import TestCase
 
-from shop_epower.payments.admin import PaymentAdmin
-from shop_epower.payments.models import Payment
+from shop_epower.payments.admin import (
+    PaymentAdmin,
+    PaymentHistoryAdmin,
+)
+
+from shop_epower.payments.models import (
+    Payment,
+    PaymentHistory,
+)
+
 
 
 class TestsPaymentAdmin(TestCase):
@@ -77,3 +85,44 @@ class TestsPaymentAdmin(TestCase):
                 "updated_at",
             ),
         )
+
+    # Проверяем, что PaymentHistory зарегистрирован в Django admin.
+    def test_payment_history_is_registered_in_admin(self):
+        self.assertIsInstance(
+            admin.site._registry[PaymentHistory],
+            PaymentHistoryAdmin,
+        )
+
+    # Проверяем поля, которые отображаются в списке PaymentHistory.
+    def test_payment_history_admin_list_display(self):
+        payment_history_admin = admin.site._registry[PaymentHistory]
+
+        self.assertEqual(
+            payment_history_admin.list_display,
+            (
+                "id",
+                "payment",
+                "old_status",
+                "new_status",
+                "changed_by",
+                "created_at",
+            ),
+        )
+
+    # Проверяем readonly поля PaymentHistory:
+    # audit trail нельзя редактировать вручную.
+    def test_payment_history_admin_readonly_fields(self):
+        payment_history_admin = admin.site._registry[PaymentHistory]
+
+        self.assertEqual(
+            payment_history_admin.readonly_fields,
+            (
+                "payment",
+                "old_status",
+                "new_status",
+                "comment",
+                "changed_by",
+                "created_at",
+            ),
+        )
+

@@ -1,6 +1,7 @@
 from django.core.exceptions import ValidationError
 from shop_epower.payments.models import (
     Payment,
+    PaymentHistory,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
@@ -41,11 +42,27 @@ def _validate_payment_is_pending(payment):
             "Only pending payment can be updated."
         )
 
+def _create_payment_history(
+    *,
+    payment,
+    old_status,
+    new_status,
+    comment="",
+    changed_by=None,
+):
+    PaymentHistory.objects.create(
+        payment=payment,
+        old_status=old_status,
+        new_status=new_status,
+        comment=comment,
+        changed_by=changed_by,
+    )
 
 def mark_payment_paid(
     *,
     payment,
     manager_comment="",
+    changed_by=None,
 ):
     """
     Переводит payment в статус PAID.
@@ -55,6 +72,8 @@ def mark_payment_paid(
     """
 
     _validate_payment_is_pending(payment)
+
+    old_status = payment.status
 
     payment.status = PaymentStatus.PAID
     payment.manager_comment = manager_comment
@@ -67,6 +86,14 @@ def mark_payment_paid(
         ]
     )
 
+    _create_payment_history(
+        payment=payment,
+        old_status=old_status,
+        new_status=PaymentStatus.PAID,
+        comment=manager_comment,
+        changed_by=changed_by,
+    )
+
     return payment
 
 
@@ -74,6 +101,7 @@ def mark_payment_failed(
     *,
     payment,
     manager_comment="",
+    changed_by=None,
 ):
     """
     Переводит payment в статус FAILED.
@@ -82,6 +110,8 @@ def mark_payment_failed(
     """
 
     _validate_payment_is_pending(payment)
+
+    old_status = payment.status
 
     payment.status = PaymentStatus.FAILED
     payment.manager_comment = manager_comment
@@ -94,6 +124,14 @@ def mark_payment_failed(
         ]
     )
 
+    _create_payment_history(
+        payment=payment,
+        old_status=old_status,
+        new_status=PaymentStatus.FAILED,
+        comment=manager_comment,
+        changed_by=changed_by,
+    )
+
     return payment
 
 
@@ -101,6 +139,7 @@ def mark_payment_cancelled(
     *,
     payment,
     manager_comment="",
+    changed_by=None,
 ):
     """
     Переводит payment в статус CANCELLED.
@@ -109,6 +148,8 @@ def mark_payment_cancelled(
     """
 
     _validate_payment_is_pending(payment)
+
+    old_status = payment.status
 
     payment.status = PaymentStatus.CANCELLED
     payment.manager_comment = manager_comment
@@ -121,26 +162,46 @@ def mark_payment_cancelled(
         ]
     )
 
+    _create_payment_history(
+        payment=payment,
+        old_status=old_status,
+        new_status=PaymentStatus.CANCELLED,
+        comment=manager_comment,
+        changed_by=changed_by,
+    )
+
     return payment
 
 def reset_payment_to_pending(
     *,
     payment,
     manager_comment="",
+    changed_by=None,
 ):
     if payment.status == PaymentStatus.PENDING:
         raise ValidationError(
             "Only non-pending payment can be reset to pending."
         )
 
+    old_status = payment.status
+
     payment.status = PaymentStatus.PENDING
     payment.manager_comment = manager_comment
+
     payment.save(
         update_fields=[
             "status",
             "manager_comment",
             "updated_at",
         ]
+    )
+
+    _create_payment_history(
+        payment=payment,
+        old_status=old_status,
+        new_status=PaymentStatus.PENDING,
+        comment=manager_comment,
+        changed_by=changed_by,
     )
 
     return payment
