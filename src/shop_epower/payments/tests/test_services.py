@@ -23,6 +23,13 @@ from shop_epower.payments.tests.helpers import (
     create_payment,
 )
 
+from shop_epower.payments.models import (
+    PaymentHistory,
+    PaymentMethod,
+    PaymentProvider,
+    PaymentStatus,
+)
+
 
 User = get_user_model()
 
@@ -273,4 +280,159 @@ class TestsPaymentServices(TestCase):
             reset_payment_to_pending(
                 payment=payment,
             )
+
+    # Проверяем payment history:
+    # при успешной оплате должна создаваться запись истории.
+    def test_mark_payment_paid_creates_payment_history(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_paid(
+            payment=payment,
+            manager_comment="Invoice paid.",
+            changed_by=self.user,
+        )
+
+        history = PaymentHistory.objects.get(
+            payment=payment,
+        )
+
+        self.assertEqual(
+            history.old_status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            history.new_status,
+            PaymentStatus.PAID,
+        )
+
+        self.assertEqual(
+            history.comment,
+            "Invoice paid.",
+        )
+
+        self.assertEqual(
+            history.changed_by,
+            self.user,
+        )
+
+    # Проверяем payment history:
+    # при неуспешной оплате должна создаваться запись истории.
+    def test_mark_payment_failed_creates_payment_history(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_failed(
+            payment=payment,
+            manager_comment="Bank declined payment.",
+            changed_by=self.user,
+        )
+
+        history = PaymentHistory.objects.get(
+            payment=payment,
+        )
+
+        self.assertEqual(
+            history.old_status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            history.new_status,
+            PaymentStatus.FAILED,
+        )
+
+        self.assertEqual(
+            history.comment,
+            "Bank declined payment.",
+        )
+
+        self.assertEqual(
+            history.changed_by,
+            self.user,
+        )
+
+    # Проверяем payment history:
+    # при отмене оплаты должна создаваться запись истории.
+    def test_mark_payment_cancelled_creates_payment_history(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_cancelled(
+            payment=payment,
+            manager_comment="Client cancelled payment.",
+            changed_by=self.user,
+        )
+
+        history = PaymentHistory.objects.get(
+            payment=payment,
+        )
+
+        self.assertEqual(
+            history.old_status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            history.new_status,
+            PaymentStatus.CANCELLED,
+        )
+
+        self.assertEqual(
+            history.comment,
+            "Client cancelled payment.",
+        )
+
+        self.assertEqual(
+            history.changed_by,
+            self.user,
+        )
+
+    # Проверяем payment history:
+    # при admin reset должна сохраняться история возврата в PENDING.
+    def test_reset_payment_to_pending_creates_payment_history(self):
+        payment = create_payment(
+            order=self.order,
+        )
+
+        mark_payment_paid(
+            payment=payment,
+            changed_by=self.user,
+        )
+
+        PaymentHistory.objects.all().delete()
+
+        reset_payment_to_pending(
+            payment=payment,
+            manager_comment="Wrong order was marked as paid.",
+            changed_by=self.user,
+        )
+
+        history = PaymentHistory.objects.get(
+            payment=payment,
+        )
+
+        self.assertEqual(
+            history.old_status,
+            PaymentStatus.PAID,
+        )
+
+        self.assertEqual(
+            history.new_status,
+            PaymentStatus.PENDING,
+        )
+
+        self.assertEqual(
+            history.comment,
+            "Wrong order was marked as paid.",
+        )
+
+        self.assertEqual(
+            history.changed_by,
+            self.user,
+        )
 

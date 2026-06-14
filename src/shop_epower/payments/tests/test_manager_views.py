@@ -8,6 +8,7 @@ from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import Order
 from shop_epower.payments.models import (
     Payment,
+    PaymentHistory,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
@@ -210,4 +211,91 @@ class TestsManagerPaymentViews(TestCase):
         self.assertEqual(
             response.status_code,
             404,
+        )
+
+    # Проверяем, что detail страницы оплаты показывает историю изменений.
+    def test_payment_detail_shows_payment_history(self):
+        PaymentHistory.objects.create(
+            payment=self.payment,
+            old_status=PaymentStatus.PENDING,
+            new_status=PaymentStatus.PAID,
+            comment="Invoice paid.",
+            changed_by=self.manager,
+        )
+
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.get(
+            reverse(
+                "payments:manager_payment_detail",
+                args=[self.payment.id],
+            )
+        )
+
+        self.assertEqual(
+            response.status_code,
+            200,
+        )
+
+        self.assertContains(
+            response,
+            "Payment history",
+        )
+
+        self.assertContains(
+            response,
+            "Invoice paid.",
+        )
+
+        self.assertContains(
+            response,
+            self.manager.username,
+        )
+
+        self.assertContains(
+            response,
+            "PENDING",
+        )
+
+        self.assertContains(
+            response,
+            "PAID",
+        )
+
+    # Проверяем, что manager action сохраняет пользователя
+    # в PaymentHistory.changed_by.
+    def test_manager_payment_action_creates_history_with_changed_by(self):
+        self.client.force_login(
+            self.manager,
+        )
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_mark_payment_paid",
+                args=[self.order.id],
+            ),
+            {
+                "manager_comment": "Invoice received",
+            },
+        )
+
+        self.assertEqual(
+            response.status_code,
+            302,
+        )
+
+        history = PaymentHistory.objects.get(
+            payment=self.payment,
+        )
+
+        self.assertEqual(
+            history.changed_by,
+            self.manager,
+        )
+
+        self.assertEqual(
+            history.new_status,
+            PaymentStatus.PAID,
         )

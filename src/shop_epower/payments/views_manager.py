@@ -86,6 +86,10 @@ class ManagerPaymentDetailView(
                 "order",
                 "order__user",
             )
+            .prefetch_related(
+                "history",
+                "history__changed_by",
+            )
         )
 
     def get_context_data(
