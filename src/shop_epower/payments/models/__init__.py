@@ -5,3 +5,4 @@ from .payment import (
     PaymentProvider,
 )
 from .payment_history import PaymentHistory
+from .company_settings import CompanySettings

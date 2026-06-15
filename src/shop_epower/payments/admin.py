@@ -4,6 +4,10 @@ from shop_epower.payments.models import (
     Payment,
     PaymentHistory,
 )
+from shop_epower.payments.models import (
+    CompanySettings,
+)
+
 
 
 @admin.register(Payment)
@@ -85,3 +89,27 @@ class PaymentHistoryAdmin(admin.ModelAdmin):
     ordering = (
         "-created_at",
     )
+
+
+@admin.register(CompanySettings)
+class CompanySettingsAdmin(admin.ModelAdmin):
+
+    list_display = (
+        "company_name",
+        "tax_id",
+        "bank_name",
+        "updated_at",
+    )
+
+    search_fields = (
+        "company_name",
+        "tax_id",
+    )
+
+    def has_add_permission(
+        self,
+        request,
+    ):
+        return (
+            CompanySettings.objects.count() < 1
+        )
