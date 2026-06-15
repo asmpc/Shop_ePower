@@ -1,16 +1,17 @@
 from django.contrib import admin
 from django.test import TestCase
+from django.test import RequestFactory
 
 from shop_epower.payments.admin import (
+    CompanySettingsAdmin,
     PaymentAdmin,
     PaymentHistoryAdmin,
 )
-
 from shop_epower.payments.models import (
+    CompanySettings,
     Payment,
     PaymentHistory,
 )
-
 
 
 class TestsPaymentAdmin(TestCase):
@@ -125,4 +126,55 @@ class TestsPaymentAdmin(TestCase):
                 "created_at",
             ),
         )
+
+    # Проверяем, что CompanySettings зарегистрирован в Django admin.
+    def test_company_settings_is_registered_in_admin(self):
+        self.assertIsInstance(
+            admin.site._registry[CompanySettings],
+            CompanySettingsAdmin,
+        )
+
+    # Проверяем поля, которые отображаются в списке CompanySettings.
+    def test_company_settings_admin_list_display(self):
+        company_settings_admin = admin.site._registry[CompanySettings]
+
+        self.assertEqual(
+            company_settings_admin.list_display,
+            (
+                "company_name",
+                "tax_id",
+                "bank_name",
+                "updated_at",
+            ),
+        )
+
+    # Проверяем мягкий singleton:
+    # если реквизиты компании уже созданы,
+    # вторую запись через admin добавить нельзя.
+    def test_company_settings_admin_allows_only_one_record(self):
+        request = RequestFactory().get("/admin/")
+
+        company_settings_admin = admin.site._registry[CompanySettings]
+
+        self.assertTrue(
+            company_settings_admin.has_add_permission(
+                request,
+            )
+        )
+
+        CompanySettings.objects.create(
+            company_name="Shop ePower LLC",
+            tax_id="123456789",
+            legal_address="Test legal address",
+            bank_name="Test Bank",
+            bank_account="BY00 TEST 0000 0000 0000 0000 0000",
+        )
+
+        self.assertFalse(
+            company_settings_admin.has_add_permission(
+                request,
+            )
+        )
+
+
 
