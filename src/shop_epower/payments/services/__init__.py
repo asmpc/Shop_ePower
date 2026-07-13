@@ -21,3 +21,7 @@ from .invoice import (
     generate_invoice_number,
     cancel_invoice,
 )
+
+from .invoice_pdf import (
+    generate_invoice_pdf,
+)
