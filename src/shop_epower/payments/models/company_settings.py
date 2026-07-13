@@ -6,11 +6,30 @@ class CompanySettings(models.Model):
         max_length=255,
     )
 
+    short_company_name = models.CharField(
+        max_length=255,
+        blank=True,
+    )
+
     tax_id = models.CharField(
         max_length=100,
     )
 
+    tax_registration_reason_code = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
+    state_registration_number = models.CharField(
+        max_length=100,
+        blank=True,
+    )
+
     legal_address = models.TextField()
+
+    actual_address = models.TextField(
+        blank=True,
+    )
 
     bank_name = models.CharField(
         max_length=255,
@@ -22,6 +41,11 @@ class CompanySettings(models.Model):
 
     bank_code = models.CharField(
         max_length=100,
+        blank=True,
+    )
+
+    correspondent_account = models.CharField(
+        max_length=255,
         blank=True,
     )
 

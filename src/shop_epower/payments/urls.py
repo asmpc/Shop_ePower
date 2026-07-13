@@ -4,9 +4,12 @@ from shop_epower.payments.views import (
     mock_payment_success_view,
     mock_payment_fail_view,
 )
+
 from shop_epower.payments.views_manager import (
     ManagerPaymentListView,
     ManagerPaymentDetailView,
+    ManagerGenerateInvoiceView,
+    AdminCancelInvoiceView,
 )
 
 
@@ -42,6 +45,18 @@ urlpatterns = [
         "manage/<int:pk>/",
         ManagerPaymentDetailView.as_view(),
         name="manager_payment_detail",
+    ),
+
+    path(
+        "manage/<int:pk>/generate-invoice/",
+        ManagerGenerateInvoiceView.as_view(),
+        name="manager_generate_invoice",
+    ),
+
+    path(
+        "manage/invoices/<int:pk>/cancel/",
+        AdminCancelInvoiceView.as_view(),
+        name="admin_cancel_invoice",
     ),
 
 

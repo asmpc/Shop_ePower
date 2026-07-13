@@ -72,7 +72,8 @@ class ManagerOrderDetailView(
             Order.objects
             .select_related(
                 "user",
-                "payment"
+                "payment",
+                "payment__invoice",
             )
             .prefetch_related("items")
         )

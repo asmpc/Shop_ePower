@@ -142,8 +142,10 @@ class TestsPaymentAdmin(TestCase):
             company_settings_admin.list_display,
             (
                 "company_name",
+                "short_company_name",
                 "tax_id",
                 "bank_name",
+                "phone",
                 "updated_at",
             ),
         )

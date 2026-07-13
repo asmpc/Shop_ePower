@@ -1,10 +1,28 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.urls import reverse
+from django.shortcuts import get_object_or_404, redirect
+from django.http import HttpResponseForbidden
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.views import View
 
-from shop_epower.payments.models import Payment
+from urllib.parse import urlencode
+
+from shop_epower.payments.models import (
+    Invoice,
+    Payment,
+)
+
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
+)
+from shop_epower.payments.validators import (
+    validate_manager_can_create_invoice,
+)
+from shop_epower.payments.services import (
+    create_invoice_for_payment,
+    cancel_invoice,
 )
 
 
@@ -100,9 +118,137 @@ class ManagerPaymentDetailView(
             **kwargs,
         )
 
+        payment = self.object
+
+        try:
+            invoice = payment.invoice
+        except Payment.invoice.RelatedObjectDoesNotExist:
+            invoice = None
+
+        context["invoice"] = invoice
+
         context["back_url"] = self.request.GET.get(
             "next",
             reverse("payments:manager_payment_list"),
         )
 
         return context
+
+
+class ManagerGenerateInvoiceView(
+    LoginRequiredMixin,
+    View,
+):
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role not in [
+            "manager",
+            "admin",
+        ]:
+            return HttpResponseForbidden()
+
+        return super().dispatch(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    def post(self, request, *args, **kwargs):
+        payment = get_object_or_404(
+            Payment.objects.select_related(
+                "order",
+            ),
+            pk=self.kwargs["pk"],
+        )
+
+        try:
+            validate_manager_can_create_invoice(
+                payment=payment,
+            )
+
+            create_invoice_for_payment(
+                payment=payment,
+            )
+
+            messages.success(
+                request,
+                "Invoice created.",
+            )
+
+        except ValidationError as error:
+            messages.error(
+                request,
+                error.message,
+            )
+
+        return redirect(
+            "orders:manager_order_detail",
+            pk=payment.order.pk,
+        )
+
+
+class AdminCancelInvoiceView(
+    LoginRequiredMixin,
+    View,
+):
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role != "admin":
+            return HttpResponseForbidden()
+
+        return super().dispatch(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    def post(self, request, *args, **kwargs):
+        invoice = get_object_or_404(
+            Invoice.objects.select_related(
+                "payment",
+                "order",
+            ),
+            pk=self.kwargs["pk"],
+        )
+
+        try:
+            cancel_invoice(
+                invoice=invoice,
+                cancelled_by=request.user,
+                comment=request.POST.get(
+                    "cancel_comment",
+                    "",
+                ),
+            )
+
+            messages.success(
+                request,
+                "Invoice cancelled.",
+            )
+
+        except ValidationError as error:
+            messages.error(
+                request,
+                error.message,
+            )
+
+        payment_detail_url = reverse(
+            "payments:manager_payment_detail",
+            args=[invoice.payment_id],
+        )
+
+        next_url = request.POST.get(
+            "next",
+            reverse(
+                "orders:manager_order_detail",
+                args=[invoice.order_id],
+            ),
+        )
+
+        query_string = urlencode(
+            {
+                "next": next_url,
+            }
+        )
+
+        return redirect(
+            f"{payment_detail_url}?{query_string}",
+        )
