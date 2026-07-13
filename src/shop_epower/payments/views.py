@@ -1,14 +1,24 @@
-from django.shortcuts import get_object_or_404
-from django.shortcuts import render
+from django.shortcuts import (
+    get_object_or_404,
+    redirect,
+    render,
+)
 
-from shop_epower.payments.models import Payment
-from django.shortcuts import redirect
 from django.urls import reverse
 
-from shop_epower.payments.services import (
-    mark_payment_paid,
-    mark_payment_failed,
+from django.contrib.auth.decorators import login_required
+from django.http import HttpResponse
+
+from shop_epower.payments.models import (
+    Invoice,
+    Payment,
 )
+from shop_epower.payments.services import (
+    generate_invoice_pdf,
+    mark_payment_failed,
+    mark_payment_paid,
+)
+
 
 
 def mock_checkout_view(
@@ -71,3 +81,36 @@ def mock_payment_fail_view(
             args=[payment.order.id],
         )
     )
+
+@login_required
+def client_invoice_pdf_view(
+    request,
+    pk,
+):
+    invoice = get_object_or_404(
+        Invoice.objects
+        .select_related(
+            "order",
+            "payment",
+        )
+        .prefetch_related(
+            "order__items",
+        ),
+        pk=pk,
+        order__user=request.user,
+    )
+
+    pdf = generate_invoice_pdf(
+        invoice=invoice,
+    )
+
+    response = HttpResponse(
+        pdf,
+        content_type="application/pdf",
+    )
+
+    response["Content-Disposition"] = (
+        f'attachment; filename="{invoice.invoice_number}.pdf"'
+    )
+
+    return response

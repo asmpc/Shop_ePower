@@ -2,7 +2,10 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.views.generic import ListView, DetailView
 from django.urls import reverse
 from django.shortcuts import get_object_or_404, redirect
-from django.http import HttpResponseForbidden
+from django.http import (
+    HttpResponse,
+    HttpResponseForbidden,
+)
 from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.views import View
@@ -20,11 +23,12 @@ from shop_epower.payments.selectors import (
 from shop_epower.payments.validators import (
     validate_manager_can_create_invoice,
 )
+
 from shop_epower.payments.services import (
     create_invoice_for_payment,
     cancel_invoice,
+    generate_invoice_pdf,
 )
-
 
 
 class ManagerPaymentListView(
@@ -252,3 +256,49 @@ class AdminCancelInvoiceView(
         return redirect(
             f"{payment_detail_url}?{query_string}",
         )
+
+
+class ManagerInvoicePdfView(
+    LoginRequiredMixin,
+    View,
+):
+    def dispatch(self, request, *args, **kwargs):
+        if request.user.role not in [
+            "manager",
+            "admin",
+        ]:
+            return HttpResponseForbidden()
+
+        return super().dispatch(
+            request,
+            *args,
+            **kwargs,
+        )
+
+    def get(self, request, *args, **kwargs):
+        invoice = get_object_or_404(
+            Invoice.objects
+            .select_related(
+                "order",
+                "payment",
+            )
+            .prefetch_related(
+                "order__items",
+            ),
+            pk=self.kwargs["pk"],
+        )
+
+        pdf = generate_invoice_pdf(
+            invoice=invoice,
+        )
+
+        response = HttpResponse(
+            pdf,
+            content_type="application/pdf",
+        )
+
+        response["Content-Disposition"] = (
+            f'attachment; filename="{invoice.invoice_number}.pdf"'
+        )
+
+        return response

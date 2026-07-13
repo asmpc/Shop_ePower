@@ -1,15 +1,18 @@
 from django.urls import path
-from shop_epower.payments.views import (
-    mock_checkout_view,
-    mock_payment_success_view,
-    mock_payment_fail_view,
-)
 
 from shop_epower.payments.views_manager import (
     ManagerPaymentListView,
     ManagerPaymentDetailView,
     ManagerGenerateInvoiceView,
     AdminCancelInvoiceView,
+    ManagerInvoicePdfView,
+)
+
+from shop_epower.payments.views import (
+    client_invoice_pdf_view,
+    mock_checkout_view,
+    mock_payment_fail_view,
+    mock_payment_success_view,
 )
 
 
@@ -36,6 +39,12 @@ urlpatterns = [
     ),
 
     path(
+        "invoices/<int:pk>/pdf/",
+        client_invoice_pdf_view,
+        name="client_invoice_pdf",
+    ),
+
+    path(
         "manage/",
         ManagerPaymentListView.as_view(),
         name="manager_payment_list",
@@ -57,6 +66,12 @@ urlpatterns = [
         "manage/invoices/<int:pk>/cancel/",
         AdminCancelInvoiceView.as_view(),
         name="admin_cancel_invoice",
+    ),
+
+    path(
+        "manage/invoices/<int:pk>/pdf/",
+        ManagerInvoicePdfView.as_view(),
+        name="manager_invoice_pdf",
     ),
 
 
