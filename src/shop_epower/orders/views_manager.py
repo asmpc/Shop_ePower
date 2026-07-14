@@ -8,7 +8,6 @@ from django.contrib import messages
 from django.views import View
 from django.core.exceptions import ValidationError
 
-from shop_epower.orders.models import Order
 from shop_epower.orders.services import (
     update_order_status_by_manager,
     update_order_delivery_by_manager,
@@ -19,6 +18,23 @@ from shop_epower.payments.services import (
     mark_payment_failed,
     mark_payment_cancelled,
     reset_payment_to_pending,
+)
+
+from shop_epower.orders.navigation import (
+    redirect_to_manager_order_detail,
+)
+
+from shop_epower.orders.models import (
+    Order,
+    OrderStatus,
+)
+
+from shop_epower.payments.models import (
+    PaymentMethod,
+)
+
+from shop_epower.payments.selectors import (
+    get_invoice_workflow_state,
 )
 
 
@@ -38,17 +54,60 @@ class ManagerOrderListView(
     def get_queryset(self):
         user = self.request.user
 
-        if user.role not in ["manager", "admin"]:
+        if user.role not in [
+            "manager",
+            "admin",
+        ]:
             return Order.objects.none()
 
-        qs = Order.objects.select_related("user").prefetch_related("items")
+        qs = (
+            Order.objects
+            .select_related(
+                "user",
+                "payment",
+                "payment__invoice",
+            )
+            .prefetch_related(
+                "items",
+            )
+        )
 
-        # фильтр по GET-параметру status
-        status = self.request.GET.get("status", "all")
+        status = self.request.GET.get(
+            "status",
+            "all",
+        )
+
         if status != "all":
-            qs = qs.filter(status=status)
+            qs = qs.filter(
+                status=status,
+            )
 
         return qs
+
+    def get_context_data(
+        self,
+        **kwargs,
+    ):
+        context = super().get_context_data(
+            **kwargs,
+        )
+
+        context["waiting_invoices_count"] = (
+            Order.objects
+            .filter(
+                payment__method=PaymentMethod.INVOICE,
+                payment__invoice__isnull=True,
+            )
+            .exclude(
+                status__in=[
+                    OrderStatus.COMPLETED,
+                    OrderStatus.CANCELLED,
+                ],
+            )
+            .count()
+        )
+
+        return context
 
 
 class ManagerOrderDetailView(
@@ -72,7 +131,8 @@ class ManagerOrderDetailView(
             Order.objects
             .select_related(
                 "user",
-                "payment"
+                "payment",
+                "payment__invoice",
             )
             .prefetch_related("items")
         )
@@ -84,10 +144,31 @@ class ManagerOrderDetailView(
             self.object,
         )
 
+        context["back_url"] = self.request.GET.get(
+            "next",
+            reverse("orders:manager_order_list"),
+        )
+
         try:
             context["payment"] = self.object.payment
         except Order.payment.RelatedObjectDoesNotExist:
             context["payment"] = None
+
+        context["invoice_workflow_state"] = None
+
+        if (
+                context["payment"]
+                and context["payment"].method == PaymentMethod.INVOICE
+                and not hasattr(
+            context["payment"],
+            "invoice",
+        )
+        ):
+            context["invoice_workflow_state"] = (
+                get_invoice_workflow_state(
+                    order=self.object,
+                )
+            )
 
         return context
 
@@ -108,10 +189,13 @@ class ManagerPaymentActionMixin(
             pk=self.kwargs["pk"],
         )
 
-    def get_success_url(self):
-        return reverse(
-            "orders:manager_order_detail",
-            args=[self.kwargs["pk"]],
+    def get_success_response(
+            self,
+            request,
+    ):
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=self.kwargs["pk"],
         )
 
 
@@ -135,10 +219,13 @@ class AdminPaymentActionMixin(
             pk=self.kwargs["pk"],
         )
 
-    def get_success_url(self):
-        return reverse(
-            "orders:manager_order_detail",
-            args=[self.kwargs["pk"]],
+    def get_success_response(
+            self,
+            request,
+    ):
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=self.kwargs["pk"],
         )
 
 
@@ -156,6 +243,7 @@ class AdminResetPaymentToPendingView(
                     "manager_comment",
                     "",
                 ),
+                changed_by=request.user,
             )
 
             messages.success(
@@ -169,8 +257,8 @@ class AdminResetPaymentToPendingView(
                 error.message,
             )
 
-        return redirect(
-            self.get_success_url(),
+        return self.get_success_response(
+            request,
         )
 
 
@@ -184,10 +272,11 @@ class ManagerMarkPaymentPaidView(
         mark_payment_paid(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
-        return redirect(
-            self.get_success_url(),
+        return self.get_success_response(
+            request,
         )
 
 
@@ -201,10 +290,11 @@ class ManagerMarkPaymentFailedView(
         mark_payment_failed(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
-        return redirect(
-            self.get_success_url(),
+        return self.get_success_response(
+            request,
         )
 
 
@@ -218,10 +308,11 @@ class ManagerMarkPaymentCancelledView(
         mark_payment_cancelled(
             payment=order.payment,
             manager_comment=request.POST.get("manager_comment", ""),
+            changed_by=request.user,
         )
 
-        return redirect(
-            self.get_success_url(),
+        return self.get_success_response(
+            request,
         )
 
 
@@ -269,9 +360,9 @@ class ManagerOrderStatusUpdateView(
                 error.message,
             )
 
-        return redirect(
-            "orders:manager_order_detail",
-            pk=order.pk,
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=order.id,
         )
 
 
@@ -347,7 +438,7 @@ class ManagerOrderDeliveryUpdateView(
                 error.message,
             )
 
-        return redirect(
-            "orders:manager_order_detail",
-            pk=order.pk,
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=order.id,
         )
