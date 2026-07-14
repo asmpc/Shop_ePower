@@ -44,6 +44,16 @@ def checkout_view(request):
         PaymentMethod.ON_RECEIPT,
     )
 
+    # временно, пока не реализована оплата онлайн
+    if payment_method == PaymentMethod.ONLINE:
+        messages.error(
+            request,
+            "Online payment integration is currently under approval. "
+            "At the moment you can pay by invoice or on receipt.",
+        )
+
+        return redirect("cart-detail")
+
     delivery_provider = request.POST.get(
         "delivery_provider",
         "",
@@ -127,18 +137,24 @@ def order_list_view(request):
 @login_required
 def order_detail_view(request, order_id):
     order = get_object_or_404(
-        Order.objects.prefetch_related("items"),
+        Order.objects.select_related("payment"),
         id=order_id,
         user=request.user,
     )
 
     chat_rooms = get_chat_rooms_for_order(order)
 
+    try:
+        payment = order.payment
+    except Order.payment.RelatedObjectDoesNotExist:
+        payment = None
+
     return render(
         request,
         "orders/detail.html",
         {
             "order": order,
+            "payment": payment,
             "can_cancel": order.status == OrderStatus.NEW,
             "chat_rooms": chat_rooms,
         },

@@ -3,14 +3,10 @@ from decimal import Decimal
 from django.core import mail
 from django.test import TestCase
 
-from shop_epower.notifications.services import (
-    send_order_created_email_to_customer,
-)
+from shop_epower.notifications.services import \
+    send_order_created_email_to_customer
 
-from .helpers import (
-    create_test_order,
-    create_test_user,
-)
+from .helpers import create_test_order, create_test_user
 
 
 class TestCustomerOrderEmail(TestCase):

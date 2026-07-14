@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="card mb-4">
+    <div class="card-header">
+        Mock online payment
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">
+            <strong>Order:</strong>
+            #{{ payment.order.id }}
+        </p>
+
+        <p class="mb-1">
+            <strong>Amount:</strong>
+            {{ payment.amount }} {{ payment.currency_snapshot }}
+        </p>
+
+        <p class="mb-1">
+            <strong>Status:</strong>
+            {{ payment.get_status_display }}
+        </p>
+
+        <p class="mb-3">
+            <strong>Transaction ID:</strong>
+            {{ payment.transaction_id }}
+        </p>
+
+        <div class="alert alert-warning mb-0">
+            Online payment integration is currently under approval.
+            At the moment you can pay by invoice or on receipt.
+        </div>
+
+        <hr>
+
+        <div class="d-flex gap-2">
+
+            <form
+                method="post"
+                action="{% url 'payments:mock_payment_success' payment.transaction_id %}"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="btn btn-success"
+                >
+                    Simulate successful payment
+                </button>
+            </form>
+
+            <form
+                method="post"
+                action="{% url 'payments:mock_payment_fail' payment.transaction_id %}"
+            >
+                {% csrf_token %}
+
+                <button
+                    type="submit"
+                    class="btn btn-danger"
+                >
+                    Simulate failed payment
+                </button>
+            </form>
+
+        </div>
+
+    </div>
+</div>
+
+<a
+    href="{% url 'orders:manager_order_detail' payment.order.id %}"
+    class="btn btn-outline-secondary"
+>
+    Back to order
+</a>
+
+{% endblock %}

@@ -29,9 +29,9 @@
             <div class="row align-items-center">
 
                 <div class="col-md-3 mb-3 mb-md-0">
-                    <a href="{% url 'orders:detail' order.id %}" class="h5 mb-0">
+                    <span class="h5 mb-0">
                         Order #{{ order.id }}
-                    </a>
+                    </span>
 
                     {% if order.status == "new" %}
                         <span class="badge bg-success ms-2">NEW</span>

@@ -29,7 +29,10 @@ from django.conf.urls.static import static
 urlpatterns = [
 
     path("admin/", admin.site.urls),
+
     path("shop/", include("shop_epower.urls")),
+
+    path("payments/", include("shop_epower.payments.urls")),
 
     # new structured API
     path("api/", include("api.urls")),
@@ -42,7 +45,6 @@ urlpatterns = [
     ),
 
     path("api-auth/", include("rest_framework.urls")),
-
 
 ]
 

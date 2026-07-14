@@ -1,0 +1,272 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start mb-3">
+    <div>
+        <h1>Payment #{{ payment.id }}</h1>
+
+        {% if payment.status == "pending" %}
+            <span class="badge bg-warning text-dark">PENDING</span>
+        {% elif payment.status == "paid" %}
+            <span class="badge bg-success">PAID</span>
+        {% elif payment.status == "failed" %}
+            <span class="badge bg-danger">FAILED</span>
+        {% elif payment.status == "cancelled" %}
+            <span class="badge bg-secondary">CANCELLED</span>
+        {% endif %}
+    </div>
+
+    <a href="{{ back_url }}" class="btn btn-outline-secondary">
+        Back
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Payment information
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">
+            <strong>Order:</strong>
+
+            <a href="{% url 'orders:manager_order_detail' payment.order.id %}">
+                #{{ payment.order.id }}
+            </a>
+        </p>
+        <p class="mb-1"><strong>Customer:</strong> {{ payment.order.customer_email }}</p>
+        <p class="mb-1"><strong>Method:</strong> {{ payment.get_method_display }}</p>
+        <p class="mb-1"><strong>Status:</strong> {{ payment.get_status_display }}</p>
+        <p class="mb-1"><strong>Provider:</strong> {{ payment.get_provider_display }}</p>
+        <p class="mb-1"><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency_snapshot }}</p>
+        <p class="mb-1"><strong>Transaction ID:</strong> {{ payment.transaction_id }}</p>
+        <p class="mb-1"><strong>Provider payment ID:</strong> {{ payment.provider_payment_id|default:"-" }}</p>
+        <p class="mb-1"><strong>Manager comment:</strong> {{ payment.manager_comment|default:"-" }}</p>
+        <p class="mb-1"><strong>Created:</strong> {{ payment.created_at }}</p>
+        <p class="mb-0"><strong>Updated:</strong> {{ payment.updated_at }}</p>
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Invoice</span>
+
+        {% if invoice %}
+            {% if invoice.status == "issued" %}
+                <span class="badge bg-success">
+                    ISSUED
+                </span>
+            {% elif invoice.status == "cancelled" %}
+                <span class="badge bg-danger">
+                    CANCELLED
+                </span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="card-body">
+        {% if invoice %}
+            <p class="mb-1">
+                <strong>Invoice number:</strong>
+                {{ invoice.invoice_number }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Status:</strong>
+                {{ invoice.get_status_display }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Amount:</strong>
+                {{ invoice.amount }}
+                {{ invoice.currency_snapshot }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Buyer:</strong>
+                {{ invoice.buyer_name }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Buyer email:</strong>
+                {{ invoice.buyer_email|default:"-" }}
+            </p>
+
+            {% if invoice.buyer_is_legal_entity %}
+                <p class="mb-1">
+                    <strong>Buyer company:</strong>
+                    {{ invoice.buyer_company_name }}
+                </p>
+
+                <p class="mb-1">
+                    <strong>Buyer tax ID:</strong>
+                    {{ invoice.buyer_tax_id }}
+                </p>
+            {% endif %}
+
+            <p class="mb-1">
+                <strong>Seller:</strong>
+                {{ invoice.seller_company_name }}
+            </p>
+
+            <p class="mb-1">
+                <strong>Created:</strong>
+                {{ invoice.created_at }}
+            </p>
+
+            {% if invoice.status == "cancelled" %}
+                <hr>
+
+                <div class="alert alert-secondary mb-0">
+                    <p class="mb-1">
+                        <strong>Invoice has been cancelled.</strong>
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Cancellation comment:</strong>
+                        {{ invoice.cancel_comment }}
+                    </p>
+
+                    {% if invoice.cancelled_by %}
+                        <p class="mb-1">
+                            <strong>Cancelled by:</strong>
+                            {{ invoice.cancelled_by }}
+                        </p>
+                    {% endif %}
+
+                    {% if invoice.cancelled_at %}
+                        <p class="mb-0">
+                            <strong>Cancelled at:</strong>
+                            {{ invoice.cancelled_at }}
+                        </p>
+                    {% endif %}
+                </div>
+
+            {% elif request.user.role == "admin" %}
+                <hr>
+
+                <h5 class="mb-3">
+                    Admin invoice cancellation
+                </h5>
+
+                <form
+                    method="post"
+                    action="{% url 'payments:admin_cancel_invoice' invoice.id %}"
+                    class="mb-0"
+                >
+                    {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="next"
+                        value="{% url 'orders:manager_order_detail' payment.order.id %}"
+                    >
+
+                    <label
+                        for="payment_detail_invoice_cancel_comment"
+                        class="form-label fw-bold"
+                    >
+                        Cancellation comment
+                    </label>
+
+                    <textarea
+                        id="payment_detail_invoice_cancel_comment"
+                        name="cancel_comment"
+                        rows="3"
+                        class="form-control mb-3"
+                        placeholder="Explain why the invoice is being cancelled"
+                        required
+                    ></textarea>
+
+                    <button
+                        type="submit"
+                        class="btn btn-outline-danger"
+                    >
+                        Cancel invoice
+                    </button>
+                </form>
+            {% endif %}
+
+            {% if invoice.status == "issued" %}
+                <div class="mt-3">
+                    <a
+                        href="{% url 'payments:manager_invoice_pdf' invoice.id %}"
+                        class="btn btn-primary"
+                    >
+                        Download invoice PDF
+                    </a>
+                </div>
+            {% endif %}
+
+        {% else %}
+            {% if payment.method == "invoice" %}
+                <p class="mb-0">
+                    Invoice has not been generated yet.
+                </p>
+            {% else %}
+                <p class="mb-0">
+                    Invoice is not required for this payment method.
+                </p>
+            {% endif %}
+        {% endif %}
+    </div>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Payment history
+    </div>
+
+    <div class="card-body">
+        {% for history_item in payment.history.all %}
+            <div class="mb-3">
+                <p class="mb-1">
+                    <strong>
+                        {{ history_item.old_status|upper }}
+                        →
+                        {{ history_item.new_status|upper }}
+                    </strong>
+                </p>
+
+                <p class="mb-1">
+                    <strong>Changed by:</strong>
+
+                    {% if history_item.changed_by %}
+                        {{ history_item.changed_by.username }}
+                    {% else %}
+                        System
+                    {% endif %}
+                </p>
+
+                {% if history_item.comment %}
+                    <p class="mb-1">
+                        <strong>Comment:</strong>
+                        {{ history_item.comment }}
+                    </p>
+                {% endif %}
+
+                <p class="text-muted mb-0">
+                    {{ history_item.created_at }}
+                </p>
+            </div>
+
+            {% if not forloop.last %}
+                <hr>
+            {% endif %}
+        {% empty %}
+            <p class="mb-0">
+                No payment history yet.
+            </p>
+        {% endfor %}
+    </div>
+</div>
+
+<a
+    href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
+    class="btn btn-outline-primary"
+>
+    Open order
+</a>
+
+{% endblock %}

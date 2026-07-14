@@ -17,10 +17,138 @@
         {% endif %}
     </div>
 
-    <a href="{% url 'orders:manager_order_list' %}" class="btn btn-outline-secondary">
-        Back to orders
+    <a href="{{ back_url }}" class="btn btn-outline-secondary">
+        Back
     </a>
 </div>
+
+{% if payment %}
+    {% if payment.method == "invoice" %}
+        {% if payment.invoice %}
+            {% if payment.invoice.status == "issued" %}
+                <div class="alert alert-success mb-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h5 class="alert-heading mb-2">
+                                Invoice generated
+                            </h5>
+
+                            <p class="mb-1">
+                                The invoice is ready for the customer.
+                            </p>
+
+                            <p class="mb-0">
+                                <strong>Invoice number:</strong>
+                                {{ payment.invoice.invoice_number }}
+                            </p>
+                        </div>
+
+                        <a
+                            href="{% url 'payments:manager_invoice_pdf' payment.invoice.id %}"
+                            class="btn btn-success"
+                        >
+                            Download PDF
+                        </a>
+                    </div>
+                </div>
+
+            {% elif payment.invoice.status == "cancelled" %}
+                <div class="alert alert-danger mb-4">
+                    <div class="d-flex justify-content-between align-items-start gap-3">
+                        <div>
+                            <h5 class="alert-heading mb-2">
+                                Invoice cancelled
+                            </h5>
+
+                            <p class="mb-1">
+                                The customer no longer has an active invoice.
+                            </p>
+
+                            {% if payment.invoice.cancel_comment %}
+                                <p class="mb-0">
+                                    <strong>Reason:</strong>
+                                    {{ payment.invoice.cancel_comment }}
+                                </p>
+                            {% endif %}
+                        </div>
+
+                        <a
+                            href="{% url 'payments:manager_invoice_pdf' payment.invoice.id %}"
+                            class="btn btn-outline-danger"
+                        >
+                            Download cancelled PDF
+                        </a>
+                    </div>
+                </div>
+            {% endif %}
+
+        {% else %}
+            <div class="alert alert-warning mb-4">
+                <div class="d-flex justify-content-between align-items-start gap-3">
+                    <div>
+                        <h5 class="alert-heading mb-2">
+                            Customer is waiting for an invoice
+                        </h5>
+
+                        {% if invoice_workflow_state == "take_to_processing" %}
+                            <p class="mb-0">
+                                Take the order into processing before generating
+                                the invoice.
+                            </p>
+
+                        {% elif invoice_workflow_state == "delivery_provider_required" %}
+                            <p class="mb-0">
+                                Select the delivery provider before generating
+                                the invoice.
+                            </p>
+
+                        {% elif invoice_workflow_state == "delivery_address_required" %}
+                            <p class="mb-0">
+                                Specify the delivery address before generating
+                                the invoice.
+                            </p>
+
+                        {% elif invoice_workflow_state == "delivery_cost_required" %}
+                            <p class="mb-0">
+                                Calculate and confirm the delivery cost before
+                                generating the invoice.
+                            </p>
+
+                        {% elif invoice_workflow_state == "ready" %}
+                            <p class="mb-0">
+                                The order is ready. Generate the invoice so the
+                                customer can download the PDF.
+                            </p>
+                        {% endif %}
+                    </div>
+
+                    {% if invoice_workflow_state == "ready" %}
+                        <form
+                            method="post"
+                            action="{% url 'payments:manager_generate_invoice' payment.id %}"
+                            class="mb-0"
+                        >
+                            {% csrf_token %}
+
+                            <input
+                                type="hidden"
+                                name="next"
+                                value="{{ back_url }}"
+                            >
+
+                            <button
+                                type="submit"
+                                class="btn btn-warning"
+                            >
+                                Generate invoice
+                            </button>
+                        </form>
+                    {% endif %}
+                </div>
+            </div>
+        {% endif %}
+    {% endif %}
+{% endif %}
 
 <div class="card mb-4">
     <div class="card-header">
@@ -248,6 +376,12 @@
             <form method="post" class="mb-4">
                 {% csrf_token %}
 
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{{ back_url }}"
+                >
+
                 <label
                     for="manager_comment"
                     class="form-label fw-bold"
@@ -325,6 +459,11 @@
     >
         {% csrf_token %}
 
+        <input
+            type="hidden"
+            name="next"
+            value="{{ back_url }}"
+        >
         <label
             for="reset_manager_comment"
             class="form-label fw-bold"
@@ -363,6 +502,12 @@
               action="{% url 'orders:manager_order_status_update' order.id %}">
             {% csrf_token %}
 
+            <input
+                type="hidden"
+                name="next"
+                value="{{ back_url }}"
+            >
+
             <input type="hidden"
                    name="status"
                    value="processing">
@@ -384,6 +529,12 @@
                   action="{% url 'orders:manager_order_status_update' order.id %}"
                   class="mb-2">
                 {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{{ back_url }}"
+                >
 
                 <input type="hidden"
                        name="status"
@@ -415,6 +566,12 @@
                 <form method="post"
                       action="{% url 'orders:manager_order_status_update' order.id %}">
                     {% csrf_token %}
+
+                    <input
+                        type="hidden"
+                        name="next"
+                        value="{{ back_url }}"
+                    >
 
                     <div class="mb-3">
                         <label class="form-label">
@@ -464,6 +621,169 @@
         </div>
     </div>
 {% endif %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <span>Invoice</span>
+
+        {% if payment.invoice %}
+            {% if payment.invoice.status == "issued" %}
+                <span class="badge bg-success">
+                    ISSUED
+                </span>
+            {% elif payment.invoice.status == "cancelled" %}
+                <span class="badge bg-danger">
+                    CANCELLED
+                </span>
+            {% endif %}
+        {% endif %}
+    </div>
+
+    <div class="card-body">
+        {% if payment %}
+            {% if payment.invoice %}
+                <p class="mb-1">
+                    <strong>Invoice number:</strong>
+                    {{ payment.invoice.invoice_number }}
+                </p>
+
+                <p class="mb-1">
+                    <strong>Status:</strong>
+                    {{ payment.invoice.get_status_display }}
+                </p>
+
+                <p class="mb-1">
+                    <strong>Amount:</strong>
+                    {{ payment.invoice.amount }}
+                    {{ payment.invoice.currency_snapshot }}
+                </p>
+
+                {% if payment.invoice.status == "cancelled" %}
+                    <hr>
+
+                    <div class="alert alert-secondary mb-0">
+                        <p class="mb-1">
+                            <strong>Invoice has been cancelled.</strong>
+                        </p>
+
+                        {% if payment.invoice.cancel_comment %}
+                            <p class="mb-1">
+                                <strong>Cancellation comment:</strong>
+                                {{ payment.invoice.cancel_comment }}
+                            </p>
+                        {% endif %}
+
+                        {% if payment.invoice.cancelled_by %}
+                            <p class="mb-1">
+                                <strong>Cancelled by:</strong>
+                                {{ payment.invoice.cancelled_by }}
+                            </p>
+                        {% endif %}
+
+                        {% if payment.invoice.cancelled_at %}
+                            <p class="mb-0">
+                                <strong>Cancelled at:</strong>
+                                {{ payment.invoice.cancelled_at }}
+                            </p>
+                        {% endif %}
+                    </div>
+
+                {% elif request.user.role == "admin" %}
+                    <hr>
+
+                    <h5 class="mb-3">
+                        Admin invoice cancellation
+                    </h5>
+
+                    <form
+                        method="post"
+                        action="{% url 'payments:admin_cancel_invoice' payment.invoice.id %}"
+                        class="mb-0"
+                    >
+                        {% csrf_token %}
+
+                        <input
+                            type="hidden"
+                            name="next"
+                            value="{{ back_url }}"
+                        >
+
+                        <label
+                            for="invoice_cancel_comment"
+                            class="form-label fw-bold"
+                        >
+                            Cancellation comment
+                        </label>
+
+                        <textarea
+                            id="invoice_cancel_comment"
+                            name="cancel_comment"
+                            rows="3"
+                            class="form-control mb-3"
+                            placeholder="Explain why the invoice is being cancelled"
+                            required
+                        ></textarea>
+
+                        <button
+                            type="submit"
+                            class="btn btn-outline-danger"
+                        >
+                            Cancel invoice
+                        </button>
+                    </form>
+                {% endif %}
+
+                {% if payment.invoice.status == "issued" %}
+                    <a
+                        href="{% url 'payments:manager_invoice_pdf' payment.invoice.id %}"
+                        class="btn btn-primary mt-3"
+                    >
+                        Download invoice PDF
+                    </a>
+                {% else %}
+                    <a
+                        href="{% url 'payments:manager_invoice_pdf' payment.invoice.id %}"
+                        class="btn btn-outline-secondary mt-3"
+                    >
+                        Download cancelled invoice PDF
+                    </a>
+                {% endif %}
+
+            {% else %}
+                {% if payment.method == "invoice" %}
+                    <form
+                        method="post"
+                        action="{% url 'payments:manager_generate_invoice' payment.id %}"
+                    >
+                        {% csrf_token %}
+
+                        <input
+                            type="hidden"
+                            name="next"
+                            value="{{ back_url }}"
+                        >
+
+                        <button
+                            type="submit"
+                            class="btn btn-primary"
+                        >
+                            Generate invoice
+                        </button>
+                    </form>
+                {% else %}
+                    <p class="mb-0">
+                        Invoice is available only for invoice payment method.
+                    </p>
+                {% endif %}
+            {% endif %}
+        {% else %}
+            <p class="mb-0">
+                Payment information is not available.
+            </p>
+        {% endif %}
+    </div>
+</div>
+
     {% if order.status == "processing" %}
         <div class="card mb-4">
             <div class="card-header">
@@ -474,6 +794,12 @@
         <form method="post"
               action="{% url 'orders:manager_order_delivery_update' order.id %}">
             {% csrf_token %}
+
+            <input
+                type="hidden"
+                name="next"
+                value="{{ back_url }}"
+            >
 
             <div class="mb-3">
                 <label class="form-label">
