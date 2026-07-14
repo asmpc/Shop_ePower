@@ -1,15 +1,15 @@
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
-from urllib.parse import urlencode
-
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
     Order,
+    OrderStatus,
 )
 from shop_epower.payments.models import (
     CompanySettings,
@@ -19,7 +19,6 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
-
 from shop_epower.payments.services import (
     create_invoice_for_payment,
 )
@@ -54,10 +53,14 @@ class TestsInvoiceViews(TestCase):
 
         self.order = Order.objects.create(
             user=self.client_user,
+            status=OrderStatus.PROCESSING,
             customer_name="Test Client",
             customer_email="client@test.com",
             customer_phone="+375291112233",
             delivery_method=DeliveryMethod.SHIPPING,
+            delivery_provider="post",
+            delivery_address="Minsk, Main street, 10",
+            delivery_cost=Decimal("20.00"),
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )
@@ -74,21 +77,35 @@ class TestsInvoiceViews(TestCase):
         self.company_settings = CompanySettings.objects.create(
             company_name="Shop ePower LLC",
             short_company_name="Shop ePower",
-
             tax_id="123456789",
             tax_registration_reason_code="290101001",
             state_registration_number="1152901008622",
-
             legal_address="Seller legal address",
             actual_address="Seller actual address",
-
             bank_name="Seller Bank",
             bank_account="BY00 TEST 0000 0000 0000 0000 0000",
             bank_code="TESTBY22",
             correspondent_account="30101810100000000601",
-
             phone="+375291112233",
             email="seller@test.com",
+        )
+
+    def get_manager_order_list_url(self):
+        return reverse(
+            "orders:manager_order_list",
+        )
+
+    def get_expected_order_detail_url(self):
+        manager_order_list_url = self.get_manager_order_list_url()
+
+        manager_order_detail_url = reverse(
+            "orders:manager_order_detail",
+            args=[self.order.id],
+        )
+
+        return (
+            f"{manager_order_detail_url}?"
+            f"{urlencode({'next': manager_order_list_url})}"
         )
 
     # Проверяем manager workflow:
@@ -102,15 +119,15 @@ class TestsInvoiceViews(TestCase):
             reverse(
                 "payments:manager_generate_invoice",
                 args=[self.payment.id],
-            )
+            ),
+            data={
+                "next": self.get_manager_order_list_url(),
+            },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.payment.order.id],
-            ),
+            self.get_expected_order_detail_url(),
         )
 
         self.assertEqual(
@@ -136,15 +153,15 @@ class TestsInvoiceViews(TestCase):
             reverse(
                 "payments:manager_generate_invoice",
                 args=[self.payment.id],
-            )
+            ),
+            data={
+                "next": self.get_manager_order_list_url(),
+            },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.payment.order.id],
-            ),
+            self.get_expected_order_detail_url(),
         )
 
         self.assertEqual(
@@ -184,26 +201,28 @@ class TestsInvoiceViews(TestCase):
             self.manager,
         )
 
+        generate_url = reverse(
+            "payments:manager_generate_invoice",
+            args=[self.payment.id],
+        )
+
+        request_data = {
+            "next": self.get_manager_order_list_url(),
+        }
+
         self.client.post(
-            reverse(
-                "payments:manager_generate_invoice",
-                args=[self.payment.id],
-            )
+            generate_url,
+            data=request_data,
         )
 
         response = self.client.post(
-            reverse(
-                "payments:manager_generate_invoice",
-                args=[self.payment.id],
-            )
+            generate_url,
+            data=request_data,
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.payment.order.id],
-            ),
+            self.get_expected_order_detail_url(),
         )
 
         self.assertEqual(
@@ -335,21 +354,21 @@ class TestsInvoiceViews(TestCase):
             f"{urlencode({'next': order_url})}"
         )
 
+        cancel_url = reverse(
+            "payments:admin_cancel_invoice",
+            args=[invoice.id],
+        )
+
         self.client.post(
-            reverse(
-                "payments:admin_cancel_invoice",
-                args=[invoice.id],
-            ),
+            cancel_url,
             data={
                 "cancel_comment": "First cancellation",
+                "next": order_url,
             },
         )
 
         response = self.client.post(
-            reverse(
-                "payments:admin_cancel_invoice",
-                args=[invoice.id],
-            ),
+            cancel_url,
             data={
                 "cancel_comment": "Wrong invoice data",
                 "next": order_url,
@@ -367,4 +386,3 @@ class TestsInvoiceViews(TestCase):
             response,
             expected_url,
         )
-

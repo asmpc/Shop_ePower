@@ -259,9 +259,19 @@
                 {% endif %}
 
             {% elif payment.method == "invoice" %}
-                <p class="mb-0">
-                    Invoice has not been generated yet.
-                </p>
+                <div class="alert alert-warning mb-0">
+                    <h5 class="alert-heading mb-2">
+                        Invoice is being prepared
+                    </h5>
+
+                    <p class="mb-2">
+                        Your order has been received and is being reviewed by a manager.
+                    </p>
+
+                    <p class="mb-0">
+                        The invoice will appear here automatically as soon as it is generated.
+                    </p>
+                </div>
 
             {% else %}
                 <p class="mb-0">

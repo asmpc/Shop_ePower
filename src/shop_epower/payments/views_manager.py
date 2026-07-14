@@ -29,6 +29,10 @@ from shop_epower.payments.services import (
     cancel_invoice,
     generate_invoice_pdf,
 )
+from shop_epower.orders.navigation import (
+    redirect_to_manager_order_detail,
+)
+
 
 
 class ManagerPaymentListView(
@@ -184,9 +188,9 @@ class ManagerGenerateInvoiceView(
                 error.message,
             )
 
-        return redirect(
-            "orders:manager_order_detail",
-            pk=payment.order.pk,
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=payment.order_id,
         )
 
 

@@ -15,6 +15,8 @@ from shop_epower.payments.models import (
 )
 from shop_epower.payments.services import mark_payment_paid
 
+from urllib.parse import urlencode
+
 
 User = get_user_model()
 
@@ -91,6 +93,27 @@ class TestsManagerOrderViews(TestCase):
             total_price=Decimal("100.00"),
             currency_snapshot=self.order.currency_snapshot,
         )
+
+    def get_manager_order_list_url(self):
+        return reverse(
+            "orders:manager_order_list",
+        )
+
+    def get_expected_manager_order_detail_url(self):
+        manager_order_list_url = (
+            self.get_manager_order_list_url()
+        )
+
+        manager_order_detail_url = reverse(
+            "orders:manager_order_detail",
+            args=[self.order.id],
+        )
+
+        return (
+            f"{manager_order_detail_url}?"
+            f"{urlencode({'next': manager_order_list_url})}"
+        )
+
 
     # Проверяем manager detail page:
     # для заказа в статусе PROCESSING
@@ -309,15 +332,13 @@ class TestsManagerOrderViews(TestCase):
             ),
             data={
                 "manager_comment": "Invoice paid.",
+                "next": self.get_manager_order_list_url(),
             },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.order.id],
-            ),
+            self.get_expected_manager_order_detail_url(),
         )
 
         self.payment.refresh_from_db()
@@ -344,15 +365,13 @@ class TestsManagerOrderViews(TestCase):
             ),
             data={
                 "manager_comment": "Bank declined payment.",
+                "next": self.get_manager_order_list_url(),
             },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.order.id],
-            ),
+            self.get_expected_manager_order_detail_url(),
         )
 
         self.payment.refresh_from_db()
@@ -378,15 +397,13 @@ class TestsManagerOrderViews(TestCase):
             ),
             data={
                 "manager_comment": "Payment cancelled.",
+                "next": self.get_manager_order_list_url(),
             },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.order.id],
-            ),
+            self.get_expected_manager_order_detail_url(),
         )
 
         self.payment.refresh_from_db()
@@ -413,15 +430,13 @@ class TestsManagerOrderViews(TestCase):
             ),
             data={
                 "manager_comment": "Admin confirmed payment.",
+                "next": self.get_manager_order_list_url(),
             },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.order.id],
-            ),
+            self.get_expected_manager_order_detail_url(),
         )
 
         self.payment.refresh_from_db()
@@ -477,15 +492,13 @@ class TestsManagerOrderViews(TestCase):
             ),
             data={
                 "manager_comment": "Wrong payment.",
+                "next": self.get_manager_order_list_url(),
             },
         )
 
         self.assertRedirects(
             response,
-            reverse(
-                "orders:manager_order_detail",
-                args=[self.order.id],
-            ),
+            self.get_expected_manager_order_detail_url(),
         )
 
         self.payment.refresh_from_db()

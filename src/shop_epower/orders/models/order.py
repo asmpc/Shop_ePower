@@ -89,7 +89,9 @@ class Order(models.Model):
     delivery_cost = models.DecimalField(
         max_digits=10,
         decimal_places=2,
-        default=0,
+        null=True,
+        blank=True,
+        default=None,
     )
 
     delivery_paid_by_customer_on_receipt = models.BooleanField(
