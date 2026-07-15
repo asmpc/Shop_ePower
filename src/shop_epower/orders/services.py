@@ -16,6 +16,9 @@ from shop_epower.notifications.services import (
     send_order_created_notification_to_managers,
 )
 
+from shop_epower.accounts.services.profile import (
+    is_profile_complete,
+)
 
 
 @transaction.atomic
@@ -31,6 +34,11 @@ def create_order_from_cart(
 ):
     if not user or not user.is_authenticated:
         raise ValidationError("User must be authenticated.")
+
+    if not is_profile_complete(user):
+        raise ValidationError(
+            "Complete your profile before placing an order."
+        )
 
     if cart.user_id != user.id:
         raise ValidationError("Cart does not belong to user.")

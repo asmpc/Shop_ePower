@@ -10,7 +10,10 @@ from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
-
+from shop_epower.orders.tests.helpers import (
+    create_test_manager,
+    create_test_client,
+)
 
 User = get_user_model()
 
@@ -18,25 +21,18 @@ User = get_user_model()
 
 class TestsManagerOrderWorkflow(TestCase):
 
+    def setUp(self):
+
+        self.manager = create_test_manager()
+        self.client = create_test_client()
+
     # Проверяем manager workflow:
     # пользователь с ролью manager может перевести заказ
     # из статуса NEW в статус PROCESSING.
     def test_manager_can_move_order_from_new_to_processing(self):
-        manager = User.objects.create_user(
-            email="manager@example.com",
-            username="manager",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="client-status@example.com",
-            username="client-status",
-            password="testpass123",
-        )
 
         order = Order.objects.create(
-            user=client,
+            user=self.client,
             status=OrderStatus.NEW,
             is_legal_entity=False,
             customer_name="Client Status",
@@ -47,7 +43,7 @@ class TestsManagerOrderWorkflow(TestCase):
 
         updated_order = update_order_status_by_manager(
             order=order,
-            user=manager,
+            user=self.manager,
             new_status=OrderStatus.PROCESSING,
         )
 
@@ -62,21 +58,9 @@ class TestsManagerOrderWorkflow(TestCase):
     # пользователь с ролью manager может перевести заказ
     # из статуса PROCESSING в статус COMPLETED.
     def test_manager_can_move_order_from_processing_to_completed(self):
-        manager = User.objects.create_user(
-            email="manager-complete@example.com",
-            username="manager-complete",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="client-complete@example.com",
-            username="client-complete",
-            password="testpass123",
-        )
 
         order = Order.objects.create(
-            user=client,
+            user=self.client,
             status=OrderStatus.PROCESSING,
             is_legal_entity=False,
             customer_name="Client Complete",
@@ -87,7 +71,7 @@ class TestsManagerOrderWorkflow(TestCase):
 
         updated_order = update_order_status_by_manager(
             order=order,
-            user=manager,
+            user=self.manager,
             new_status=OrderStatus.COMPLETED,
         )
 
@@ -106,12 +90,18 @@ class TestsManagerOrderWorkflow(TestCase):
             username="simple-client",
             password="testpass123",
             role="client",
+            phone="+10000000030",
+            first_name="John",
+            last_name="Doe",
         )
 
         order_owner = User.objects.create_user(
             email="order-owner@example.com",
             username="order-owner",
             password="testpass123",
+            phone="+10000000030",
+            first_name="John",
+            last_name="Doe",
         )
 
         order = Order.objects.create(
@@ -142,21 +132,9 @@ class TestsManagerOrderWorkflow(TestCase):
     # заказ нельзя перевести напрямую
     # из статуса NEW в статус COMPLETED.
     def test_invalid_order_status_transition(self):
-        manager = User.objects.create_user(
-            email="invalid-transition@example.com",
-            username="invalid-transition",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="transition-client@example.com",
-            username="transition-client",
-            password="testpass123",
-        )
 
         order = Order.objects.create(
-            user=client,
+            user=self.client,
             status=OrderStatus.NEW,
             is_legal_entity=False,
             customer_name="Transition Client",
@@ -168,7 +146,7 @@ class TestsManagerOrderWorkflow(TestCase):
         with self.assertRaises(ValidationError):
             update_order_status_by_manager(
                 order=order,
-                user=manager,
+                user=self.manager,
                 new_status=OrderStatus.COMPLETED,
             )
 
@@ -184,19 +162,6 @@ class TestsManagerOrderWorkflow(TestCase):
     # статус меняется на CANCELLED,
     # а зарезервированный stock возвращается поставщику.
     def test_manager_can_cancel_processing_order_and_restore_stock(self):
-        manager = User.objects.create_user(
-            email="manager-cancel@example.com",
-            username="manager-cancel",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="client-manager-cancel@example.com",
-            username="client-manager-cancel",
-            password="testpass123",
-            phone="+10000000030",
-        )
 
         brand = Brand.objects.create(name="Manager Cancel Brand")
         category = Category.objects.create(name="Manager Cancel Category")
@@ -224,7 +189,7 @@ class TestsManagerOrderWorkflow(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(user=client)
+        cart = Cart.objects.create(user=self.client)
 
         CartItem.objects.create(
             cart=cart,
@@ -234,7 +199,7 @@ class TestsManagerOrderWorkflow(TestCase):
         )
 
         order = create_order_from_cart(
-            user=client,
+            user=self.client,
             cart=cart,
         )
 
@@ -246,7 +211,7 @@ class TestsManagerOrderWorkflow(TestCase):
 
         updated_order = update_order_status_by_manager(
             order=order,
-            user=manager,
+            user=self.manager,
             new_status=OrderStatus.CANCELLED,
             cancellation_reason="supplier_unavailable",
             cancellation_comment="Supplier did not ship the order.",

@@ -2,6 +2,7 @@ from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
+from shop_epower.accounts.navigation import get_profile_edit_url
 from shop_epower.cart.models import Cart
 from shop_epower.orders.services import create_order_from_cart
 from django.shortcuts import get_object_or_404
@@ -18,12 +19,32 @@ from shop_epower.payments.services import (
 )
 from shop_epower.payments.models import PaymentMethod
 
+from shop_epower.accounts.services.profile import (
+    is_profile_complete,
+)
+
+from urllib.parse import urlencode
+
+from django.urls import reverse
 
 
 @login_required
 def checkout_view(request):
+
     if request.method != "POST":
         return redirect("cart-detail")
+
+    if not is_profile_complete(request.user):
+        messages.error(
+            request,
+            "Complete your profile before placing an order.",
+        )
+
+        return redirect(
+            get_profile_edit_url(
+                next_url=reverse("cart-detail"),
+            )
+        )
 
     try:
         cart = Cart.objects.get(
