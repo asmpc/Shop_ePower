@@ -20,21 +20,30 @@ class TestsOrdersAPI(TestCase):
         self.client = APIClient()
 
         self.user = User.objects.create_user(
-            email="list@example.com",
-            username="test_order",
+            email="user@example.com",
+            username="user",
             password="testpass123",
+            first_name="John",
+            last_name="Doe",
+            phone="+10000000000",
         )
 
         self.owner = User.objects.create_user(
             email="owner@example.com",
             username="test_owner",
             password="testpass123",
+            first_name="John",
+            last_name="Doe",
+            phone="+10000000000",
         )
 
         self.stranger = User.objects.create_user(
             email="stranger@example.com",
             username="test_stranger",
             password="testpass123",
+            first_name="John",
+            last_name="Doe",
+            phone="+10000000000",
         )
 
     # Вспомогательный helper для создания полноценного заказа через API.
@@ -89,6 +98,12 @@ class TestsOrdersAPI(TestCase):
             format="json",
         )
 
+        self.assertEqual(
+            response.status_code,
+            201,
+            response.data,
+        )
+
         order = Order.objects.get(
             id=response.data["order_id"],
         )
@@ -104,6 +119,9 @@ class TestsOrdersAPI(TestCase):
             email="other-list@example.com",
             username="other-list",
             password="testpass123",
+            first_name="John",
+            last_name="Doe",
+            phone="+10000000000",
         )
 
         self.client.force_authenticate(user=self.user)

@@ -20,6 +20,8 @@ class TestsCheckoutAPI(TestCase):
             email="api@example.com",
             username="test_api",
             password="testpass123",
+            first_name="John",
+            last_name="Doe",
             phone="+10000000007",
         )
 
@@ -183,3 +185,87 @@ class TestsCheckoutAPI(TestCase):
         self.assertEqual(order.delivery_provider, "post")
         self.assertEqual(order.delivery_address, "API address")
         self.assertEqual(order.delivery_comment, "API comment")
+
+    # Проверяем, что checkout API
+    # не позволяет оформить заказ
+    # с неполным профилем.
+    def test_checkout_api_requires_complete_profile(self):
+
+        self.user.first_name = ""
+        self.user.save(
+            update_fields=["first_name"],
+        )
+
+        self.client.force_authenticate(
+            user=self.user,
+        )
+
+        product = Product.objects.create(
+            name="API Product",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="API-001",
+            base_price=Decimal("50.00"),
+        )
+
+        supplier = Supplier.objects.create(
+            name="API Supplier",
+            is_own=True,
+            is_active=True,
+        )
+
+        supplier_product = SupplierProduct.objects.create(
+            supplier=supplier,
+            product=product,
+            supplier_article="API-SUP-001",
+            stock_quantity=10,
+            lead_time_days=0,
+            is_active=True,
+        )
+
+        cart = Cart.objects.create(
+            user=self.user,
+        )
+
+        CartItem.objects.create(
+            cart=cart,
+            product=product,
+            quantity=2,
+            price_snapshot=Decimal("50.00"),
+        )
+
+        response = self.client.post(
+            "/api/orders/checkout/",
+            {},
+            format="json",
+        )
+
+        self.assertEqual(
+            response.status_code,
+            400,
+        )
+
+        self.assertEqual(
+            Order.objects.count(),
+            0,
+        )
+
+        supplier_product.refresh_from_db()
+
+        self.assertEqual(
+            supplier_product.stock_quantity,
+            10,
+        )
+
+        cart.refresh_from_db()
+
+        self.assertTrue(
+            cart.is_active,
+        )
+
+        self.assertEqual(
+            response.data["detail"],
+            [
+                "Complete your profile before placing an order."
+            ],
+        )

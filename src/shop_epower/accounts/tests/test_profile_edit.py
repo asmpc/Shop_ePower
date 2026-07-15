@@ -168,3 +168,61 @@ class TestsProfileEditView(TestCase):
 
         self.assertFalse(legal_profile.is_legal_entity)
         self.assertEqual(legal_profile.company_name, 'Old Company')
+
+    # Проверяем, что после успешного сохранения профиля
+    # пользователь возвращается на страницу из параметра next.
+    def test_profile_edit_redirects_to_next_url(self):
+
+        self.client.login(
+            email='user@test.com',
+            password='strongpassword123',
+        )
+
+        cart_url = reverse(
+            'cart-detail',
+        )
+
+        response = self.client.post(
+            f'{self.url}?next={cart_url}',
+            data={
+                'username': 'user',
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'email': 'user@test.com',
+                'phone': '+123456789',
+
+                'is_legal_entity': False,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            cart_url,
+        )
+
+    # Проверяем, что внешний next игнорируется
+    # и пользователь остаётся на странице профиля.
+    def test_profile_edit_ignores_external_next_url(self):
+
+        self.client.login(
+            email='user@test.com',
+            password='strongpassword123',
+        )
+
+        response = self.client.post(
+            f'{self.url}?next=https://evil.example',
+            data={
+                'username': 'user',
+                'first_name': 'John',
+                'last_name': 'Doe',
+                'email': 'user@test.com',
+                'phone': '+123456789',
+
+                'is_legal_entity': False,
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            reverse('accounts:profile_edit'),
+        )
