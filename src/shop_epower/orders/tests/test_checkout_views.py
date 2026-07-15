@@ -16,6 +16,8 @@ from shop_epower.payments.models import (
     PaymentMethod,
 )
 
+from urllib.parse import urlencode
+
 
 class TestsCheckoutViews(TestCase):
 
@@ -71,6 +73,62 @@ class TestsCheckoutViews(TestCase):
         self.assertRedirects(
             response,
             reverse("cart-detail"),
+        )
+
+        self.assertEqual(
+            Order.objects.count(),
+            0,
+        )
+
+        self.assertEqual(
+            Payment.objects.count(),
+            0,
+        )
+
+        self.cart.refresh_from_db()
+
+        self.assertTrue(
+            self.cart.is_active,
+        )
+
+    # Проверяем, что пользователь с неполным профилем
+    # не может оформить заказ.
+    def test_checkout_with_incomplete_profile_redirects_to_profile_edit(self):
+
+        self.user.first_name = ''
+        self.user.save(
+            update_fields=['first_name'],
+        )
+
+        self.client.force_login(
+            self.user,
+        )
+
+        response = self.client.post(
+            reverse("orders:checkout"),
+            data={
+                "delivery_method": "pickup",
+                "payment_method": PaymentMethod.ON_RECEIPT,
+            },
+        )
+
+        profile_edit_url = reverse(
+            "accounts:profile_edit",
+        )
+
+        cart_url = reverse(
+            "cart-detail",
+        )
+
+        expected_url = (
+            f"{profile_edit_url}?"
+            f"{urlencode({'next': cart_url})}"
+        )
+
+        self.assertRedirects(
+            response,
+            expected_url,
+            fetch_redirect_response=False,
         )
 
         self.assertEqual(

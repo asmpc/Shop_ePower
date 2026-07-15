@@ -189,3 +189,65 @@ class TestsOrderServices(TestCase):
         self.assertEqual(order.delivery_provider, "post")
         self.assertEqual(order.delivery_address, "Test address")
         self.assertEqual(order.delivery_comment, "Call before delivery")
+
+    # Проверяем, что пользователь с неполным профилем
+    # не может создать заказ через service layer.
+    def test_create_order_from_cart_requires_complete_profile(self):
+
+        user = create_test_user(
+            email="incomplete@example.com",
+            username="incomplete",
+            first_name="",
+        )
+
+        product = create_test_product(
+            name="Incomplete Profile Product",
+            brand_name="Incomplete Profile Brand",
+            category_name="Incomplete Profile Category",
+            manufacturer_article="INCOMPLETE-PROFILE-001",
+            base_price=Decimal("25.00"),
+        )
+
+        supplier = create_test_supplier(
+            name="Incomplete Profile Supplier",
+        )
+
+        supplier_product = create_test_supplier_product(
+            supplier=supplier,
+            product=product,
+            supplier_article="SUP-INCOMPLETE-PROFILE-001",
+            stock_quantity=10,
+        )
+
+        cart = create_test_cart_with_item(
+            user=user,
+            product=product,
+            quantity=1,
+            price_snapshot=Decimal("25.00"),
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Complete your profile before placing an order.",
+        ):
+            create_order_from_cart(
+                user=user,
+                cart=cart,
+            )
+
+        cart.refresh_from_db()
+        supplier_product.refresh_from_db()
+
+        self.assertTrue(
+            cart.is_active,
+        )
+
+        self.assertEqual(
+            supplier_product.stock_quantity,
+            10,
+        )
+
+        self.assertEqual(
+            Order.objects.filter(user=user).count(),
+            0,
+        )
