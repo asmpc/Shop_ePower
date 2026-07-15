@@ -10,6 +10,11 @@ from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.models import OrderStatus
 
+from shop_epower.orders.tests.helpers import (
+    create_test_manager,
+    create_test_client,
+)
+
 
 User = get_user_model()
 
@@ -17,23 +22,15 @@ User = get_user_model()
 
 class TestsManagerDeliveryWorkflow(TestCase):
 
+    def setUp(self):
+
+        self.manager = create_test_manager()
+        self.client = create_test_client()
+
     # Проверяем manager delivery pricing:
     # если доставка не оплачивается при получении,
     # delivery cost прибавляется к total_price заказа.
     def test_manager_delivery_cost_is_added_to_order_total(self):
-        manager = User.objects.create_user(
-            email="manager-cancel@example.com",
-            username="manager-cancel",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="client-manager-cancel@example.com",
-            username="client-manager-cancel",
-            password="testpass123",
-            phone="+10000000030",
-        )
 
         brand = Brand.objects.create(name="Manager Cancel Brand")
         category = Category.objects.create(name="Manager Cancel Category")
@@ -52,7 +49,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        SupplierProduct.objects.create(
             supplier=supplier,
             product=product,
             supplier_article="MANAGER-CANCEL-SUP-001",
@@ -61,7 +58,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(user=client)
+        cart = Cart.objects.create(user=self.client)
 
         CartItem.objects.create(
             cart=cart,
@@ -71,7 +68,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
         )
 
         order = create_order_from_cart(
-            user=client,
+            user=self.client,
             cart=cart,
         )
 
@@ -82,7 +79,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
 
         updated_order = update_order_delivery_by_manager(
             order=order,
-            user=manager,
+            user=self.manager,
             delivery_cost=Decimal("25.00"),
             delivery_paid_by_customer_on_receipt=False,
             delivery_method="shipping",
@@ -98,19 +95,6 @@ class TestsManagerDeliveryWorkflow(TestCase):
     # если доставка оплачивается при получении,
     # delivery cost сохраняется, но не прибавляется к total_price.
     def test_manager_delivery_cost_is_not_added_when_paid_on_receipt(self):
-        manager = User.objects.create_user(
-            email="manager-cancel@example.com",
-            username="manager-cancel",
-            password="testpass123",
-            role="manager",
-        )
-
-        client = User.objects.create_user(
-            email="client-manager-cancel@example.com",
-            username="client-manager-cancel",
-            password="testpass123",
-            phone="+10000000030",
-        )
 
         brand = Brand.objects.create(name="Manager Cancel Brand")
         category = Category.objects.create(name="Manager Cancel Category")
@@ -129,7 +113,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        SupplierProduct.objects.create(
             supplier=supplier,
             product=product,
             supplier_article="MANAGER-CANCEL-SUP-001",
@@ -138,7 +122,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(user=client)
+        cart = Cart.objects.create(user=self.client)
 
         CartItem.objects.create(
             cart=cart,
@@ -148,7 +132,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
         )
 
         order = create_order_from_cart(
-            user=client,
+            user=self.client,
             cart=cart,
         )
 
@@ -157,7 +141,7 @@ class TestsManagerDeliveryWorkflow(TestCase):
 
         updated_order = update_order_delivery_by_manager(
             order=order,
-            user=manager,
+            user=self.manager,
             delivery_cost=Decimal("25.00"),
             delivery_paid_by_customer_on_receipt=True,
             delivery_method="shipping",

@@ -15,15 +15,54 @@ def create_test_user(
     email="user@example.com",
     username="user",
     password="testpass123",
+    first_name="John",
+    last_name="Doe",
     phone="+10000000000",
 ):
     return User.objects.create_user(
         email=email,
         username=username,
         password=password,
+        first_name=first_name,
+        last_name=last_name,
         phone=phone,
     )
 
+def create_test_client(
+            email="client-manager-cancel@example.com",
+            username="client-manager-cancel",
+            first_name="John",
+            last_name="Doe",
+            password="testpass123",
+            phone="+10000000030",
+        ):
+    return User.objects.create_user(
+        email=email,
+        username=username,
+        password=password,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
+    )
+
+def create_test_manager(
+            email="manager-cancel@example.com",
+            username="manager-cancel",
+            password="testpass123",
+            role="manager",
+            phone="+10000000030",
+            first_name="John",
+            last_name="Doe",
+        ):
+    return User.objects.create_user(
+        email=email,
+        username=username,
+        password=password,
+        role=role,
+        first_name=first_name,
+        last_name=last_name,
+        phone=phone,
+    )
 
 def create_test_product(
     *,

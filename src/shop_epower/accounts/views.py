@@ -1,4 +1,3 @@
-# Django
 from django.urls import reverse_lazy, reverse
 from django.views.generic import CreateView, TemplateView
 
@@ -11,10 +10,11 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 
 from django.contrib import messages
 
+from django.contrib.auth import login
 from django.contrib.auth.decorators import login_required
+
 from django.shortcuts import redirect, render
 
-# Local
 from .forms import (
     LoginForm,
     RegisterForm,
@@ -25,6 +25,8 @@ from .forms import (
 from shop_epower.cart.services import merge_session_cart_to_user_cart
 
 from .models import LegalProfile
+
+from django.utils.http import url_has_allowed_host_and_scheme
 
 
 
@@ -66,9 +68,25 @@ class CustomLogoutView(LogoutView):
 
 
 class RegisterTemplateView(CreateView):
+
     form_class = RegisterForm
+
     template_name = "accounts/register.html"
-    success_url = reverse_lazy("accounts:login")
+
+    def form_valid(self, form):
+        response = super().form_valid(form)
+
+        login(
+            self.request,
+            self.object,
+        )
+
+        return response
+
+    def get_success_url(self):
+        return reverse(
+            "accounts:profile_edit"
+        )
 
 
 class ProfileView(LoginRequiredMixin, TemplateView):
@@ -111,6 +129,15 @@ def profile_edit(request):
             legal_profile.save()
 
             messages.success(request, 'Profile updated successfully.')
+
+            next_url = request.GET.get('next')
+
+            if next_url and url_has_allowed_host_and_scheme(
+                    url=next_url,
+                    allowed_hosts={request.get_host()},
+                    require_https=request.is_secure(),
+            ):
+                return redirect(next_url)
 
             return redirect('accounts:profile_edit')
 
