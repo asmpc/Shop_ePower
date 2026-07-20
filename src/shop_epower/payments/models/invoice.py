@@ -1,6 +1,5 @@
 from django.db import models
 from django.conf import settings
-from django.utils import timezone
 
 from shop_epower.orders.models import Order
 from shop_epower.payments.models.payment import Payment

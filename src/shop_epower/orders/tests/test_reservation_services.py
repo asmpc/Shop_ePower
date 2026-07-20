@@ -4,11 +4,14 @@ from django.test import TestCase
 
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.tests.helpers import (
-    create_test_user,
     create_test_product,
     create_test_supplier,
     create_test_supplier_product,
     create_test_cart_with_item,
+)
+
+from shop_epower.accounts.tests.helpers import (
+    create_test_user,
 )
 
 

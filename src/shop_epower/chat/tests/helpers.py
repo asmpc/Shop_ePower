@@ -1,5 +1,4 @@
 from django.contrib.auth import get_user_model
-from django.utils import timezone
 import itertools
 
 from shop_epower.orders.models import Order
@@ -10,44 +9,52 @@ from shop_epower.chat.models import (
     ChatRoomStatus,
 )
 
+from shop_epower.accounts.tests.helpers import (
+    create_manager,
+    create_test_user,
+)
 
 
-_user_counter = itertools.count(1)
-_manager_counter = itertools.count(1)
+create_user = create_test_user
 
 
-User = get_user_model()
+
+# _user_counter = itertools.count(1)
+# _manager_counter = itertools.count(1)
 
 
-def create_user(
-    email=None,
-    username=None,
-    **kwargs,
-):
-    idx = next(_user_counter)
-
-    return User.objects.create_user(
-        email=email or f"user{idx}@example.com",
-        username=username or f"user{idx}",
-        password="testpass",
-        **kwargs,
-    )
+# User = get_user_model()
 
 
-def create_manager(
-    email=None,
-    username=None,
-    **kwargs,
-):
-    idx = next(_manager_counter)
+# def create_user(
+#     email=None,
+#     username=None,
+#     **kwargs,
+# ):
+#     idx = next(_user_counter)
+#
+#     return User.objects.create_user(
+#         email=email or f"user{idx}@example.com",
+#         username=username or f"user{idx}",
+#         password="testpass",
+#         **kwargs,
+#     )
 
-    return User.objects.create_user(
-        email=email or f"manager{idx}@example.com",
-        username=username or f"manager{idx}",
-        password="testpass",
-        role="manager",
-        **kwargs,
-    )
+
+# def create_manager(
+#     email=None,
+#     username=None,
+#     **kwargs,
+# ):
+#     idx = next(_manager_counter)
+#
+#     return User.objects.create_user(
+#         email=email or f"manager{idx}@example.com",
+#         username=username or f"manager{idx}",
+#         password="testpass",
+#         role="manager",
+#         **kwargs,
+#     )
 
 
 def create_order(user=None, **kwargs):

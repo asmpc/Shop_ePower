@@ -175,7 +175,7 @@ def mark_payment_cancelled(
 def reset_payment_to_pending(
     *,
     payment,
-    manager_comment="",
+    comment="",
     changed_by=None,
 ):
     if payment.status == PaymentStatus.PENDING:
@@ -186,7 +186,7 @@ def reset_payment_to_pending(
     old_status = payment.status
 
     payment.status = PaymentStatus.PENDING
-    payment.manager_comment = manager_comment
+    payment.manager_comment = comment
 
     payment.save(
         update_fields=[
@@ -200,7 +200,7 @@ def reset_payment_to_pending(
         payment=payment,
         old_status=old_status,
         new_status=PaymentStatus.PENDING,
-        comment=manager_comment,
+        comment=comment,
         changed_by=changed_by,
     )
 
