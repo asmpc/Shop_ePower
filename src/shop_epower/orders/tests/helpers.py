@@ -4,29 +4,13 @@ from django.contrib.auth import get_user_model
 
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
+from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.suppliers.models import Supplier, SupplierProduct
 
 
 User = get_user_model()
 
-
-def create_test_user(
-    *,
-    email="user@example.com",
-    username="user",
-    password="testpass123",
-    first_name="John",
-    last_name="Doe",
-    phone="+10000000000",
-):
-    return User.objects.create_user(
-        email=email,
-        username=username,
-        password=password,
-        first_name=first_name,
-        last_name=last_name,
-        phone=phone,
-    )
 
 def create_test_client(
             email="client-manager-cancel@example.com",
@@ -140,3 +124,31 @@ def create_test_cart_with_item(
     )
 
     return cart
+
+def create_test_order(
+    *,
+    user,
+    total_price=Decimal("100.00"),
+    status=OrderStatus.NEW,
+    **kwargs,
+):
+    return Order.objects.create(
+        user=user,
+        status=status,
+        total_price=total_price,
+        is_legal_entity=False,
+        customer_name=user.get_full_name() or user.username,
+        customer_email=user.email,
+        customer_phone=getattr(user, "phone", ""),
+        company_name="",
+        tax_id="",
+        legal_address="",
+        bank_name="",
+        bank_account="",
+        currency_snapshot=get_base_currency(),
+        delivery_method="pickup",
+        delivery_provider="",
+        delivery_address="",
+        delivery_comment="",
+        **kwargs,
+    )

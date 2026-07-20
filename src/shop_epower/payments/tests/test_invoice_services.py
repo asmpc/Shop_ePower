@@ -21,6 +21,10 @@ from shop_epower.payments.services import (
     create_invoice_for_payment, cancel_invoice,
 )
 
+from shop_epower.orders.models import OrderStatus
+
+from shop_epower.orders.models import DeliveryMethod
+
 
 User = get_user_model()
 
@@ -36,6 +40,7 @@ class TestsInvoiceServices(TestCase):
 
         self.order = Order.objects.create(
             user=self.user,
+            status=OrderStatus.PROCESSING,
             customer_name="Test Client",
             customer_email="client@test.com",
             customer_phone="+375291112233",
@@ -377,4 +382,95 @@ class TestsInvoiceServices(TestCase):
                 invoice=invoice,
                 cancelled_by=admin,
                 comment="",
+            )
+
+    # Проверяем, что Invoice нельзя создать
+    # для заказа, который ещё не переведён в processing.
+    def test_create_invoice_for_new_order_raises_error(self):
+        self.order.status = OrderStatus.NEW
+        self.order.save(
+            update_fields=['status'],
+        )
+
+        with self.assertRaisesMessage(
+                ValidationError,
+                'Invoice can be generated only for an order in processing.',
+        ):
+            create_invoice_for_payment(
+                payment=self.payment,
+            )
+
+    # Проверяем, что Invoice нельзя создать
+    # для доставки без выбранного провайдера.
+    def test_create_invoice_for_shipping_without_provider_raises_error(self):
+
+        self.order.delivery_method = DeliveryMethod.SHIPPING
+        self.order.delivery_provider = ''
+        self.order.delivery_address = 'Test address'
+        self.order.delivery_cost = Decimal('10.00')
+        self.order.save(
+            update_fields=[
+                'delivery_method',
+                'delivery_provider',
+                'delivery_address',
+                'delivery_cost',
+            ],
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            'Delivery provider must be selected before generating invoice.',
+        ):
+            create_invoice_for_payment(
+                payment=self.payment,
+            )
+
+    # Проверяем, что Invoice нельзя создать
+    # для доставки без указанного адреса.
+    def test_create_invoice_for_shipping_without_address_raises_error(self):
+
+        self.order.delivery_method = DeliveryMethod.SHIPPING
+        self.order.delivery_provider = 'post'
+        self.order.delivery_address = ''
+        self.order.delivery_cost = Decimal('10.00')
+        self.order.save(
+            update_fields=[
+                'delivery_method',
+                'delivery_provider',
+                'delivery_address',
+                'delivery_cost',
+            ],
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            'Delivery address must be specified before generating invoice.',
+        ):
+            create_invoice_for_payment(
+                payment=self.payment,
+            )
+
+    # Проверяем, что Invoice нельзя создать
+    # для доставки без рассчитанной стоимости.
+    def test_create_invoice_for_shipping_without_cost_raises_error(self):
+
+        self.order.delivery_method = DeliveryMethod.SHIPPING
+        self.order.delivery_provider = 'post'
+        self.order.delivery_address = 'Test address'
+        self.order.delivery_cost = None
+        self.order.save(
+            update_fields=[
+                'delivery_method',
+                'delivery_provider',
+                'delivery_address',
+                'delivery_cost',
+            ],
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            'Delivery cost must be calculated before generating invoice.',
+        ):
+            create_invoice_for_payment(
+                payment=self.payment,
             )

@@ -209,7 +209,7 @@ class TestsPaymentServices(TestCase):
 
         reset_payment_to_pending(
             payment=payment,
-            manager_comment="Payment was marked as paid by mistake.",
+            comment="Payment was marked as paid by mistake.",
         )
 
         payment.refresh_from_db()
@@ -237,7 +237,7 @@ class TestsPaymentServices(TestCase):
 
         reset_payment_to_pending(
             payment=payment,
-            manager_comment="Retry payment.",
+            comment="Retry payment.",
         )
 
         payment.refresh_from_db()
@@ -408,7 +408,7 @@ class TestsPaymentServices(TestCase):
 
         reset_payment_to_pending(
             payment=payment,
-            manager_comment="Wrong order was marked as paid.",
+            comment="Wrong order was marked as paid.",
             changed_by=self.user,
         )
 

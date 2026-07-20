@@ -5,7 +5,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order
+from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.payments.models import (
     CompanySettings,
     Payment,
@@ -54,6 +54,7 @@ class TestsInvoicePdfViews(TestCase):
 
         self.order = Order.objects.create(
             user=self.client_user,
+            status=OrderStatus.PROCESSING,
             customer_name="Test Client",
             customer_email="client@test.com",
             customer_phone="+375291112233",
