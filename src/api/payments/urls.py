@@ -12,6 +12,12 @@ from api.payments.views import (
     ManagerPaymentMarkFailedAPIView,
     ManagerPaymentMarkCancelledAPIView,
     ManagerPaymentResetToPendingAPIView,
+    ManagerPaymentHistoryAPIView,
+    ManagerInvoiceCreateAPIView,
+    ManagerInvoiceDetailAPIView,
+    ManagerInvoicePdfAPIView,
+    ManagerInvoiceCancelAPIView,
+
 )
 
 
@@ -85,5 +91,34 @@ urlpatterns = [
         name="manager-payment-reset-to-pending",
     ),
 
+    path(
+        "manage/<int:pk>/history/",
+        ManagerPaymentHistoryAPIView.as_view(),
+        name="manager-payment-history",
+    ),
+
+    path(
+        "manage/<int:payment_id>/invoice/",
+        ManagerInvoiceCreateAPIView.as_view(),
+        name="manager-invoice-create",
+    ),
+
+    path(
+        "manage/invoices/<int:invoice_id>/",
+        ManagerInvoiceDetailAPIView.as_view(),
+        name="manager-invoice-detail",
+    ),
+
+    path(
+        "manage/invoices/<int:invoice_id>/pdf/",
+        ManagerInvoicePdfAPIView.as_view(),
+        name="manager-invoice-pdf",
+    ),
+
+    path(
+        "manage/invoices/<int:invoice_id>/cancel/",
+        ManagerInvoiceCancelAPIView.as_view(),
+        name="manager-invoice-cancel",
+    ),
 
 ]

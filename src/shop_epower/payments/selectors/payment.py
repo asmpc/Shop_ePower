@@ -64,6 +64,21 @@ def get_payments_for_manager(
 
     return queryset
 
+def get_payment_history(
+    *,
+    payment,
+):
+
+    return (
+        payment.history
+        .select_related(
+            "changed_by",
+        )
+        .order_by(
+            "-created_at",
+        )
+    )
+
 def get_payment_history_for_user(
     *,
     payment_id,
@@ -75,8 +90,8 @@ def get_payment_history_for_user(
         user=user,
     )
 
-    return payment.history.order_by(
-        '-created_at',
+    return get_payment_history(
+        payment=payment,
     )
 
 def get_manager_payments_queryset():
