@@ -140,4 +140,56 @@ class ManagerPaymentDetailSerializer(serializers.ModelSerializer):
             "currency_snapshot",
         )
 
+class PaymentHistorySerializer(
+    serializers.ModelSerializer,
+):
+    changed_by = serializers.StringRelatedField()
+
+    class Meta:
+        model = PaymentHistory
+
+        fields = (
+            "old_status",
+            "new_status",
+            "comment",
+            "changed_by",
+            "created_at",
+        )
+
+
+class ManagerInvoiceDetailSerializer(
+    serializers.ModelSerializer,
+):
+    class Meta:
+        model = Invoice
+
+        fields = (
+            "id",
+            "invoice_number",
+            "amount",
+            "currency_snapshot",
+
+            "seller_company_name",
+            "seller_short_company_name",
+            "seller_tax_id",
+            "seller_tax_registration_reason_code",
+            "seller_state_registration_number",
+            "seller_legal_address",
+            "seller_actual_address",
+            "seller_bank_name",
+            "seller_bank_account",
+            "seller_bank_code",
+            "seller_correspondent_account",
+            "seller_phone",
+            "seller_email",
+
+            "buyer_name",
+            "buyer_email",
+            "buyer_phone",
+            "buyer_address",
+            "buyer_is_legal_entity",
+
+            "created_at",
+        )
+
 
