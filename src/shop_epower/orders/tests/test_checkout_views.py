@@ -150,3 +150,23 @@ class TestsCheckoutViews(TestCase):
         self.assertTrue(
             self.cart.is_active,
         )
+
+    # Проверяем, что гость при попытке оформить заказ
+    # перенаправляется на вход с возвратом в корзину.
+    def test_guest_checkout_redirects_to_login_with_cart_next(self):
+        response = self.client.post(
+            reverse(
+                "orders:checkout",
+            ),
+        )
+
+        expected_url = (
+            f"{reverse('accounts:login')}"
+            f"?next={reverse('cart-detail')}"
+        )
+
+        self.assertRedirects(
+            response,
+            expected_url,
+            fetch_redirect_response=False,
+        )
