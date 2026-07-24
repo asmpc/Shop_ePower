@@ -213,7 +213,6 @@ SPECTACULAR_SETTINGS = {
 
 }
 
-
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 
 CRISPY_TEMPLATE_PACK = "bootstrap5"
@@ -224,3 +223,26 @@ EMAIL_BACKEND = 'django.core.mail.backends.console.EmailBackend'
 SHOP_BASE_CURRENCY = env("SHOP_BASE_CURRENCY", default="BYN")
 
 LOGIN_URL = 'accounts:login'
+
+# Celery settings
+
+CELERY_BROKER_URL = env(
+    "CELERY_BROKER_URL",
+    default="redis://127.0.0.1:6379/0",
+)
+
+CELERY_RESULT_BACKEND = env(
+    "CELERY_RESULT_BACKEND",
+    default="redis://127.0.0.1:6379/1",
+)
+
+CELERY_ACCEPT_CONTENT = (
+    "json",
+)
+
+CELERY_TASK_SERIALIZER = "json"
+
+CELERY_RESULT_SERIALIZER = "json"
+
+CELERY_TIMEZONE = TIME_ZONE
+

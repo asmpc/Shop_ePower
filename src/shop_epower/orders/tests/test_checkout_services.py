@@ -20,6 +20,8 @@ from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
 
+from unittest.mock import patch
+
 
 User = get_user_model()
 
@@ -257,3 +259,131 @@ class TestsOrderServices(TestCase):
             Order.objects.filter(user=user).count(),
             0,
         )
+
+    # Проверяем, что после успешного создания заказа
+    # Celery-задачи уведомлений запускаются после commit.
+    @patch(
+        "shop_epower.orders.services."
+        "notify_managers_about_new_order.delay"
+    )
+    @patch(
+        "shop_epower.orders.services."
+        "send_customer_order_created_email.delay"
+    )
+    def test_create_order_schedules_notification_tasks_after_commit(
+            self,
+            mocked_customer_email_delay,
+            mocked_manager_notification_delay,
+    ):
+        user = create_test_user(
+            email="notifications@example.com",
+            username="notifications",
+            phone="+10000000020",
+        )
+
+        product = create_test_product(
+            name="Notification Product",
+            brand_name="Notification Brand",
+            category_name="Notification Category",
+            manufacturer_article="NOTIFICATION-001",
+            base_price=Decimal("30.00"),
+        )
+
+        supplier = create_test_supplier(
+            name="Notification Supplier",
+        )
+
+        create_test_supplier_product(
+            supplier=supplier,
+            product=product,
+            supplier_article="SUP-NOTIFICATION-001",
+            stock_quantity=10,
+        )
+
+        cart = create_test_cart_with_item(
+            user=user,
+            product=product,
+            quantity=1,
+            price_snapshot=Decimal("30.00"),
+        )
+
+        with self.captureOnCommitCallbacks(
+                execute=True,
+        ):
+            order = create_order_from_cart(
+                user=user,
+                cart=cart,
+            )
+
+        mocked_customer_email_delay.assert_called_once_with(
+            order.id,
+        )
+
+        mocked_manager_notification_delay.assert_called_once_with(
+            order.id,
+        )
+
+    # Проверяем, что при ошибке создания заказа
+    # Celery-задачи уведомлений не запускаются.
+    @patch(
+        "shop_epower.orders.services."
+        "notify_managers_about_new_order.delay"
+    )
+    @patch(
+        "shop_epower.orders.services."
+        "send_customer_order_created_email.delay"
+    )
+    def test_failed_checkout_does_not_schedule_notification_tasks(
+            self,
+            mocked_customer_email_delay,
+            mocked_manager_notification_delay,
+    ):
+        user = create_test_user(
+            email="failed-notifications@example.com",
+            username="failed-notifications",
+            phone="+10000000021",
+        )
+
+        product = create_test_product(
+            name="Failed Notification Product",
+            brand_name="Failed Notification Brand",
+            category_name="Failed Notification Category",
+            manufacturer_article="FAILED-NOTIFICATION-001",
+            base_price=Decimal("40.00"),
+        )
+
+        supplier = create_test_supplier(
+            name="Failed Notification Supplier",
+        )
+
+        create_test_supplier_product(
+            supplier=supplier,
+            product=product,
+            supplier_article="SUP-FAILED-NOTIFICATION-001",
+            stock_quantity=1,
+        )
+
+        cart = create_test_cart_with_item(
+            user=user,
+            product=product,
+            quantity=2,
+            price_snapshot=Decimal("40.00"),
+        )
+
+        with self.captureOnCommitCallbacks(
+                execute=True,
+        ) as callbacks:
+            with self.assertRaises(ValidationError):
+                create_order_from_cart(
+                    user=user,
+                    cart=cart,
+                )
+
+        self.assertEqual(
+            callbacks,
+            [],
+        )
+
+        mocked_customer_email_delay.assert_not_called()
+
+        mocked_manager_notification_delay.assert_not_called()
