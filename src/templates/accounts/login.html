@@ -24,6 +24,14 @@
 
                     {% csrf_token %}
 
+                    {% if next %}
+                        <input
+                            type="hidden"
+                            name="next"
+                            value="{{ next }}"
+                        >
+                    {% endif %}
+
                     {{ form|crispy }}
 
                     <button type="submit"
@@ -36,6 +44,18 @@
                 <a href="{% url 'accounts:password_reset' %}">
                         Forgot your password?
                 </a>
+
+                    <div class="mt-3 text-center">
+
+                        <span>
+                            Don't have an account?
+                        </span>
+
+                        <a href="{% url 'accounts:register' %}{% if next %}?next={{ next|urlencode }}{% endif %}">
+                            Register
+                        </a>
+
+                    </div>
 
                 </form>
 
