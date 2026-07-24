@@ -7,18 +7,17 @@ from django.shortcuts import (
 from django.urls import reverse
 
 from django.contrib.auth.decorators import login_required
-from django.http import HttpResponse
 
 from shop_epower.payments.models import (
     Invoice,
     Payment,
 )
+
 from shop_epower.payments.services import (
-    generate_invoice_pdf,
+    build_invoice_pdf_response,
     mark_payment_failed,
     mark_payment_paid,
 )
-
 
 
 def mock_checkout_view(
@@ -100,17 +99,6 @@ def client_invoice_pdf_view(
         order__user=request.user,
     )
 
-    pdf = generate_invoice_pdf(
+    return build_invoice_pdf_response(
         invoice=invoice,
     )
-
-    response = HttpResponse(
-        pdf,
-        content_type="application/pdf",
-    )
-
-    response["Content-Disposition"] = (
-        f'attachment; filename="{invoice.invoice_number}.pdf"'
-    )
-
-    return response

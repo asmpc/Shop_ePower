@@ -3,6 +3,12 @@ from shop_epower.orders.models import (
     OrderStatus,
 )
 
+from django.shortcuts import get_object_or_404
+
+from shop_epower.payments.models import (
+    Invoice,
+)
+
 
 class InvoiceWorkflowState:
     TAKE_TO_PROCESSING = "take_to_processing"
@@ -36,3 +42,22 @@ def get_invoice_workflow_state(
         return InvoiceWorkflowState.DELIVERY_COST_REQUIRED
 
     return InvoiceWorkflowState.READY
+
+
+def get_invoice_for_user(
+    *,
+    payment_id,
+    user,
+):
+    return get_object_or_404(
+        Invoice.objects
+        .select_related(
+            "payment",
+            "order",
+        )
+        .prefetch_related(
+            "order__items",
+        ),
+        payment_id=payment_id,
+        payment__order__user=user,
+    )

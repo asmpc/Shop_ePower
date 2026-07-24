@@ -239,7 +239,7 @@ class AdminResetPaymentToPendingView(
         try:
             reset_payment_to_pending(
                 payment=order.payment,
-                manager_comment=request.POST.get(
+                comment=request.POST.get(
                     "manager_comment",
                     "",
                 ),

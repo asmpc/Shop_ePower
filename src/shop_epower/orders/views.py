@@ -2,6 +2,8 @@ from django.shortcuts import redirect, render
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 
+from django.contrib.auth.views import redirect_to_login
+
 from shop_epower.accounts.navigation import get_profile_edit_url
 from shop_epower.cart.models import Cart
 from shop_epower.orders.services import create_order_from_cart
@@ -23,13 +25,23 @@ from shop_epower.accounts.services.profile import (
     is_profile_complete,
 )
 
-from urllib.parse import urlencode
-
 from django.urls import reverse
 
 
-@login_required
 def checkout_view(request):
+
+    if not request.user.is_authenticated:
+        return redirect_to_login(
+            reverse(
+                "cart-detail",
+            ),
+            login_url=reverse(
+                "accounts:login",
+            ),
+        )
+
+    if request.method != "POST":
+        return redirect("cart-detail")
 
     if request.method != "POST":
         return redirect("cart-detail")
