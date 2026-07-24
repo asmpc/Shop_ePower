@@ -23,5 +23,6 @@ from .invoice import (
 )
 
 from .invoice_pdf import (
+    build_invoice_pdf_response,
     generate_invoice_pdf,
 )

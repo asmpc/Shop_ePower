@@ -7,10 +7,12 @@ from shop_epower.payments.selectors import (
 )
 
 from shop_epower.payments.models import (
-    CompanySettings,
-    PaymentMethod,
     Invoice,
     InvoiceStatus,
+)
+
+from shop_epower.payments.validators.invoice import (
+    validate_manager_can_create_invoice,
 )
 
 
@@ -32,18 +34,9 @@ def create_invoice_for_payment(
     *,
     payment,
 ):
-    if payment.method != PaymentMethod.INVOICE:
-        raise ValidationError(
-            "Invoice can be created only for invoice payment method."
-        )
-
-    if hasattr(
-        payment,
-        "invoice",
-    ):
-        raise ValidationError(
-            "Invoice already exists for this payment."
-        )
+    validate_manager_can_create_invoice(
+        payment=payment,
+    )
 
     company_settings = get_company_settings()
 

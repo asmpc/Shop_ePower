@@ -11,9 +11,10 @@ from .models import (
 )
 from shop_epower.suppliers.models import SupplierProduct
 from ..core.currency import get_base_currency
-from shop_epower.notifications.services import (
-    send_order_created_email_to_customer,
-    send_order_created_notification_to_managers,
+
+from shop_epower.notifications.tasks import (
+    notify_managers_about_new_order,
+    send_customer_order_created_email,
 )
 
 from shop_epower.accounts.services.profile import (
@@ -111,11 +112,17 @@ def create_order_from_cart(
     cart.save(update_fields=["is_active"])
 
     transaction.on_commit(
-        lambda: send_order_created_email_to_customer(order)
+        lambda order_id=order.id:
+        send_customer_order_created_email.delay(
+            order_id,
+        )
     )
 
     transaction.on_commit(
-        lambda: send_order_created_notification_to_managers(order)
+        lambda order_id=order.id:
+        notify_managers_about_new_order.delay(
+            order_id,
+        )
     )
 
     return order

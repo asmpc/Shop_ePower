@@ -9,4 +9,14 @@ urlpatterns = [
     path("orders/", include("api.orders.urls")),
     path("", include("api.suppliers.urls")),
     path("chat/", include("api.chat.urls")),
+    path(
+        'payments/',
+        include(
+            (
+                'api.payments.urls',
+                'api-payments',
+            ),
+            namespace='api-payments',
+        ),
+    ),
 ]

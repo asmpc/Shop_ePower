@@ -1,5 +1,7 @@
 from io import BytesIO
 
+from django.http import HttpResponse
+
 from reportlab.lib import colors
 
 from reportlab.lib.pagesizes import A4
@@ -22,6 +24,7 @@ from shop_epower.pdf import (
 )
 
 from shop_epower.payments.models import InvoiceStatus
+
 
 
 def _build_header(
@@ -816,3 +819,22 @@ def generate_invoice_pdf(
     buffer.close()
 
     return pdf
+
+def build_invoice_pdf_response(
+    *,
+    invoice,
+):
+    pdf = generate_invoice_pdf(
+        invoice=invoice,
+    )
+
+    response = HttpResponse(
+        pdf,
+        content_type="application/pdf",
+    )
+
+    response["Content-Disposition"] = (
+        f'attachment; filename="{invoice.invoice_number}.pdf"'
+    )
+
+    return response
