@@ -27,3 +27,11 @@ celerybeat.pid
 *.log
 
 docs
+
+# Docker
+Dockerfile*
+compose*.yaml
+
+# OS
+.DS_Store
+Thumbs.db
