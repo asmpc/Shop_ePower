@@ -55,16 +55,7 @@
                 </div>
             </div>
 
-            {% if product.inventory.in_stock %}
-                {% if product.inventory.own_stock > 0 %}
-                    <p class="text-success mb-1">In stock: {{ product.inventory.own_stock }}</p>
-                {% endif %}
-                {% if product.inventory.supplier_stock > 0 %}
-                    <p class="text-info mb-1">Available to order: {{ product.inventory.supplier_stock }} — from {{ product.inventory.min_lead_time }} days</p>
-                {% endif %}
-            {% else %}
-                <p class="text-danger mb-1">Out of stock</p>
-            {% endif %}
+            {% include "catalog/includes/product_inventory.html" %}
 
             <form method="post" action="{% url 'cart-add' product.id %}" class="mb-3">
                 {% csrf_token %}
