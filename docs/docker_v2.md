@@ -15,6 +15,40 @@
 
 Внутри Docker-сети используются `postgres:5432`, `redis:6379`, `web:8000`, `flower:5555`.
 
+
+
+## 🐳 Docker Philosophy
+
+Shop_ePower uses **one Docker image** for the application layer.
+
+```text
+                One Docker Image
+                       │
+      ┌────────────────┼────────────────┐
+      ▼                ▼                ▼
+     web        celery_worker     celery_beat
+                                        │
+                                        ▼
+                                     flower
+```
+
+Each service runs the same application image with a different startup command. This keeps the environment consistent and simplifies maintenance.
+
+## 🏗 Infrastructure Overview
+
+```text
+                 Docker Compose
+                       │
+      ┌────────────────┼────────────────┐
+      ▼                ▼                ▼
+ PostgreSQL         Redis          Django Web
+                       │
+            ┌──────────┼───────────┐
+            ▼          ▼           ▼
+     Celery Worker  Celery Beat  Flower
+```
+
+
 ## 2. Где выполнять команды
 
 Из корня проекта:
@@ -409,6 +443,43 @@ docker compose restart celery_beat
 docker compose down
 ```
 
+
+
+## 🚀 Development Workflow
+
+Typical development scenarios:
+
+### Python code or templates
+
+```text
+Change code
+      │
+      ▼
+No rebuild required
+      │
+      ▼
+Refresh browser
+```
+
+### requirements.txt
+
+```text
+Change requirements.txt
+      │
+      ▼
+docker compose up -d --build
+```
+
+### Dockerfile
+
+```text
+Change Dockerfile
+      │
+      ▼
+docker compose up -d --build
+```
+
+
 ## 16. Диагностика
 
 Контейнер падает:
@@ -451,6 +522,21 @@ docker compose config
 SECRET_KEY='значение_с_$'
 ```
 
+
+
+## ❤️ Health Checks
+
+Docker Compose waits for dependent services to become healthy before starting
+application services.
+
+Current checks:
+
+- PostgreSQL → `pg_isready`
+- Redis → `redis-cli ping`
+
+These checks are used together with `depends_on: condition: service_healthy`.
+
+
 ## 17. Volumes и место
 
 ```powershell
@@ -473,3 +559,15 @@ docker compose exec web python manage.py migrate
 docker compose exec web python manage.py test
 docker compose down
 ```
+
+
+---
+
+<div align="center">
+
+**Happy Dockering! 🐳**
+
+This document is intended as the daily operational guide for the Shop_ePower
+development environment.
+
+</div>
