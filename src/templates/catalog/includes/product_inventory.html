@@ -1,0 +1,33 @@
+<div class="{% if compact %}small{% endif %}">
+
+    {% if product.inventory.in_stock %}
+
+        {% if product.inventory.own_stock > 0 %}
+            <p class="text-success mb-1">
+                In stock:
+                {{ product.inventory.own_stock }}
+            </p>
+        {% endif %}
+
+        {% if product.inventory.supplier_stock > 0 %}
+            <p class="text-info mb-1">
+                Available to order:
+                {{ product.inventory.supplier_stock }}
+
+                {% if product.inventory.min_lead_time %}
+                    — from
+                    {{ product.inventory.min_lead_time }}
+                    days
+                {% endif %}
+            </p>
+        {% endif %}
+
+    {% else %}
+
+        <p class="text-danger mb-1">
+            Out of stock
+        </p>
+
+    {% endif %}
+
+</div>
