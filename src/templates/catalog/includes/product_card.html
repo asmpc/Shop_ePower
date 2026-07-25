@@ -34,15 +34,7 @@
             </strong>
         </div>
 
-        {% if product.inventory.in_stock %}
-            <p class="text-success text-center small mb-2">
-                In stock
-            </p>
-        {% else %}
-            <p class="text-danger text-center small mb-2">
-                Out of stock
-            </p>
-        {% endif %}
+        {% include "catalog/includes/product_inventory.html" with compact=1 %}
 
         <div class="mt-auto">
 
