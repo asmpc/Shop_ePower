@@ -97,3 +97,6 @@ jobs:
           "import os, redis;
           client = redis.Redis.from_url(os.environ['CELERY_BROKER_URL']);
           print('Redis ping:', client.ping())"
+
+      - name: Check for missing migrations
+        run: python src/manage.py makemigrations --check --dry-run
