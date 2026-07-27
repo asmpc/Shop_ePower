@@ -16,7 +16,9 @@ A modular Django platform that covers the complete order lifecycle:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-400%2B-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-465-success)
+[![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
+
 
 </div>
 
@@ -346,6 +348,8 @@ flowchart LR
 | Infrastructure | Docker, Docker Compose |
 | Testing | Django TestCase, DRF API tests, regression tests |
 | Version Control | Git, GitHub |
+| Continuous Integration | GitHub Actions |
+| Branch Protection | GitHub Rulesets |
 
 ---
 
@@ -510,6 +514,10 @@ Swagger / OpenAPI documentation is available through the configured project docu
 
 Shop_ePower is developed with a strong automated-testing focus.
 
+The current complete suite contains **465 automated tests**. It runs against an
+isolated PostgreSQL test database and is executed automatically by GitHub Actions
+for pushes to `dev` and `main`, as well as for pull requests targeting `main`.
+
 The test suite covers:
 
 - Django models;
@@ -537,6 +545,72 @@ Examples of protected regressions include:
 
 ---
 
+## ✅ Continuous Integration
+
+Shop_ePower uses GitHub Actions as an automated quality gate.
+
+```text
+Push to dev / main
+        │
+        ▼
+Pull Request to main
+        │
+        ▼
+Checkout Repository
+        │
+        ▼
+Set Up Python 3.14
+        │
+        ▼
+Restore pip Cache
+        │
+        ▼
+Install Dependencies
+        │
+        ▼
+Start PostgreSQL + Redis
+        │
+        ▼
+Run Health & Connection Checks
+        │
+        ▼
+Django System Check
+        │
+        ▼
+Missing Migration Check
+        │
+        ▼
+Run 465 Automated Tests
+        │
+        ▼
+✅ Django CI
+```
+
+The CI workflow currently provides:
+
+- execution on pushes to `dev` and `main`;
+- execution for pull requests targeting `main`;
+- Python 3.14 setup;
+- pip dependency caching;
+- isolated PostgreSQL and Redis service containers;
+- service health checks;
+- Django configuration validation;
+- real PostgreSQL and Redis connection checks;
+- protection against forgotten migrations;
+- execution of all **465 tests**;
+- protected `main` branch through a GitHub Ruleset;
+- mandatory `Django CI` status before merging.
+
+The workflow is stored in:
+
+```text
+.github/workflows/ci.yml
+```
+
+The next CI milestone is validation of the Docker image build.
+
+---
+
 ## 📚 Documentation
 
 Technical documentation is stored in the [`docs/`](docs/) directory.
@@ -547,8 +621,8 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 | [`docs/docker.md`](docs/docker.md) | Docker commands, logs, diagnostics and daily workflow |
 | [`docs/architecture.md`](docs/architecture.md) | Current project and infrastructure architecture |
 | [`docs/deployment.md`](docs/deployment.md) | Draft production deployment plan |
-| [`docs/github-actions.md`](docs/github-actions.md) | Planned CI workflow |
-| `docs/roadmap.md` | Master roadmap — planned |
+| [`docs/github-actions.md`](docs/github-actions.md) | Current CI workflow and future CI/CD plan |
+| [`docs/roadmap.md`](docs/roadmap.md) | Master development roadmap |
 
 ---
 
@@ -580,14 +654,19 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 - Celery Beat
 - Flower
 - Technical documentation
-- Automated and regression tests
+- 465 automated and regression tests
+- GitHub Actions CI
+- PostgreSQL and Redis services in CI
+- Migration consistency checks
+- pip dependency caching
+- Protected `main` branch with required `Django CI` status
 
 ### 🚧 Current Work
 
-- Final Docker polish
-- Root project documentation
-- GitHub Actions Continuous Integration
+- Docker image build validation in GitHub Actions
+- CI badge finalization
 - Final diploma-readiness checks
+- Release hardening
 
 ### 🗺️ Planned Development
 
@@ -611,10 +690,9 @@ After the diploma defense:
 ```text
 CURRENT
    │
-   ├── Documentation Polish
-   │
-   ├── GitHub Actions CI
-   │
+   ├── GitHub Actions CI ✅
+   ├── Protected main branch ✅
+   ├── Docker Build in CI 🚧
    └── Diploma Readiness
    │
    ▼
