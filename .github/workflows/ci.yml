@@ -1,0 +1,26 @@
+name: Shop_ePower CI
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+  jobs:
+    test:
+      name: Django CI
+
+      runs-on: ubuntu-latest
+
+      steps:
+        - name: Checkout repository
+          uses: actions/checkout@v6
+
+        - name: Set up Python
+          uses: actions/setup-python@v6
+          with:
+            python-version: "3.14"
