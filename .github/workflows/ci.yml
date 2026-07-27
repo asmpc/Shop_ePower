@@ -1,0 +1,102 @@
+name: Shop_ePower CI
+
+on:
+  push:
+    branches:
+      - dev
+      - main
+
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  test:
+    name: Django CI
+
+    runs-on: ubuntu-latest
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_USER: shop_epower_ci
+          POSTGRES_PASSWORD: shop_epower_ci_password
+          POSTGRES_DB: shop_epower_ci
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U shop_epower_ci -d shop_epower_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+
+        ports:
+          - 6379:6379
+
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      SECRET_KEY: ${{ secrets.SECRET_KEY }}
+      DEBUG: "True"
+
+      PG_HOST: "127.0.0.1"
+      PG_USER: "shop_epower_ci"
+      PG_PASS: "shop_epower_ci_password"
+      PG_NAME: "shop_epower_ci"
+      PG_PORT: "5432"
+
+      JWT_ALGORITHM: "HS256"
+      ACCESS_TOKEN_LIFETIME_MINUTES: "15"
+      REFRESH_TOKEN_LIFETIME_MINUTES: "43200"
+
+      SHOP_BASE_CURRENCY: "BYN"
+
+      CELERY_BROKER_URL: "redis://127.0.0.1:6379/2"
+      CELERY_RESULT_BACKEND: "redis://127.0.0.1:6379/3"
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.14"
+
+      - name: Upgrade pip
+        run: python -m pip install --upgrade pip
+
+      - name: Install dependencies
+        run: python -m pip install -r requirements.txt
+
+      - name: Run Django system checks
+        run: python src/manage.py check
+
+      - name: Check PostgreSQL connection
+        run: >
+          python src/manage.py shell -c
+          "from django.db import connection;
+          connection.ensure_connection();
+          print(connection.settings_dict['HOST']);
+          print('Database connection OK')"
+
+      - name: Check Redis connection
+        run: >
+          python -c
+          "import os, redis;
+          client = redis.Redis.from_url(os.environ['CELERY_BROKER_URL']);
+          print('Redis ping:', client.ping())"
+
+      - name: Check for missing migrations
+        run: python src/manage.py makemigrations --check --dry-run
