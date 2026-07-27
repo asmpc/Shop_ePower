@@ -16,6 +16,24 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    services:
+      postgres:
+        image: postgres:17-alpine
+
+        env:
+          POSTGRES_USER: shop_epower_ci
+          POSTGRES_PASSWORD: shop_epower_ci_password
+          POSTGRES_DB: shop_epower_ci
+
+        ports:
+          - 5432:5432
+
+        options: >-
+          --health-cmd "pg_isready -U shop_epower_ci -d shop_epower_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 5
+
     env:
       SECRET_KEY: ${{ secrets.SECRET_KEY }}
       DEBUG: "True"
@@ -52,3 +70,11 @@ jobs:
 
       - name: Run Django system checks
         run: python src/manage.py check
+
+      - name: Check PostgreSQL connection
+        run: >
+          python src/manage.py shell -c
+          "from django.db import connection;
+          connection.ensure_connection();
+          print(connection.settings_dict['HOST']);
+          print('Database connection OK')"
