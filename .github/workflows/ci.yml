@@ -102,5 +102,5 @@ jobs:
         run: python src/manage.py makemigrations --check --dry-run
 
       - name: Run automated tests
-          run: python src/manage.py test
+        run: python src/manage.py test
 
