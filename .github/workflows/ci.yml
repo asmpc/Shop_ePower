@@ -137,3 +137,57 @@ jobs:
             --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
             shop-epower:ci \
             python manage.py check
+
+      - name: Run container smoke test
+        run: |
+          docker run --detach \
+            --name shop-epower-smoke \
+            --publish 8000:8000 \
+            --env SECRET_KEY=django-insecure-ci-docker-check \
+            --env DEBUG=True \
+            --env PG_HOST=127.0.0.1 \
+            --env PG_USER=shop_epower_ci \
+            --env PG_PASS=shop_epower_ci_password \
+            --env PG_NAME=shop_epower_ci \
+            --env PG_PORT=5432 \
+            --env JWT_ALGORITHM=HS256 \
+            --env ACCESS_TOKEN_LIFETIME_MINUTES=15 \
+            --env REFRESH_TOKEN_LIFETIME_MINUTES=43200 \
+            --env SHOP_BASE_CURRENCY=BYN \
+            --env CELERY_BROKER_URL=redis://127.0.0.1:6379/2 \
+            --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
+            shop-epower:ci \
+            python manage.py runserver 0.0.0.0:8000 \
+              --noreload \
+              --skip-checks
+
+          cleanup() {
+            status=$?
+
+            if [ "$status" -ne 0 ]; then
+              echo "Container logs:"
+              docker logs shop-epower-smoke || true
+            fi
+
+            docker rm --force shop-epower-smoke \
+              > /dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for attempt in {1..15}; do
+            if curl \
+              --fail \
+              --silent \
+              --output /dev/null \
+              http://127.0.0.1:8000/admin/login/; then
+              echo "Container smoke test passed."
+              exit 0
+            fi
+
+            echo "Waiting for container: ${attempt}/15"
+            sleep 2
+          done
+
+          echo "Container smoke test failed."
+          exit 1
