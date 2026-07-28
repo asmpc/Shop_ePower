@@ -107,3 +107,14 @@ jobs:
         working-directory: src
         run: python manage.py test
 
+  docker-build:
+    name: Docker Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Build Docker image
+        run: docker build --tag shop-epower:ci .
