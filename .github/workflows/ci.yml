@@ -107,3 +107,203 @@ jobs:
         working-directory: src
         run: python manage.py test
 
+  docker-build:
+    name: Docker Build
+
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v6
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Build Docker image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          load: true
+          tags: |
+            shop-epower:ci
+            shop-epower-web:latest
+          cache-from: type=gha,scope=shop-epower-ci
+          cache-to: type=gha,mode=max,scope=shop-epower-ci
+
+      - name: Create Docker Compose CI environment
+        run: |
+          cat > .env <<'EOF'
+          SECRET_KEY=django-insecure-ci-compose-check
+          DEBUG=True
+
+          PG_HOST=postgres
+          PG_USER=shop_epower_ci
+          PG_PASS=shop_epower_ci_password
+          PG_NAME=shop_epower_ci
+          PG_PORT=5432
+
+          JWT_ALGORITHM=HS256
+          ACCESS_TOKEN_LIFETIME_MINUTES=15
+          REFRESH_TOKEN_LIFETIME_MINUTES=43200
+
+          SHOP_BASE_CURRENCY=BYN
+
+          CELERY_BROKER_URL=redis://redis:6379/2
+          CELERY_RESULT_BACKEND=redis://redis:6379/3
+          EOF
+
+          docker compose config --quiet
+
+      - name: Run Django checks inside Docker image
+        run: |
+          docker run --rm \
+            --env SECRET_KEY=django-insecure-ci-docker-check \
+            --env DEBUG=True \
+            --env PG_HOST=127.0.0.1 \
+            --env PG_USER=shop_epower_ci \
+            --env PG_PASS=shop_epower_ci_password \
+            --env PG_NAME=shop_epower_ci \
+            --env PG_PORT=5432 \
+            --env JWT_ALGORITHM=HS256 \
+            --env ACCESS_TOKEN_LIFETIME_MINUTES=15 \
+            --env REFRESH_TOKEN_LIFETIME_MINUTES=43200 \
+            --env SHOP_BASE_CURRENCY=BYN \
+            --env CELERY_BROKER_URL=redis://127.0.0.1:6379/2 \
+            --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
+            shop-epower:ci \
+            python manage.py check
+
+      - name: Run container smoke test
+        run: |
+          docker run --detach \
+            --name shop-epower-smoke \
+            --publish 8000:8000 \
+            --env SECRET_KEY=django-insecure-ci-docker-check \
+            --env DEBUG=True \
+            --env PG_HOST=127.0.0.1 \
+            --env PG_USER=shop_epower_ci \
+            --env PG_PASS=shop_epower_ci_password \
+            --env PG_NAME=shop_epower_ci \
+            --env PG_PORT=5432 \
+            --env JWT_ALGORITHM=HS256 \
+            --env ACCESS_TOKEN_LIFETIME_MINUTES=15 \
+            --env REFRESH_TOKEN_LIFETIME_MINUTES=43200 \
+            --env SHOP_BASE_CURRENCY=BYN \
+            --env CELERY_BROKER_URL=redis://127.0.0.1:6379/2 \
+            --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
+            shop-epower:ci \
+            python -c "from wsgiref.simple_server import make_server; from config.wsgi import application; make_server('0.0.0.0', 8000, application).serve_forever()"
+
+          cleanup() {
+            status=$?
+
+            if [ "$status" -ne 0 ]; then
+              echo "Container logs:"
+              docker logs shop-epower-smoke || true
+            fi
+
+            docker rm --force shop-epower-smoke \
+              > /dev/null 2>&1 || true
+          }
+
+          trap cleanup EXIT
+
+          for attempt in {1..15}; do
+            if curl \
+              --fail \
+              --silent \
+              --output /dev/null \
+              http://127.0.0.1:8000/admin/login/; then
+              echo "Container smoke test passed."
+              exit 0
+            fi
+
+            echo "Waiting for container: ${attempt}/15"
+            sleep 2
+          done
+
+          echo "Container smoke test failed."
+          exit 1
+
+      - name: Run Docker Compose integration test
+        run: |
+          cleanup() {
+            status=$?
+
+            if [ "$status" -ne 0 ]; then
+              echo "Docker Compose services:"
+              docker compose ps || true
+
+              echo "Docker Compose logs:"
+              docker compose logs --no-color || true
+            fi
+
+            docker compose down \
+              --volumes \
+              --remove-orphans \
+              > /dev/null 2>&1 || true
+
+            exit "$status"
+          }
+
+          trap cleanup EXIT
+
+          echo "Starting PostgreSQL and Redis..."
+
+          docker compose up \
+            --detach \
+            --wait \
+            --no-build \
+            postgres \
+            redis
+
+          echo "Applying database migrations..."
+
+          docker compose run \
+            --rm \
+            --no-deps \
+            web \
+            python manage.py migrate --noinput
+
+          echo "Starting the full Docker Compose stack..."
+
+          docker compose up \
+            --detach \
+            --wait \
+            --wait-timeout 120 \
+            --no-build
+
+          echo "Checking Django web service..."
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            http://127.0.0.1:8000/admin/login/
+
+          echo "Checking Flower..."
+
+          curl \
+            --fail \
+            --silent \
+            --show-error \
+            --output /dev/null \
+            http://127.0.0.1:5555/
+
+          echo "Checking Celery worker..."
+
+          docker compose exec -T celery_worker \
+            celery -A config inspect ping --timeout=10 \
+            | tee /tmp/celery-ping.txt
+
+          grep --quiet "pong" /tmp/celery-ping.txt
+
+          echo "Checking Celery Beat..."
+
+          docker compose ps \
+            --status running \
+            --services \
+            | grep --quiet --line-regexp celery_beat
+
+          echo "Full Docker Compose integration test passed."
