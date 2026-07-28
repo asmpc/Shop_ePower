@@ -157,9 +157,7 @@ jobs:
             --env CELERY_BROKER_URL=redis://127.0.0.1:6379/2 \
             --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
             shop-epower:ci \
-            python manage.py runserver 0.0.0.0:8000 \
-              --noreload \
-              --skip-checks
+            python -c "from wsgiref.simple_server import make_server; from config.wsgi import application; make_server('0.0.0.0', 8000, application).serve_forever()"
 
           cleanup() {
             status=$?
