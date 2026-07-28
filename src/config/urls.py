@@ -22,11 +22,21 @@ from drf_spectacular.views import (
 )
 from django.conf import settings
 from django.conf.urls.static import static
+from django.views.generic import RedirectView
 
 
 
 
 urlpatterns = [
+
+    path(
+        "",
+        RedirectView.as_view(
+            url="/shop/",
+            permanent=False,
+        ),
+        name="root_redirect",
+    ),
 
     path("admin/", admin.site.urls),
 
