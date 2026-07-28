@@ -118,3 +118,22 @@ jobs:
 
       - name: Build Docker image
         run: docker build --tag shop-epower:ci .
+
+      - name: Run Django checks inside Docker image
+        run: |
+          docker run --rm \
+            --env SECRET_KEY=django-insecure-ci-docker-check \
+            --env DEBUG=True \
+            --env PG_HOST=127.0.0.1 \
+            --env PG_USER=shop_epower_ci \
+            --env PG_PASS=shop_epower_ci_password \
+            --env PG_NAME=shop_epower_ci \
+            --env PG_PORT=5432 \
+            --env JWT_ALGORITHM=HS256 \
+            --env ACCESS_TOKEN_LIFETIME_MINUTES=15 \
+            --env REFRESH_TOKEN_LIFETIME_MINUTES=43200 \
+            --env SHOP_BASE_CURRENCY=BYN \
+            --env CELERY_BROKER_URL=redis://127.0.0.1:6379/2 \
+            --env CELERY_RESULT_BACKEND=redis://127.0.0.1:6379/3 \
+            shop-epower:ci \
+            python manage.py check
