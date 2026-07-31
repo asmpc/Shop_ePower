@@ -1,8 +1,8 @@
 # Shop_ePower — Deployment Plan
 
-> **Status: DRAFT / NOT IMPLEMENTED**
+> **Status: Planned after the diploma defense**
 >
-> Production deployment is intentionally postponed until after the diploma defense.
+> Production deployment is intentionally scheduled for the post-diploma roadmap.
 > The current Docker Compose environment is optimized for development, learning,
 > testing and feature implementation.
 
@@ -228,6 +228,14 @@ Recommendations:
 
 ## 13. Future Improvements
 
+The production platform will evolve incrementally following the project's
+engineering principle of **Evolution over Revolution**.
+
+Each deployment improvement should preserve backward compatibility whenever
+practical and extend the existing infrastructure instead of replacing it.
+
+
+
 After the diploma:
 
 - GitHub Actions CI/CD
@@ -237,3 +245,19 @@ After the diploma:
 - centralized logging
 - horizontal scaling
 - Kubernetes evaluation (optional)
+
+---
+
+## 14. Relation to the Roadmap
+
+Production deployment is intentionally planned after the current development
+phases focused on application functionality and infrastructure maturity.
+
+Implementation order is maintained in **docs/roadmap.md** and includes:
+
+- production deployment;
+- CI/CD automation;
+- observability and monitoring;
+- performance optimization;
+- future horizontal scaling.
+

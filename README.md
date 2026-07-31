@@ -2,7 +2,7 @@
 
 # ⚡ Shop_ePower
 
-### Modern B2B/B2C e-commerce platform for electrical products
+### Enterprise-ready B2B/B2C platform for electrical equipment
 
 A modular Django platform that covers the complete order lifecycle:  
 **catalog → cart → checkout → stock reservation → manager workflow → payment → invoice → notifications → history**
@@ -26,19 +26,27 @@ A modular Django platform that covers the complete order lifecycle:
 
 ## 🚀 Project Overview
 
-**Shop_ePower** is a full-stack e-commerce platform developed as a diploma project and designed around realistic business processes for selling electrical equipment.
+**Shop_ePower** is an enterprise-oriented Django platform that models the complete lifecycle of wholesale and retail electrical equipment sales.
 
-The project goes far beyond a basic CRUD store. It combines customer accounts, product catalog management, supplier inventory, stock reservation, order processing, payment workflows, PDF invoices, email notifications, internal customer support, REST API endpoints, and containerized asynchronous infrastructure.
+Rather than being a simple online store, Shop_ePower is evolving into a modular business platform. Independent business domains cooperate through well-defined services, allowing the system to grow without large-scale rewrites.
 
-The codebase follows modern Django engineering practices:
+The platform already includes product catalog management, supplier inventory, stock reservation, order processing, payment and invoice workflows, customer support chat, REST APIs, Docker infrastructure, asynchronous background processing and automated CI.
 
-- modular domain-oriented applications;
-- service-layer business logic;
-- selector-based query logic;
-- Test-Driven Development;
-- asynchronous tasks with Celery;
-- reproducible Docker Compose infrastructure;
-- extensive frontend, service, and API test coverage.
+---
+
+## 🎯 Project Vision
+
+The long-term vision is to evolve Shop_ePower into a complete business platform combining:
+
+- e-commerce;
+- inventory management;
+- customer financial accounts;
+- reverse logistics;
+- ERP integrations;
+- real-time communication;
+- scalable cloud-ready architecture.
+
+See **docs/roadmap.md** for the complete development roadmap.
 
 ---
 
@@ -330,6 +338,21 @@ flowchart LR
 
 ---
 
+## 🧭 Design Principles
+
+The project follows a small set of engineering principles.
+
+- **Business First** — business requirements drive architecture.
+- **Evolution over Revolution ⭐** — existing, working components are evolved instead of rewritten. New functionality extends the current architecture while preserving stability whenever practical.
+- **Test Driven Development** — new functionality is protected by automated tests.
+- **Clean Architecture** — business logic belongs in services and domain layers.
+- **Domain Separation** — each application owns a single business responsibility.
+- **Documentation First** — documentation evolves together with the code.
+- **CI Before Merge** — important changes should pass automated validation.
+- **One Logical Sprint = One Commit** — each completed sprint ends with a meaningful Git commit.
+
+---
+
 ## ⚙️ Technology Stack
 
 | Layer | Technologies |
@@ -607,7 +630,7 @@ The workflow is stored in:
 .github/workflows/ci.yml
 ```
 
-The next CI milestone is validation of the Docker image build.
+The next CI milestone is evolving the current pipeline into a complete CI/CD workflow with automated image publishing and deployment.
 
 ---
 
@@ -617,10 +640,9 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 
 | Document | Description |
 |---|---|
-| [`docs/README.md`](docs/README.md) | Documentation index |
 | [`docs/docker.md`](docs/docker.md) | Docker commands, logs, diagnostics and daily workflow |
 | [`docs/architecture.md`](docs/architecture.md) | Current project and infrastructure architecture |
-| [`docs/deployment.md`](docs/deployment.md) | Draft production deployment plan |
+| [`docs/deployment.md`](docs/deployment.md) | Production deployment plan |
 | [`docs/github-actions.md`](docs/github-actions.md) | Current CI workflow and future CI/CD plan |
 | [`docs/roadmap.md`](docs/roadmap.md) | Master development roadmap |
 
@@ -663,10 +685,12 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 
 ### 🚧 Current Work
 
-- Docker image build validation in GitHub Actions
-- CI badge finalization
-- Final diploma-readiness checks
-- Release hardening
+- **PHASE 20 — Dependency Management Modernization**
+- Poetry migration
+- Dependency cleanup
+- Docker modernization
+- Documentation maintenance
+- Final diploma preparation
 
 ### 🗺️ Planned Development
 

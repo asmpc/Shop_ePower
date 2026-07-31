@@ -2,7 +2,13 @@
 
 ## 1. Purpose
 
-Shop_ePower is a modular Django e-commerce platform for electrical products.
+Shop_ePower is an enterprise-oriented Django platform for wholesale and retail
+electrical equipment sales.
+
+The architecture is organized around independent business domains that
+cooperate through explicit services and interfaces. The project evolves
+incrementally: stable components are extended rather than replaced without a
+clear business or technical reason.
 
 The core business workflow:
 
@@ -278,18 +284,34 @@ Production roadmap:
 
 ---
 
-## 11. Engineering Principles
+## 11. Design and Engineering Principles
 
-1. Thin Views.
-2. Business logic belongs to Services.
-3. Selectors encapsulate complex queries.
-4. Celery tasks stay thin.
-5. Only primitive IDs are sent to task queues.
-6. Background tasks are started via `transaction.on_commit()`.
-7. Orders and Payments remain separate domains.
-8. Snapshot entities preserve historical integrity.
-9. Every discovered regression receives an automated test.
-10. Technical debt is documented explicitly.
+1. **Business First** — business requirements drive architectural decisions.
+2. **Evolution over Revolution** — working components are extended
+   incrementally instead of being rewritten without necessity.
+3. **Test Driven Development** — new functionality and discovered regressions
+   are protected by automated tests.
+4. **Clean Architecture** — business rules belong to services and domain
+   layers rather than views or transport code.
+5. **Domain Separation** — each Django application owns a clear business
+   responsibility.
+6. **Thin Views** — frontend and API views validate input, call domain
+   services, and prepare responses.
+7. **Selectors for Reads** — complex and optimized queries are encapsulated in
+   selector functions.
+8. **Historical Integrity** — snapshots and immutable history records preserve
+   business state over time.
+9. **Reliable Background Processing** — Celery tasks remain thin, receive
+   primitive identifiers, and are scheduled through `transaction.on_commit()`
+   when required.
+10. **Documentation First** — architecture and operational documentation evolve
+    together with the codebase.
+11. **CI Before Merge** — important changes must pass automated validation
+    before integration.
+12. **One Logical Sprint = One Commit** — completed work is recorded in
+    meaningful, focused Git commits.
+13. **Explicit Technical Debt** — postponed improvements are documented in the
+    roadmap or backlog instead of being hidden.
 
 ---
 
@@ -312,3 +334,46 @@ Docker Compose
 ```
 
 The architecture is intentionally designed for future scaling, production deployment, WebSocket communication, Redis caching, and external integrations without major restructuring.
+
+---
+
+## 13. Future Architecture Direction
+
+The current architecture is intended to support further development without a
+large-scale rewrite.
+
+Planned architectural extensions include:
+
+- customer financial accounts and an immutable transaction ledger;
+- deposits and order-payment allocation;
+- returns, refunds and reverse logistics;
+- withdrawal workflows and financial operations;
+- Redis caching and performance optimization;
+- WebSocket-based chat and real-time notifications;
+- invoice revisions and document versioning;
+- 1C and external supplier integrations;
+- internationalization;
+- production deployment, observability and release automation.
+
+The planned financial flow is:
+
+```text
+External Payment
+       │
+       ▼
+Account Transaction
+       │
+       ▼
+Customer Balance
+       │
+       ▼
+Order Payment Allocation
+```
+
+These additions will extend the existing `payments`, `orders`, `suppliers`,
+`notifications` and `chat` domains while preserving their current
+responsibilities.
+
+For implementation order and phase status, see
+[`roadmap.md`](roadmap.md).
+

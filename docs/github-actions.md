@@ -1,6 +1,6 @@
 # Shop_ePower — GitHub Actions Plan
 
-> **Status: DRAFT / PHASE 19**
+> **Status: Implemented (PHASE 19)**
 >
 > Continuous Integration will be implemented after completing the current
 > Docker and documentation work.
@@ -9,7 +9,7 @@
 
 ## 1. Goal
 
-Every push and pull request should automatically validate project quality.
+Every push and pull request automatically validates project quality.
 
 Pipeline responsibilities:
 
@@ -23,7 +23,7 @@ Pipeline responsibilities:
 
 ---
 
-## 2. Planned Pipeline
+## 2. Current Pipeline
 
 ```text
 Developer Push
@@ -61,7 +61,7 @@ Docker Build
 
 ---
 
-## 3. Planned Jobs
+## 3. Current Jobs
 
 ### tests
 
@@ -80,7 +80,7 @@ Docker Build
 docker build -t shop-epower-ci .
 ```
 
-The image will only be validated during the first phase and not published.
+The Docker image is currently validated during CI. Image publishing will be added in a future CI/CD phase.
 
 ### code-quality (future)
 
@@ -143,7 +143,7 @@ The workflow must never connect to development or production databases.
 
 ---
 
-## 8. Future CI/CD Roadmap
+## 8. Future Improvements
 
 ```text
 Push
@@ -175,7 +175,7 @@ Smoke Tests
 - migration check passes
 - tests pass
 - Docker build passes
-- CI badge added to README
+- CI badge integrated into the project README
 - secrets remain protected
 - failed pipeline blocks merge
 
@@ -191,3 +191,23 @@ Smoke Tests
 
 The initial goal is a reliable, fast feedback loop. Deployment automation will
 be added only after the CI pipeline becomes stable.
+
+---
+
+## 11. Current CI Status
+
+The current GitHub Actions workflow provides:
+
+- automated execution on pushes to `dev` and `main`;
+- validation of pull requests targeting `main`;
+- Python 3.14 environment setup;
+- PostgreSQL and Redis service containers;
+- Django system checks;
+- migration consistency validation;
+- execution of the complete automated test suite;
+- Docker image validation;
+- protected `main` branch through required CI checks.
+
+The next milestone is to evolve the current CI pipeline into a full CI/CD
+process with automated image publishing and deployment.
+
