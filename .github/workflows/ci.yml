@@ -73,21 +73,19 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.14"
-          cache: "pip"
-          cache-dependency-path: requirements.txt
 
-      - name: Upgrade pip
-        run: python -m pip install --upgrade pip
+      - name: Install Poetry
+        run: python -m pip install "poetry==2.4.1"
 
       - name: Install dependencies
-        run: python -m pip install -r requirements.txt
+        run: poetry install --no-root
 
       - name: Run Django system checks
-        run: python src/manage.py check
+        run: poetry run python src/manage.py check
 
       - name: Check PostgreSQL connection
         run: >
-          python src/manage.py shell -c
+          poetry run python src/manage.py shell -c
           "from django.db import connection;
           connection.ensure_connection();
           print(connection.settings_dict['HOST']);
@@ -95,17 +93,17 @@ jobs:
 
       - name: Check Redis connection
         run: >
-          python -c
+          poetry run python -c
           "import os, redis;
           client = redis.Redis.from_url(os.environ['CELERY_BROKER_URL']);
           print('Redis ping:', client.ping())"
 
       - name: Check for missing migrations
-        run: python src/manage.py makemigrations --check --dry-run
+        run: poetry run python src/manage.py makemigrations --check --dry-run
 
       - name: Run automated tests
         working-directory: src
-        run: python manage.py test
+        run: poetry run python manage.py test
 
   quality:
     name: Ruff Quality
@@ -120,14 +118,14 @@ jobs:
         with:
           python-version: "3.14"
 
+      - name: Install Poetry
+        run: python -m pip install "poetry==2.4.1"
+
       - name: Install dependencies
-        run: |
-          python -m pip install --upgrade pip
-          pip install -r requirements.txt
+        run: poetry install --no-root
 
       - name: Run Ruff
-        run: |
-          ruff check src
+        run: poetry run ruff check src
 
   docker-build:
     needs:

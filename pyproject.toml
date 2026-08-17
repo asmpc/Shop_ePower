@@ -19,7 +19,8 @@ dependencies = [
     "celery (==5.6.3)",
     "redis (==6.4.0)",
     "django-celery-beat (==2.9.0)",
-    "flower (==2.0.1)"
+    "flower (==2.0.1)",
+    "django-extensions (==4.1)"
 ]
 
 [tool.poetry]
@@ -30,7 +31,6 @@ requires = ["poetry-core>=2.0.0,<3.0.0"]
 build-backend = "poetry.core.masonry.api"
 [dependency-groups]
 dev = [
-    "django-extensions (==4.1)",
     "ipython (==9.13.0)",
     "ruff (==0.16.0)"
 ]
