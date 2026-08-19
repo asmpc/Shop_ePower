@@ -3,10 +3,11 @@ from django.contrib.auth import get_user_model
 
 from rest_framework import status
 from rest_framework.test import APITestCase
-
+from shop_epower.accounts.tests.helpers import create_test_user
 
 
 User = get_user_model()
+
 
 class TestsAuthApi(APITestCase):
 
@@ -43,7 +44,7 @@ class TestsAuthApi(APITestCase):
     # Проверяем API-логин:
     # при правильных данных endpoint должен вернуть access и refresh JWT tokens.
     def test_user_login(self):
-        User.objects.create_user(
+        create_test_user(
             email='test@test.com',
             username='test',
             password='12345678'
@@ -71,7 +72,7 @@ class TestsAuthApi(APITestCase):
     # Проверяем обновление access token через refresh token.
     # При валидном refresh token API должен вернуть новый access token.
     def test_token_refresh(self):
-        user = User.objects.create_user(
+        create_test_user(
             email='test@test.com',
             username='test',
             password='12345678'
@@ -105,7 +106,7 @@ class TestsAuthApi(APITestCase):
     # авторизованный пользователь отправляет refresh token,
     # после чего endpoint должен вернуть HTTP 205.
     def test_user_logout(self):
-        User.objects.create_user(
+        create_test_user(
             email='test@test.com',
             username='test',
             password='12345678'
@@ -143,7 +144,7 @@ class TestsAuthApi(APITestCase):
     # после logout refresh token попадает в blacklist
     # и больше не может использоваться для получения нового access token.
     def test_blacklisted_token_cannot_refresh(self):
-        User.objects.create_user(
+        create_test_user(
             email='test@test.com',
             username='test',
             password='12345678'
@@ -186,7 +187,7 @@ class TestsAuthApi(APITestCase):
 
     # Проверяем, что login с неправильным паролем не возвращает токены.
     def test_user_login_with_invalid_password_fails(self):
-        User.objects.create_user(
+        create_test_user(
             email='test@test.com',
             username='test',
             password='12345678'

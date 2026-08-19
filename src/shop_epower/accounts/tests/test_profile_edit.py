@@ -1,20 +1,21 @@
 from django.test import TestCase
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 
 from shop_epower.accounts.models import LegalProfile
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsProfileEditView(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
-            email='user@test.com',
-            username='user',
-            password='strongpassword123',
+        self.user = create_test_user(
+            email="user@test.com",
+            username="user",
+            password="strongpassword123",
+            first_name="",
+            last_name="",
+            phone="",
         )
 
         self.url = reverse('accounts:profile_edit')

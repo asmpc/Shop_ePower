@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from shop_epower.core.currency import get_base_currency
@@ -14,15 +13,14 @@ from shop_epower.payments.models import (
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
 )
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsPaymentSelectors(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email="client@test.com",
             username="client",
             password="testpass123",

@@ -1,19 +1,17 @@
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from shop_epower.accounts.models import LegalProfile
 from shop_epower.accounts.services.profile import (
     is_profile_complete,
 )
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsProfileCompletenessService(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email='user@test.com',
             username='user',
             password='strongpassword123',

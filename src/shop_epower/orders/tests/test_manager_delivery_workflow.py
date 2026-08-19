@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from shop_epower.orders.services import update_order_delivery_by_manager
@@ -10,22 +9,18 @@ from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.models import OrderStatus
 
-from shop_epower.orders.tests.helpers import (
+from shop_epower.accounts.tests.helpers import (
     create_test_manager,
-    create_test_client,
+    create_test_user,
 )
-
-
-User = get_user_model()
 
 
 
 class TestsManagerDeliveryWorkflow(TestCase):
 
     def setUp(self):
-
         self.manager = create_test_manager()
-        self.client = create_test_client()
+        self.client = create_test_user()
 
     # Проверяем manager delivery pricing:
     # если доставка не оплачивается при получении,

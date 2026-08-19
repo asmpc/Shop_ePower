@@ -1,17 +1,16 @@
 from django.urls import reverse
-from django.contrib.auth import get_user_model
 
 from rest_framework import status
 from rest_framework.test import APITestCase
 from shop_epower.accounts.models import LegalProfile
+from shop_epower.accounts.tests.helpers import create_test_user
 
 
-User = get_user_model()
 
 class TestsProfileApi(APITestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email='user@test.com',
             username='user',
             password='12345678',

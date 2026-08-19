@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.core.exceptions import ValidationError
 
@@ -10,21 +9,18 @@ from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
-from shop_epower.orders.tests.helpers import (
+from shop_epower.accounts.tests.helpers import (
     create_test_manager,
-    create_test_client,
+    create_test_user,
 )
-
-User = get_user_model()
 
 
 
 class TestsManagerOrderWorkflow(TestCase):
 
     def setUp(self):
-
         self.manager = create_test_manager()
-        self.client = create_test_client()
+        self.client = create_test_user()
 
     # Проверяем manager workflow:
     # пользователь с ролью manager может перевести заказ
@@ -85,17 +81,16 @@ class TestsManagerOrderWorkflow(TestCase):
     # Проверяем permissions manager workflow:
     # обычный клиент не может изменять статус заказа.
     def test_client_cannot_update_order_status(self):
-        client_user = User.objects.create_user(
+        client_user = create_test_user(
             email="simple-client@example.com",
             username="simple-client",
             password="testpass123",
-            role="client",
             phone="+10000000030",
             first_name="John",
             last_name="Doe",
         )
 
-        order_owner = User.objects.create_user(
+        order_owner = create_test_user(
             email="order-owner@example.com",
             username="order-owner",
             password="testpass123",

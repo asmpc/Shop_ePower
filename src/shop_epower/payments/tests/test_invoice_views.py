@@ -1,7 +1,6 @@
 from decimal import Decimal
 from urllib.parse import urlencode
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
@@ -22,33 +21,32 @@ from shop_epower.payments.models import (
 from shop_epower.payments.services import (
     create_invoice_for_payment,
 )
-
-
-User = get_user_model()
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+    create_test_admin,
+)
 
 
 class TestsInvoiceViews(TestCase):
 
     def setUp(self):
-        self.client_user = User.objects.create_user(
+        self.client_user = create_test_user(
             email="client@test.com",
             username="client",
             password="testpass123",
-            role="client",
         )
 
-        self.manager = User.objects.create_user(
+        self.manager = create_test_manager(
             email="manager@test.com",
             username="manager",
             password="testpass123",
-            role="manager",
         )
 
-        self.admin = User.objects.create_user(
+        self.admin = create_test_admin(
             email="admin@test.com",
             username="admin",
             password="testpass123",
-            role="admin",
         )
 
         self.order = Order.objects.create(

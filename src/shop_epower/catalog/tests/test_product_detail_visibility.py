@@ -1,7 +1,11 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from shop_epower.accounts.models import User, Role
+from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.suppliers.models import Supplier, SupplierProduct
 
@@ -51,11 +55,10 @@ class TestsProductDetailVisibility(TestCase):
     # - нет cost_summary
     # Это важно для безопасности: клиент не должен видеть закупочные данные.
     def test_client_does_not_receive_supplier_inventory_details(self):
-        client_user = User.objects.create_user(
+        client_user = create_test_user(
             username="client",
             email="client@example.com",
             password="testpass123",
-            role=Role.CLIENT,
         )
 
         self.client.login(
@@ -79,11 +82,10 @@ class TestsProductDetailVisibility(TestCase):
     # - агрегированную cost_summary
     # Также проверяем, что данные соответствуют ожидаемым (supplier_product).
     def test_manager_receives_supplier_inventory_details(self):
-        manager_user = User.objects.create_user(
+        manager_user = create_test_manager(
             username="manager",
             email="manager@example.com",
             password="testpass123",
-            role=Role.MANAGER,
         )
 
         self.client.login(
@@ -111,11 +113,10 @@ class TestsProductDetailVisibility(TestCase):
     # - видит cost_summary
     # Здесь важно, что ADMIN тоже считается "is_manager" в контексте.
     def test_admin_receives_supplier_inventory_details(self):
-        admin_user = User.objects.create_user(
+        admin_user = create_test_admin(
             username="admin",
             email="admin@example.com",
             password="testpass123",
-            role=Role.ADMIN,
         )
 
         self.client.login(
