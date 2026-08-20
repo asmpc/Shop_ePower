@@ -1,30 +1,9 @@
 from decimal import Decimal
 
-from shop_epower.cart.models import Cart, CartItem
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import Order, OrderStatus
 
 
-
-def create_test_cart_with_item(
-    *,
-    user,
-    product,
-    quantity=1,
-    price_snapshot=Decimal("10.00"),
-):
-    cart = Cart.objects.create(
-        user=user,
-    )
-
-    CartItem.objects.create(
-        cart=cart,
-        product=product,
-        quantity=quantity,
-        price_snapshot=price_snapshot,
-    )
-
-    return cart
 
 def create_test_order(
     *,

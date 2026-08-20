@@ -4,8 +4,16 @@ from django.test import TestCase
 
 from rest_framework.test import APIClient
 
-from shop_epower.cart.models import Cart, CartItem
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.cart.tests.helpers import (
+    create_test_cart_with_item,
+)
+
+from shop_epower.catalog.tests.helpers import (
+    create_test_brand,
+    create_test_category,
+    create_test_product,
+)
+
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.accounts.tests.helpers import create_test_user
 
@@ -52,15 +60,15 @@ class TestsOrdersAPI(TestCase):
     # Создаёт: - бренд - категорию - продукт - поставщика - supplier stock - корзину - checkout
     # Возвращает: - созданный order - supplier_product (для проверки stock)
     def create_order_for_user(self, user, email_prefix="order"):
-        brand = Brand.objects.create(
+        brand = create_test_brand(
             name=f"{email_prefix} Brand",
         )
 
-        category = Category.objects.create(
+        category = create_test_category(
             name=f"{email_prefix} Category",
         )
 
-        product = Product.objects.create(
+        product = create_test_product(
             name=f"{email_prefix} Product",
             brand=brand,
             category=category,
@@ -83,12 +91,8 @@ class TestsOrdersAPI(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(
+        create_test_cart_with_item(
             user=user,
-        )
-
-        CartItem.objects.create(
-            cart=cart,
             product=product,
             quantity=2,
             price_snapshot=Decimal("25.00"),

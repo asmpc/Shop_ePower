@@ -2,7 +2,11 @@ from django.test import TestCase
 
 from rest_framework.test import APIClient
 
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.tests.helpers import (
+    create_test_brand,
+    create_test_category,
+    create_test_product,
+)
 
 from shop_epower.accounts.tests.helpers import create_test_user
 
@@ -23,15 +27,15 @@ class TestsSuppliersAPI(TestCase):
             password="testpass123",
         )
 
-        self.brand = Brand.objects.create(
+        self.brand = create_test_brand(
             name="Supplier API Brand",
         )
 
-        self.category = Category.objects.create(
+        self.category = create_test_category(
             name="Supplier API Category",
         )
 
-        self.product = Product.objects.create(
+        self.product = create_test_product(
             name="Supplier API Product",
             brand=self.brand,
             category=self.category,

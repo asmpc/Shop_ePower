@@ -6,7 +6,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.core.currency import get_base_currency
 from shop_epower.payments.models import (
     Payment,
@@ -71,18 +71,10 @@ class TestsManagerOrderViews(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.brand = Brand.objects.create(
-            name="Frontend Delivery Brand",
-        )
-
-        self.category = Category.objects.create(
-            name="Frontend Delivery Category",
-        )
-
-        self.product = Product.objects.create(
+        self.product = create_test_product(
             name="Frontend Delivery Product",
-            brand=self.brand,
-            category=self.category,
+            brand_name="Frontend Delivery Brand",
+            category_name="Frontend Delivery Category",
             manufacturer_article="FRONTEND-DELIVERY-001",
             base_price=Decimal("100.00"),
         )
