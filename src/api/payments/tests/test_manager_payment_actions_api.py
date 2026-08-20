@@ -5,7 +5,7 @@ from rest_framework.test import APITestCase
 
 from shop_epower.accounts.models import Role
 from shop_epower.accounts.tests.helpers import (
-    create_manager,
+    create_test_manager,
     create_test_user,
 )
 
@@ -22,7 +22,7 @@ from shop_epower.payments.tests.helpers import (
 class TestManagerPaymentActionsAPI(APITestCase):
 
     def setUp(self):
-        self.manager = create_manager()
+        self.manager = create_test_manager()
 
         self.client_user = create_test_user()
 

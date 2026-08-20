@@ -1,22 +1,25 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from rest_framework.test import APIClient
 
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import Order
+from shop_epower.accounts.tests.helpers import create_test_user
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
-User = get_user_model()
 
 class TestsCheckoutAPI(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email="api@example.com",
             username="test_api",
             password="testpass123",
@@ -64,13 +67,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",
@@ -138,13 +141,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",
@@ -208,13 +211,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",

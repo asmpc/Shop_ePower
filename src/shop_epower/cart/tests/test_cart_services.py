@@ -1,5 +1,8 @@
 from decimal import Decimal
 
+from django.contrib.sessions.backends.db import SessionStore
+from django.contrib.auth import get_user_model
+
 from django.core.exceptions import ValidationError
 from django.test import TestCase, RequestFactory
 
@@ -14,22 +17,14 @@ from shop_epower.cart.services import (
     get_or_create_cart,
     merge_session_cart_to_user_cart,
 )
+from shop_epower.accounts.tests.helpers import create_test_user
 
-from django.contrib.sessions.backends.db import SessionStore
-from django.contrib.auth import get_user_model
 
 
 class TestsCartServices(TestCase):
 
     def setUp(self):
-
-        User = get_user_model()
-
-        self.user = User.objects.create_user(
-            username="testuser",
-            email="test@example.com",
-            password="testpass123",
-        )
+        self.user = create_test_user()
         self.brand = Brand.objects.create(
             name="Test brand",
             slug="test-brand",

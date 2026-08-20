@@ -1,10 +1,19 @@
 from django.test import TestCase
 
-from shop_epower.catalog.models import Product, Brand, Category
-from shop_epower.suppliers.models import Supplier, SupplierProduct
+from shop_epower.catalog.tests.helpers import (
+    create_test_brand,
+    create_test_category,
+    create_test_product,
+)
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
+
 from shop_epower.suppliers.services.stock import (
     get_product_inventory_data,
 )
+
 from shop_epower.suppliers.services.stock import get_product_inventory_public
 
 
@@ -14,24 +23,23 @@ class TestStockService(TestCase):
     # Подготавливаем общие Brand и Category.
     # Они нужны для создания Product в каждом тесте stock service.
     def setUp(self):
-        self.brand = Brand.objects.create(name="Test Brand")
-        self.category = Category.objects.create(name="Test Category")
-
-    # Helper для создания тестового продукта.
-    # Используется, чтобы не дублировать создание Product в каждом тесте.
-    def create_product(self):
-        return Product.objects.create(
-            name="Test Product",
-            brand=self.brand,
-            category=self.category,
-            base_price=100,
+        self.brand = create_test_brand(
+            name="Test Brand",
+        )
+        self.category = create_test_category(
+            name="Test Category",
         )
 
     # Проверяем товар без поставщиков:
     # stock равен 0, товара нет в наличии,
     # поставщиков нет, минимальный срок поставки отсутствует.
     def test_product_without_suppliers(self):
-        product = self.create_product()
+        product = create_test_product(
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="",
+            base_price=100,
+        )
 
         data = get_product_inventory_data(product)
 
@@ -45,11 +53,19 @@ class TestStockService(TestCase):
     # supplier_count равен 1,
     # min_lead_time берётся из SupplierProduct.
     def test_single_supplier_stock(self):
-        product = self.create_product()
+        product = create_test_product(
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="",
+            base_price=100,
+        )
 
-        supplier = Supplier.objects.create(name="Supplier A")
+        supplier = create_test_supplier(
+            name="Supplier A",
+            is_own=False,
+        )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="A1",
@@ -69,12 +85,24 @@ class TestStockService(TestCase):
     # supplier_count считает активных поставщиков,
     # min_lead_time выбирается минимальный.
     def test_multiple_suppliers_aggregation(self):
-        product = self.create_product()
+        product = create_test_product(
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="",
+            base_price=100,
+        )
 
-        supplier1 = Supplier.objects.create(name="Supplier A")
-        supplier2 = Supplier.objects.create(name="Supplier B")
+        supplier1 = create_test_supplier(
+            name="Supplier A",
+            is_own=False,
+        )
 
-        SupplierProduct.objects.create(
+        supplier2 = create_test_supplier(
+            name="Supplier B",
+            is_own=False,
+        )
+
+        create_test_supplier_product(
             supplier=supplier1,
             product=product,
             supplier_article="A1",
@@ -82,7 +110,7 @@ class TestStockService(TestCase):
             lead_time_days=5,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier2,
             product=product,
             supplier_article="B1",
@@ -99,14 +127,20 @@ class TestStockService(TestCase):
     # Проверяем, что неактивный поставщик не участвует в расчётах:
     # его stock_quantity и наличие не должны попадать в inventory data.
     def test_inactive_supplier_not_counted(self):
-        product = self.create_product()
+        product = create_test_product(
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="",
+            base_price=100,
+        )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="Supplier A",
+            is_own=False,
             is_active=False,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="A1",
@@ -126,10 +160,15 @@ class TestPublicInventoryService(TestCase):
     # и внешнего поставщика.
     # Это нужно, чтобы отдельно проверять own_stock и supplier_stock.
     def setUp(self):
-        self.brand = Brand.objects.create(name="Test Brand")
-        self.category = Category.objects.create(name="Test Category")
+        self.brand = create_test_brand(
+            name="Test Brand",
+        )
 
-        self.product = Product.objects.create(
+        self.category = create_test_category(
+            name="Test Category",
+        )
+
+        self.product = create_test_product(
             name="Test Product",
             brand=self.brand,
             category=self.category,
@@ -137,13 +176,13 @@ class TestPublicInventoryService(TestCase):
             base_price=100,
         )
 
-        self.own_supplier = Supplier.objects.create(
+        self.own_supplier = create_test_supplier(
             name="Own Warehouse",
             is_own=True,
             is_active=True,
         )
 
-        self.external_supplier = Supplier.objects.create(
+        self.external_supplier = create_test_supplier(
             name="External Supplier",
             is_own=False,
             is_active=True,
@@ -165,7 +204,7 @@ class TestPublicInventoryService(TestCase):
     # own_stock учитывается сразу, supplier_stock остаётся 0,
     # min_lead_time отсутствует, потому что ждать поставщика не нужно.
     def test_public_inventory_with_own_stock_only(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.own_supplier,
             product=self.product,
             supplier_article="OWN-001",
@@ -187,7 +226,7 @@ class TestPublicInventoryService(TestCase):
     # Такой товар доступен под заказ: supplier_stock > 0,
     # min_lead_time показывает срок поставки.
     def test_public_inventory_with_supplier_stock_only(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.external_supplier,
             product=self.product,
             supplier_article="EXT-001",
@@ -209,7 +248,7 @@ class TestPublicInventoryService(TestCase):
     # и у внешнего поставщика.
     # total_available должен быть суммой own_stock + supplier_stock.
     def test_public_inventory_with_own_and_supplier_stock(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.own_supplier,
             product=self.product,
             supplier_article="OWN-001",
@@ -219,7 +258,7 @@ class TestPublicInventoryService(TestCase):
             lead_time_days=0,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.external_supplier,
             product=self.product,
             supplier_article="EXT-001",
@@ -240,13 +279,13 @@ class TestPublicInventoryService(TestCase):
     # Проверяем, что внешний неактивный поставщик игнорируется
     # в публичном inventory и не увеличивает доступное количество.
     def test_public_inventory_ignores_inactive_supplier(self):
-        inactive_supplier = Supplier.objects.create(
+        inactive_supplier = create_test_supplier(
             name="Inactive Supplier",
             is_own=False,
             is_active=False,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=inactive_supplier,
             product=self.product,
             supplier_article="INACTIVE-001",
@@ -265,7 +304,7 @@ class TestPublicInventoryService(TestCase):
     # Проверяем, что среди нескольких внешних поставщиков
     # min_lead_time выбирается как минимальный срок поставки.
     def test_public_inventory_uses_min_supplier_lead_time(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.external_supplier,
             product=self.product,
             supplier_article="EXT-001",
@@ -275,13 +314,13 @@ class TestPublicInventoryService(TestCase):
             lead_time_days=7,
         )
 
-        second_supplier = Supplier.objects.create(
+        second_supplier = create_test_supplier(
             name="Fast Supplier",
             is_own=False,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=second_supplier,
             product=self.product,
             supplier_article="EXT-002",
@@ -299,7 +338,7 @@ class TestPublicInventoryService(TestCase):
     # Проверяем, что неактивный SupplierProduct не учитывается,
     # даже если сам поставщик активен.
     def test_public_inventory_ignores_inactive_supplier_product(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.external_supplier,
             product=self.product,
             supplier_article="EXT-001",

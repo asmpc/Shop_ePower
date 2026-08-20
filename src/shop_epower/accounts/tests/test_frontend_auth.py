@@ -1,15 +1,11 @@
 from django.test import TestCase
 
-from django.contrib.auth import get_user_model
-
-
 from django.contrib.auth.tokens import default_token_generator
 from django.utils.http import urlsafe_base64_encode
 from django.utils.encoding import force_bytes
 from django.urls import reverse
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsFrontendAuth(TestCase):
@@ -18,7 +14,7 @@ class TestsFrontendAuth(TestCase):
     # который будет использоваться для login/logout/profile/password reset тестов.
     def setUp(self):
 
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email='test@test.com',
             username='testuser',
             password='strongpassword123'

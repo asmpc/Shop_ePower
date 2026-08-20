@@ -2,14 +2,24 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.models import (
+    Brand,
+    Category,
+    Product,
+)
+
 from shop_epower.suppliers.models import (
     CurrencyRate,
     GlobalMarkup,
-    Supplier,
-    SupplierProduct,
 )
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
+
 from shop_epower.suppliers.services.currency import CurrencyService
+
 
 
 class TestCurrencyPricing(TestCase):
@@ -29,8 +39,9 @@ class TestCurrencyPricing(TestCase):
             base_price=0,
         )
 
-        self.supplier = Supplier.objects.create(
+        self.supplier = create_test_supplier(
             name="Test Supplier",
+            is_own=False,
             is_active=True,
         )
 
@@ -76,7 +87,7 @@ class TestCurrencyPricing(TestCase):
     # в базовой валюте проекта.
     # Применяется GlobalMarkup 20%: 100 + 20% = 120.
     def test_recalculate_base_price_from_byn_supplier_price(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-BYN-001",
@@ -101,7 +112,7 @@ class TestCurrencyPricing(TestCase):
             rate_to_base_currency=Decimal("0.038700"),
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-RUB-001",
@@ -128,7 +139,7 @@ class TestCurrencyPricing(TestCase):
             rate_to_base_currency=Decimal("0.038700"),
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-BYN-001",
@@ -138,7 +149,7 @@ class TestCurrencyPricing(TestCase):
             lead_time_days=0,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-RUB-001",
@@ -158,7 +169,7 @@ class TestCurrencyPricing(TestCase):
     # Если поставщик указал цену в валюте без CurrencyRate,
     # сервис должен явно выбросить ValueError, а не считать неверную цену.
     def test_missing_currency_rate_raises_error(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-USD-001",

@@ -7,10 +7,15 @@ from shop_epower.suppliers.models import (
     CategoryMarkup,
     CurrencyRate,
     GlobalMarkup,
-    Supplier,
-    SupplierProduct,
 )
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
+
 from shop_epower.suppliers.services.currency import CurrencyService
+
 
 
 class CategoryMarkupPricingTestCase(TestCase):
@@ -42,12 +47,13 @@ class CategoryMarkupPricingTestCase(TestCase):
             base_price=0,
         )
 
-        self.supplier = Supplier.objects.create(
+        self.supplier = create_test_supplier(
             name="Test Supplier",
+            is_own=False,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-001",
@@ -151,7 +157,7 @@ class CategoryMarkupPricingTestCase(TestCase):
 
         self.product.supplier_products.all().delete()
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-RUB-001",
@@ -214,7 +220,7 @@ class CategoryMarkupPricingTestCase(TestCase):
     def test_base_price_update_raises_error_when_currency_rate_is_missing(self):
         self.product.supplier_products.all().delete()
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-USD-001",

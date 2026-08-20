@@ -2,8 +2,11 @@ from django.test import TestCase
 from decimal import Decimal
 
 from shop_epower.catalog.models import Product
-from shop_epower.accounts.models import User, PriceCategory
+from shop_epower.accounts.models import PriceCategory
+from shop_epower.accounts.tests.helpers import create_test_user
 from shop_epower.catalog.models import Brand, Category
+
+
 
 #Цена товара зависит от пользователя и его price_category, иначе — base_price
 class TestsPricing(TestCase):
@@ -19,7 +22,7 @@ class TestsPricing(TestCase):
             discount_percent=10
         )
 
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             username="testuser",
             email="test@test.com",
             password="123456",

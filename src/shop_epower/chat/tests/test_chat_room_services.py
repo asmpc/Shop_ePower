@@ -8,13 +8,13 @@ from shop_epower.chat.services import (
     take_chat_room,
 )
 
-
 from .helpers import (
     create_chat_room as helper_create_chat_room,
-    create_manager,
+
     create_order,
     create_user,
 )
+from shop_epower.accounts.tests.helpers import create_test_manager
 
 
 
@@ -51,7 +51,7 @@ class TestsChatRoomService(TestCase):
     # после этого комната переходит в IN_PROGRESS.
     def test_manager_can_take_open_room(self):
         room = helper_create_chat_room()
-        manager = create_manager()
+        manager = create_test_manager()
 
         take_chat_room(room, manager)
 
@@ -66,11 +66,11 @@ class TestsChatRoomService(TestCase):
     def test_cannot_take_room_that_is_already_in_progress(self):
         room = helper_create_chat_room()
 
-        manager_1 = create_manager(
+        manager_1 = create_test_manager(
             username="manager-1",
             email="manager-1@example.com",
         )
-        manager_2 = create_manager(
+        manager_2 = create_test_manager(
             username="manager-2",
             email="manager-2@example.com",
         )
@@ -85,7 +85,7 @@ class TestsChatRoomService(TestCase):
     # статус меняется на CLOSED и заполняется closed_at.
     def test_manager_can_close_room(self):
         room = helper_create_chat_room()
-        manager = create_manager()
+        manager = create_test_manager()
 
         take_chat_room(room, manager)
         close_chat_room(room, manager)
@@ -101,11 +101,11 @@ class TestsChatRoomService(TestCase):
     def test_other_manager_cannot_close_room(self):
         room = helper_create_chat_room()
 
-        manager_1 = create_manager(
+        manager_1 = create_test_manager(
             username="manager-1",
             email="manager-1@example.com",
         )
-        manager_2 = create_manager(
+        manager_2 = create_test_manager(
             username="manager-2",
             email="manager-2@example.com",
         )

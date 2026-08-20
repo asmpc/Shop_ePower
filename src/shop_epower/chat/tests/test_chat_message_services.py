@@ -9,9 +9,10 @@ from shop_epower.chat.services import (
 
 from .helpers import (
     create_chat_room,
-    create_manager,
     create_user,
 )
+from shop_epower.accounts.tests.helpers import create_test_manager
+
 
 
 class TestsChatMessageService(TestCase):
@@ -55,7 +56,7 @@ class TestsChatMessageService(TestCase):
     # если она закреплена именно за ним.
     def test_manager_can_send_message_to_in_progress_room(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,
@@ -101,11 +102,11 @@ class TestsChatMessageService(TestCase):
     def test_manager_cannot_send_message_to_room_taken_by_other(self):
         user = create_user()
 
-        manager_1 = create_manager(
+        manager_1 = create_test_manager(
             username="manager-1",
             email="manager-1@example.com",
         )
-        manager_2 = create_manager(
+        manager_2 = create_test_manager(
             username="manager-2",
             email="manager-2@example.com",
         )
@@ -128,7 +129,7 @@ class TestsChatMessageService(TestCase):
     # но собственные сообщения остаются без изменений.
     def test_mark_messages_as_read(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,
@@ -170,7 +171,7 @@ class TestsChatMessageService(TestCase):
     # сообщения из другой комнаты остаются непрочитанными.
     def test_mark_messages_as_read_only_in_selected_room(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room_1 = create_chat_room(
             user=user,

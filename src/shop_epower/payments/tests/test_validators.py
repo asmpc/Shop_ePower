@@ -1,6 +1,5 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
@@ -15,15 +14,14 @@ from shop_epower.payments.services import (
     validate_client_can_pay_online,
     validate_payment_method_for_delivery,
 )
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsPaymentValidators(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email="client@test.com",
             username="client",
             password="testpass123",

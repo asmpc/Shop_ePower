@@ -1,11 +1,17 @@
 from django.test import TestCase
 
-from shop_epower.accounts.models import User, Role
 from shop_epower.accounts.services.roles import (
     is_admin,
     is_client,
     is_manager,
 )
+
+from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
+    create_test_manager,
+    create_test_user,
+)
+
 
 
 class TestsRoleService(TestCase):
@@ -27,11 +33,10 @@ class TestsRoleService(TestCase):
     # - имеет клиентские права
     # - не является менеджером или администратором
     def test_client_role(self):
-        user = User.objects.create_user(
+        user = create_test_user(
             username="client",
             email="client@example.com",
             password="testpass123",
-            role=Role.CLIENT,
         )
 
         self.assertTrue(is_client(user))
@@ -43,11 +48,10 @@ class TestsRoleService(TestCase):
     # - не является администратором
     # - не считается клиентом
     def test_manager_role(self):
-        user = User.objects.create_user(
+        user = create_test_manager(
             username="manager",
             email="manager@example.com",
             password="testpass123",
-            role=Role.MANAGER,
         )
 
         self.assertFalse(is_client(user))
@@ -59,11 +63,10 @@ class TestsRoleService(TestCase):
     # - автоматически считается менеджером (расширенные права)
     # - не считается клиентом
     def test_admin_role(self):
-        user = User.objects.create_user(
+        user = create_test_admin(
             username="admin",
             email="admin@example.com",
             password="testpass123",
-            role=Role.ADMIN,
         )
 
         self.assertFalse(is_client(user))

@@ -7,9 +7,10 @@ from rest_framework.test import APITestCase
 from shop_epower.catalog.models import ProductImage
 
 from .helpers import (
-    create_test_product,
     assert_inventory_structure,
 )
+from shop_epower.catalog.tests.helpers import create_test_product
+
 
 
 class TestProductDetailAPI(APITestCase):

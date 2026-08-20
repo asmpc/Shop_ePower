@@ -1,17 +1,19 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from rest_framework.test import APIClient
 
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
 from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.accounts.tests.helpers import create_test_user
 
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
-User = get_user_model()
 
 
 class TestsOrdersAPI(TestCase):
@@ -19,7 +21,7 @@ class TestsOrdersAPI(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email="user@example.com",
             username="user",
             password="testpass123",
@@ -28,7 +30,7 @@ class TestsOrdersAPI(TestCase):
             phone="+10000000000",
         )
 
-        self.owner = User.objects.create_user(
+        self.owner = create_test_user(
             email="owner@example.com",
             username="test_owner",
             password="testpass123",
@@ -37,7 +39,7 @@ class TestsOrdersAPI(TestCase):
             phone="+10000000000",
         )
 
-        self.stranger = User.objects.create_user(
+        self.stranger = create_test_user(
             email="stranger@example.com",
             username="test_stranger",
             password="testpass123",
@@ -66,13 +68,13 @@ class TestsOrdersAPI(TestCase):
             base_price=Decimal("25.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name=f"{email_prefix} Supplier",
             is_own=True,
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article=f"{email_prefix.upper()}-SUP-001",
@@ -114,8 +116,7 @@ class TestsOrdersAPI(TestCase):
     # пользователь видит только свои заказы,
     # чужие заказы в выдачу не попадают.
     def test_orders_list_api_returns_only_user_orders(self):
-
-        other_user = User.objects.create_user(
+        other_user = create_test_user(
             email="other-list@example.com",
             username="other-list",
             password="testpass123",

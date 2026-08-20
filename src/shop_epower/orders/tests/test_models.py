@@ -1,14 +1,12 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from shop_epower.accounts.models import LegalProfile
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
 from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.accounts.tests.helpers import create_test_user
 
-
-User = get_user_model()
 
 
 class TestsOrderModel(TestCase):
@@ -17,7 +15,7 @@ class TestsOrderModel(TestCase):
     # без реквизитов юридического лица.
     def test_client_order_can_be_created_without_legal_fields(self):
 
-        user = User.objects.create_user(
+        user = create_test_user(
             email="client@example.com",
             username="client",
             password="testpass123",
@@ -49,7 +47,7 @@ class TestsOrderModel(TestCase):
     # Реквизиты копируются прямо в Order, а не связываются с LegalProfile.
     def test_legal_entity_order_stores_legal_profile_snapshot(self):
 
-        user = User.objects.create_user(
+        user = create_test_user(
             email="legal@example.com",
             username="legal",
             password="testpass123",
@@ -83,7 +81,7 @@ class TestsOrderModel(TestCase):
     # данные в уже созданном заказе не должны измениться.
     def test_order_does_not_change_if_legal_profile_changes(self):
 
-        user = User.objects.create_user(
+        user = create_test_user(
             email="snapshot@example.com",
             username="snapshot",
             password="testpass123",
@@ -129,7 +127,7 @@ class TestsOrderModel(TestCase):
     # должен остаться прежним.
     def test_order_item_price_snapshot(self):
 
-        user = User.objects.create_user(
+        user = create_test_user(
             email="price@example.com",
             username="price",
             password="testpass123",

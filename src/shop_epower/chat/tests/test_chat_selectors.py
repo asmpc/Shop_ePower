@@ -11,9 +11,9 @@ from shop_epower.chat.services import send_chat_message
 
 from .helpers import (
     create_chat_room,
-    create_manager,
     create_user,
 )
+from shop_epower.accounts.tests.helpers import create_test_manager
 
 
 
@@ -41,7 +41,7 @@ class ChatSelectorsTests(TestCase):
     # менеджер должен видеть только OPEN комнаты,
     # которые ещё не закреплены за менеджером.
     def test_get_available_chat_rooms_for_manager(self):
-        manager = create_manager()
+        manager = create_test_manager()
 
         open_room = create_chat_room()
         create_chat_room(
@@ -61,8 +61,8 @@ class ChatSelectorsTests(TestCase):
     # менеджер получает только свои IN_PROGRESS комнаты,
     # комнаты других менеджеров не попадают в выборку.
     def test_get_active_chat_rooms_for_manager(self):
-        manager = create_manager()
-        other_manager = create_manager(
+        manager = create_test_manager()
+        other_manager = create_test_manager(
             username="other-manager",
             email="other-manager@example.com",
         )
@@ -87,7 +87,7 @@ class ChatSelectorsTests(TestCase):
     # в порядке создания.
     def test_get_chat_room_messages(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,
@@ -118,7 +118,7 @@ class ChatSelectorsTests(TestCase):
     # которые написал не он сам.
     def test_get_chat_rooms_for_user_with_unread_messages_count(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,
@@ -149,7 +149,7 @@ class ChatSelectorsTests(TestCase):
     # свои сообщения в счётчик не попадают.
     def test_get_active_chat_rooms_for_manager_with_unread_messages_count(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,

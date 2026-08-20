@@ -1,12 +1,10 @@
 from decimal import Decimal
 from django.core.exceptions import ValidationError
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.utils import timezone
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order
 from shop_epower.payments.models import (
     Invoice,
     Payment,
@@ -18,23 +16,35 @@ from shop_epower.payments.models import (
 
 from shop_epower.payments.services import (
     generate_invoice_number,
-    create_invoice_for_payment, cancel_invoice,
+    create_invoice_for_payment,
+    cancel_invoice,
 )
 
-from shop_epower.orders.models import OrderStatus
+from shop_epower.orders.models import (
+    Order,
+    OrderStatus,
+    DeliveryMethod,
+)
 
-from shop_epower.orders.models import DeliveryMethod
+from shop_epower.accounts.tests.helpers import (
+    create_test_user,
+    create_test_admin,
+)
 
-
-User = get_user_model()
 
 
 class TestsInvoiceServices(TestCase):
 
     def setUp(self):
-        self.user = User.objects.create_user(
+        self.user = create_test_user(
             email="client@test.com",
             username="client",
+            password="testpass123",
+        )
+
+        self.admin = create_test_admin(
+            email="admin@test.com",
+            username="admin",
             password="testpass123",
         )
 
@@ -294,20 +304,13 @@ class TestsInvoiceServices(TestCase):
             payment=self.payment,
         )
 
-        admin = User.objects.create_user(
-            email="admin@test.com",
-            username="admin",
-            password="testpass123",
-            role="admin",
-        )
-
         from shop_epower.payments.services import (
             cancel_invoice,
         )
 
         cancel_invoice(
             invoice=invoice,
-            cancelled_by=admin,
+            cancelled_by=self.admin,
             comment="Wrong customer data",
         )
 
@@ -325,7 +328,7 @@ class TestsInvoiceServices(TestCase):
 
         self.assertEqual(
             invoice.cancelled_by,
-            admin,
+            self.admin,
         )
 
         self.assertIsNotNone(
@@ -339,27 +342,20 @@ class TestsInvoiceServices(TestCase):
             payment=self.payment,
         )
 
-        admin = User.objects.create_user(
-            email="admin@test.com",
-            username="admin",
-            password="testpass123",
-            role="admin",
-        )
-
         from shop_epower.payments.services import (
             cancel_invoice,
         )
 
         cancel_invoice(
             invoice=invoice,
-            cancelled_by=admin,
+            cancelled_by=self.admin,
             comment="First cancellation",
         )
 
         with self.assertRaises(ValidationError):
             cancel_invoice(
                 invoice=invoice,
-                cancelled_by=admin,
+                cancelled_by=self.admin,
                 comment="Second cancellation",
             )
 
@@ -370,17 +366,10 @@ class TestsInvoiceServices(TestCase):
             payment=self.payment,
         )
 
-        admin = User.objects.create_user(
-            email="admin@test.com",
-            username="admin",
-            password="testpass123",
-            role="admin",
-        )
-
         with self.assertRaises(ValidationError):
             cancel_invoice(
                 invoice=invoice,
-                cancelled_by=admin,
+                cancelled_by=self.admin,
                 comment="",
             )
 

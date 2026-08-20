@@ -11,9 +11,10 @@ from .helpers import (
     create_chat_attachment,
     create_chat_message,
     create_chat_room,
-    create_manager,
     create_user,
 )
+from shop_epower.accounts.tests.helpers import create_test_manager
+
 
 
 class TestsChatRoomModel(TestCase):
@@ -39,7 +40,7 @@ class TestsChatRoomModel(TestCase):
     # это нужно для workflow OPEN -> IN_PROGRESS.
     def test_chat_room_can_have_manager(self):
         user = create_user()
-        manager = create_manager()
+        manager = create_test_manager()
 
         room = create_chat_room(
             user=user,

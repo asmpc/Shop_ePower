@@ -1,14 +1,15 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from rest_framework.test import APIClient
 
 from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 
-
-User = get_user_model()
 
 
 class TestsManagerOrdersAPI(TestCase):
@@ -16,18 +17,16 @@ class TestsManagerOrdersAPI(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        self.manager = User.objects.create_user(
+        self.manager = create_test_manager(
             email="manager-api@example.com",
             username="manager-api",
             password="testpass123",
-            role="manager",
         )
 
-        self.client_user = User.objects.create_user(
+        self.client_user = create_test_user(
             email="client-api@example.com",
             username="client-api",
             password="testpass123",
-            role="client",
         )
 
         self.order = Order.objects.create(

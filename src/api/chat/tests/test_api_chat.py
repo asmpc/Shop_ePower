@@ -1,4 +1,3 @@
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from rest_framework.test import APIClient
@@ -8,9 +7,11 @@ from shop_epower.chat.models import (
     ChatRoom,
     ChatRoomStatus,
 )
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 
-
-User = get_user_model()
 
 
 class TestsChatAPI(TestCase):
@@ -18,25 +19,22 @@ class TestsChatAPI(TestCase):
     def setUp(self):
         self.client = APIClient()
 
-        self.client_user = User.objects.create_user(
+        self.client_user = create_test_user(
             email="client-chat-api@example.com",
             username="client-chat-api",
             password="testpass123",
-            role="client",
         )
 
-        self.other_client = User.objects.create_user(
+        self.other_client = create_test_user(
             email="other-client-chat-api@example.com",
             username="other-client-chat-api",
             password="testpass123",
-            role="client",
         )
 
-        self.manager = User.objects.create_user(
+        self.manager = create_test_manager(
             email="manager-chat-api@example.com",
             username="manager-chat-api",
             password="testpass123",
-            role="manager",
         )
 
         self.room = ChatRoom.objects.create(

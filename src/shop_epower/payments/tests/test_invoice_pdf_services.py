@@ -1,13 +1,14 @@
 from decimal import Decimal
 
-from django.contrib.auth import get_user_model
 from django.test import TestCase
 
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
-    Order, OrderStatus,
+    Order,
+    OrderStatus,
 )
+
 from shop_epower.payments.models import (
     CompanySettings,
     Payment,
@@ -20,17 +21,19 @@ from shop_epower.payments.services import (
     generate_invoice_pdf,
 )
 
-User = get_user_model()
+from shop_epower.accounts.tests.helpers import (
+    create_test_user,
+)
+
 
 
 class TestsInvoicePdfServices(TestCase):
 
     def setUp(self):
-        self.client_user = User.objects.create_user(
+        self.client_user = create_test_user(
             email="client@test.com",
             username="client",
             password="testpass123",
-            role="client",
         )
 
         self.order = Order.objects.create(

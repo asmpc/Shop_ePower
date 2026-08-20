@@ -65,7 +65,7 @@ D:\Shop_ePower
 docker compose up -d
 ```
 
-Запустить с пересборкой после изменения `Dockerfile` или `requirements.txt`:
+Запустить с пересборкой после изменения Dockerfile, pyproject.toml или poetry.lock`:
 
 ```powershell
 docker compose up -d --build
@@ -411,7 +411,7 @@ docker compose ps
 
 После изменения Python-кода и шаблонов пересборка обычно не нужна благодаря `./src:/app/src`.
 
-После изменения `requirements.txt`:
+После изменения pyproject.toml или poetry.lock:
 
 ```powershell
 docker compose up -d --build
@@ -461,10 +461,10 @@ No rebuild required
 Refresh browser
 ```
 
-### requirements.txt
+### pyproject.toml / poetry.lock
 
 ```text
-Change requirements.txt
+Change pyproject.toml / poetry.lock
       │
       ▼
 docker compose up -d --build
