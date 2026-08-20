@@ -3,12 +3,14 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .helpers import (
+from shop_epower.catalog.tests.helpers import (
     create_test_brand,
     create_test_category,
     create_test_product,
-    assert_inventory_structure,
 )
+
+from .helpers import assert_inventory_structure
+
 
 
 class TestProductListAPI(APITestCase):

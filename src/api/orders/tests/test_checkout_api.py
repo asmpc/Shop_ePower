@@ -6,9 +6,13 @@ from rest_framework.test import APIClient
 
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
 from shop_epower.orders.models import Order
 from shop_epower.accounts.tests.helpers import create_test_user
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
 
@@ -63,13 +67,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",
@@ -137,13 +141,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",
@@ -207,13 +211,13 @@ class TestsCheckoutAPI(TestCase):
             base_price=Decimal("50.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="API Supplier",
             is_own=True,
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="API-SUP-001",

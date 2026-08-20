@@ -6,9 +6,13 @@ from rest_framework.test import APIClient
 
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.accounts.tests.helpers import create_test_user
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
 
@@ -64,13 +68,13 @@ class TestsOrdersAPI(TestCase):
             base_price=Decimal("25.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name=f"{email_prefix} Supplier",
             is_own=True,
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article=f"{email_prefix.upper()}-SUP-001",

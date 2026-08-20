@@ -7,8 +7,11 @@ from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
 
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
 #роль пользователя управляет тем, какие данные попадают в context
@@ -32,13 +35,13 @@ class TestsProductDetailVisibility(TestCase):
             is_active=True,
         )
 
-        self.supplier = Supplier.objects.create(
+        self.supplier = create_test_supplier(
             name="External Supplier",
             is_own=False,
             is_active=True,
         )
 
-        self.supplier_product = SupplierProduct.objects.create(
+        self.supplier_product = create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-001",

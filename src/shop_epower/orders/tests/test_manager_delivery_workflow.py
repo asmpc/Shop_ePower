@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.orders.services import update_order_delivery_by_manager
-from shop_epower.suppliers.models import Supplier, SupplierProduct
+
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
@@ -12,6 +12,11 @@ from shop_epower.orders.models import OrderStatus
 from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
+)
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
 )
 
 
@@ -38,13 +43,13 @@ class TestsManagerDeliveryWorkflow(TestCase):
             base_price=Decimal("10.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="Manager Cancel Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="MANAGER-CANCEL-SUP-001",
@@ -102,13 +107,13 @@ class TestsManagerDeliveryWorkflow(TestCase):
             base_price=Decimal("10.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="Manager Cancel Supplier",
             is_own=True,
             is_active=True,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="MANAGER-CANCEL-SUP-001",

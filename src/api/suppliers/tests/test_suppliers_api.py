@@ -3,9 +3,13 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
+
 from shop_epower.accounts.tests.helpers import create_test_user
 
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
 class TestsSuppliersAPI(TestCase):
@@ -35,13 +39,13 @@ class TestsSuppliersAPI(TestCase):
             base_price="100.00",
         )
 
-        self.supplier = Supplier.objects.create(
+        self.supplier = create_test_supplier(
             name="Supplier API",
             is_own=False,
             is_active=True,
         )
 
-        self.supplier_product = SupplierProduct.objects.create(
+        self.supplier_product = create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-API-001",
@@ -89,7 +93,7 @@ class TestsSuppliersAPI(TestCase):
     # Проверяем suppliers API filtering:
     # неактивные поставщики не попадают в список.
     def test_suppliers_list_api_excludes_inactive_suppliers(self):
-        Supplier.objects.create(
+        create_test_supplier(
             name="Inactive Supplier API",
             is_own=False,
             is_active=False,
@@ -146,7 +150,7 @@ class TestsSuppliersAPI(TestCase):
     # Проверяем supplier products API filtering:
     # неактивные supplier products не попадают в список.
     def test_supplier_products_list_api_excludes_inactive_items(self):
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=self.supplier,
             product=self.product,
             supplier_article="SUP-API-INACTIVE-001",
@@ -168,13 +172,13 @@ class TestsSuppliersAPI(TestCase):
     # Проверяем supplier products API filtering:
     # товары неактивных поставщиков не попадают в список.
     def test_supplier_products_list_api_excludes_items_from_inactive_suppliers(self):
-        inactive_supplier = Supplier.objects.create(
+        inactive_supplier = create_test_supplier(
             name="Inactive Parent Supplier API",
             is_own=False,
             is_active=False,
         )
 
-        SupplierProduct.objects.create(
+        create_test_supplier_product(
             supplier=inactive_supplier,
             product=self.product,
             supplier_article="SUP-API-INACTIVE-PARENT-001",

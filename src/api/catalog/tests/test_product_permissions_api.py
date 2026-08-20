@@ -3,7 +3,7 @@ from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
-from .helpers import create_test_product
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,

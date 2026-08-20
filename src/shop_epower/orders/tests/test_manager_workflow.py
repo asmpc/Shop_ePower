@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.core.exceptions import ValidationError
 
 from shop_epower.orders.services import update_order_status_by_manager, update_order_delivery_by_manager
-from shop_epower.suppliers.models import Supplier, SupplierProduct
+
 from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.cart.models import Cart, CartItem
 from shop_epower.orders.services import create_order_from_cart
@@ -12,6 +12,11 @@ from shop_epower.orders.models import Order, OrderStatus, OrderItem
 from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
+)
+
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
 )
 
 
@@ -169,13 +174,13 @@ class TestsManagerOrderWorkflow(TestCase):
             base_price=Decimal("10.00"),
         )
 
-        supplier = Supplier.objects.create(
+        supplier = create_test_supplier(
             name="Manager Cancel Supplier",
             is_own=True,
             is_active=True,
         )
 
-        supplier_product = SupplierProduct.objects.create(
+        supplier_product = create_test_supplier_product(
             supplier=supplier,
             product=product,
             supplier_article="MANAGER-CANCEL-SUP-001",
