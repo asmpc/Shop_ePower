@@ -20,7 +20,7 @@ from shop_epower.orders.services import (
     create_order_from_cart,
 )
 
-from shop_epower.orders.tests.helpers import (
+from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 
@@ -39,8 +39,8 @@ from shop_epower.payments.models import (
 )
 
 from shop_epower.payments.tests.helpers import (
-    create_company_settings,
-    create_payment,
+    create_test_company_settings,
+    create_test_payment,
 )
 
 
@@ -62,7 +62,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
             username="invoice-client",
         )
 
-        create_company_settings()
+        create_test_company_settings()
 
     def create_invoice_payment(self):
 
@@ -108,7 +108,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
             ],
         )
 
-        return create_payment(
+        return create_test_payment(
             order=order,
             method=PaymentMethod.INVOICE,
             amount=Decimal("100.00"),

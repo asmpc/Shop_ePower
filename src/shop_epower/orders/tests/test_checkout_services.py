@@ -9,7 +9,7 @@ from shop_epower.orders.services import (
     create_order_from_cart,
 )
 
-from shop_epower.orders.tests.helpers import (
+from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 

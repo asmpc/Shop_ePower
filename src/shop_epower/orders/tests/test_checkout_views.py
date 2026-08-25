@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from shop_epower.orders.models import Order
-from shop_epower.orders.tests.helpers import (
+from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 

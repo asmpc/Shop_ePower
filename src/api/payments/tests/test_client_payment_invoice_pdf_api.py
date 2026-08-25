@@ -17,8 +17,8 @@ from shop_epower.payments.services import (
     create_invoice_for_payment,
 )
 from shop_epower.payments.tests.helpers import (
-    create_company_settings,
-    create_payment,
+    create_test_company_settings,
+    create_test_payment,
 )
 
 
@@ -37,14 +37,14 @@ class TestsClientPaymentInvoicePDFAPI(TestCase):
             username="other-pdf",
         )
 
-        create_company_settings()
+        create_test_company_settings()
 
         self.order = create_test_order(
             user=self.user,
             status=OrderStatus.PROCESSING,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
         )
 
@@ -130,7 +130,7 @@ class TestsClientPaymentInvoicePDFAPI(TestCase):
             status=OrderStatus.PROCESSING,
         )
 
-        payment = create_payment(
+        payment = create_test_payment(
             order=order,
         )
 

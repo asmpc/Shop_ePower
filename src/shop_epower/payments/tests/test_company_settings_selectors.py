@@ -1,18 +1,20 @@
 from django.test import TestCase
 
-from shop_epower.payments.models import (
-    CompanySettings,
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
 )
 from shop_epower.payments.selectors.company_settings import (
     get_company_settings,
 )
 
 
+
 class TestsCompanySettingsSelectors(TestCase):
 
     # Проверяем получение текущих реквизитов компании.
     def test_get_company_settings(self):
-        company_settings = CompanySettings.objects.create(
+
+        company_settings = create_test_company_settings(
             company_name="Shop ePower LLC",
             tax_id="123456789",
             legal_address="Test legal address",

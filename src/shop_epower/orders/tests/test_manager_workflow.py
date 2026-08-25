@@ -5,8 +5,12 @@ from django.core.exceptions import ValidationError
 
 from shop_epower.orders.services import update_order_status_by_manager, update_order_delivery_by_manager
 
-from shop_epower.catalog.models import Brand, Category, Product
-from shop_epower.cart.models import Cart, CartItem
+from shop_epower.catalog.tests.helpers import create_test_product
+
+from shop_epower.cart.tests.helpers import (
+    create_test_cart_with_item,
+)
+
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.orders.models import Order, OrderStatus, OrderItem
 from shop_epower.accounts.tests.helpers import (
@@ -162,14 +166,10 @@ class TestsManagerOrderWorkflow(TestCase):
     # статус меняется на CANCELLED,
     # а зарезервированный stock возвращается поставщику.
     def test_manager_can_cancel_processing_order_and_restore_stock(self):
-
-        brand = Brand.objects.create(name="Manager Cancel Brand")
-        category = Category.objects.create(name="Manager Cancel Category")
-
-        product = Product.objects.create(
+        product = create_test_product(
             name="Manager Cancel Product",
-            brand=brand,
-            category=category,
+            brand_name="Manager Cancel Brand",
+            category_name="Manager Cancel Category",
             manufacturer_article="MANAGER-CANCEL-001",
             base_price=Decimal("10.00"),
         )
@@ -189,10 +189,8 @@ class TestsManagerOrderWorkflow(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(user=self.client)
-
-        CartItem.objects.create(
-            cart=cart,
+        cart = create_test_cart_with_item(
+            user=self.client,
             product=product,
             quantity=3,
             price_snapshot=Decimal("10.00"),

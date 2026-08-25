@@ -17,7 +17,7 @@ from shop_epower.payments.services import (
     mark_payment_paid,
 )
 from shop_epower.payments.tests.helpers import (
-    create_payment,
+    create_test_payment,
 )
 
 
@@ -36,7 +36,7 @@ class TestsClientPaymentHistoryAPI(TestCase):
             user=self.user,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
         )
 

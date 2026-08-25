@@ -4,7 +4,8 @@ from django.test import TestCase
 
 from rest_framework.test import APIClient
 
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import OrderStatus
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
@@ -29,7 +30,7 @@ class TestsManagerOrdersAPI(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.client_user,
             status=OrderStatus.NEW,
             is_legal_entity=False,

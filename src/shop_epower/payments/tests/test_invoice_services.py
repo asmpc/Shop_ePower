@@ -7,11 +7,14 @@ from django.utils import timezone
 from shop_epower.core.currency import get_base_currency
 from shop_epower.payments.models import (
     Invoice,
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
     CompanySettings,
+)
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+    create_test_payment,
 )
 
 from shop_epower.payments.services import (
@@ -21,10 +24,10 @@ from shop_epower.payments.services import (
 )
 
 from shop_epower.orders.models import (
-    Order,
     OrderStatus,
     DeliveryMethod,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
@@ -48,7 +51,7 @@ class TestsInvoiceServices(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.user,
             status=OrderStatus.PROCESSING,
             customer_name="Test Client",
@@ -58,7 +61,7 @@ class TestsInvoiceServices(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.payment = Payment.objects.create(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
@@ -67,22 +70,18 @@ class TestsInvoiceServices(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.company_settings = CompanySettings.objects.create(
+        self.company_settings = create_test_company_settings(
             company_name="Shop ePower LLC",
             short_company_name="Shop ePower",
-
             tax_id="123456789",
             tax_registration_reason_code="290101001",
             state_registration_number="1152901008622",
-
             legal_address="Seller legal address",
             actual_address="Seller actual address",
-
             bank_name="Seller Bank",
             bank_account="BY00 TEST 0000 0000 0000 0000 0000",
             bank_code="TESTBY22",
             correspondent_account="30101810100000000601",
-
             phone="+375291112233",
             email="seller@test.com",
         )

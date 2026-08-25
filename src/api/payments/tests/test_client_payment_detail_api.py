@@ -8,7 +8,7 @@ from shop_epower.orders.services import (
     create_order_from_cart,
 )
 
-from shop_epower.orders.tests.helpers import (
+from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 
@@ -26,7 +26,7 @@ from shop_epower.accounts.tests.helpers import (
 )
 
 from shop_epower.payments.tests.helpers import (
-    create_payment,
+    create_test_payment,
 )
 
 
@@ -84,7 +84,7 @@ class TestsClientPaymentDetailAPI(TestCase):
             cart=cart,
         )
 
-        return create_payment(
+        return create_test_payment(
             order=order,
             amount=Decimal('100.00'),
         )

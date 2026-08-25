@@ -4,8 +4,17 @@ from django.test import TestCase
 
 from rest_framework.test import APIClient
 
-from shop_epower.cart.models import Cart, CartItem
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.cart.tests.helpers import (
+    create_test_cart,
+    create_test_cart_with_item,
+)
+
+from shop_epower.catalog.tests.helpers import (
+    create_test_brand,
+    create_test_category,
+    create_test_product,
+)
+
 from shop_epower.orders.models import Order
 from shop_epower.accounts.tests.helpers import create_test_user
 
@@ -28,11 +37,11 @@ class TestsCheckoutAPI(TestCase):
             phone="+10000000007",
         )
 
-        self.brand = Brand.objects.create(
+        self.brand = create_test_brand(
             name="API Brand",
         )
 
-        self.category = Category.objects.create(
+        self.category = create_test_category(
             name="API Category",
         )
 
@@ -59,7 +68,7 @@ class TestsCheckoutAPI(TestCase):
 
         self.client.force_authenticate(user=self.user)
 
-        product = Product.objects.create(
+        product = create_test_product(
             name="API Product",
             brand=self.brand,
             category=self.category,
@@ -82,12 +91,8 @@ class TestsCheckoutAPI(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(
+        create_test_cart_with_item(
             user=self.user,
-        )
-
-        CartItem.objects.create(
-            cart=cart,
             product=product,
             quantity=2,
             price_snapshot=Decimal("50.00"),
@@ -112,7 +117,7 @@ class TestsCheckoutAPI(TestCase):
 
         self.client.force_authenticate(user=self.user)
 
-        Cart.objects.create(
+        create_test_cart(
             user=self.user,
             is_active=True,
         )
@@ -133,7 +138,7 @@ class TestsCheckoutAPI(TestCase):
 
         self.client.force_authenticate(user=self.user)
 
-        product = Product.objects.create(
+        product = create_test_product(
             name="API Product",
             brand=self.brand,
             category=self.category,
@@ -156,12 +161,8 @@ class TestsCheckoutAPI(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(
+        create_test_cart_with_item(
             user=self.user,
-        )
-
-        CartItem.objects.create(
-            cart=cart,
             product=product,
             quantity=2,
             price_snapshot=Decimal("50.00"),
@@ -203,7 +204,7 @@ class TestsCheckoutAPI(TestCase):
             user=self.user,
         )
 
-        product = Product.objects.create(
+        product = create_test_product(
             name="API Product",
             brand=self.brand,
             category=self.category,
@@ -226,12 +227,8 @@ class TestsCheckoutAPI(TestCase):
             is_active=True,
         )
 
-        cart = Cart.objects.create(
+        cart = create_test_cart_with_item(
             user=self.user,
-        )
-
-        CartItem.objects.create(
-            cart=cart,
             product=product,
             quantity=2,
             price_snapshot=Decimal("50.00"),

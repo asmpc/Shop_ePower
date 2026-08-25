@@ -2,7 +2,8 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.models import Category
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.suppliers.models import (
     CategoryMarkup,
     CurrencyRate,
@@ -27,9 +28,9 @@ class CategoryMarkupPricingTestCase(TestCase):
     # - приоритет category markup
     # - корректный пересчёт base_price
     def setUp(self):
-        self.brand = Brand.objects.create(name="Test Brand")
-
-        self.parent_category = Category.objects.create(name="Parent")
+        self.parent_category = Category.objects.create(
+            name="Parent",
+        )
         self.child_category = Category.objects.create(
             name="Child",
             parent=self.parent_category,
@@ -39,9 +40,9 @@ class CategoryMarkupPricingTestCase(TestCase):
             parent=self.child_category,
         )
 
-        self.product = Product.objects.create(
+        self.product = create_test_product(
             name="Test Product",
-            brand=self.brand,
+            brand_name="Test Brand",
             category=self.subchild_category,
             manufacturer_article="MARKUP-PRICE-001",
             base_price=0,

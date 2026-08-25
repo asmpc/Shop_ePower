@@ -4,13 +4,17 @@ from django.test import TestCase
 from django.urls import reverse
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import OrderStatus
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
-    CompanySettings,
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
+)
+
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+    create_test_payment,
 )
 from shop_epower.payments.services import (
     create_invoice_for_payment,
@@ -50,7 +54,7 @@ class TestsInvoicePdfViews(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.client_user,
             status=OrderStatus.PROCESSING,
             customer_name="Test Client",
@@ -60,7 +64,7 @@ class TestsInvoicePdfViews(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.payment = Payment.objects.create(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
@@ -69,7 +73,7 @@ class TestsInvoicePdfViews(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        CompanySettings.objects.create(
+        create_test_company_settings(
             company_name="Shop ePower LLC",
             short_company_name="Shop ePower",
             tax_id="123456789",

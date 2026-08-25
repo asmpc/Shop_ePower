@@ -4,13 +4,16 @@ from django.test import TestCase
 from django.urls import reverse
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
-    Payment,
-    PaymentHistory,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
+    PaymentHistory,
+)
+from shop_epower.payments.tests.helpers import (
+    create_test_payment,
+    create_test_payment_history,
 )
 from shop_epower.accounts.tests.helpers import (
     create_test_manager,
@@ -42,15 +45,16 @@ class TestsManagerPaymentViews(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.client_user,
             customer_name="Test Client",
             customer_email="client@test.com",
+            customer_phone="",
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )
 
-        self.payment = Payment.objects.create(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
@@ -215,7 +219,7 @@ class TestsManagerPaymentViews(TestCase):
 
     # Проверяем, что detail страницы оплаты показывает историю изменений.
     def test_payment_detail_shows_payment_history(self):
-        PaymentHistory.objects.create(
+        create_test_payment_history(
             payment=self.payment,
             old_status=PaymentStatus.PENDING,
             new_status=PaymentStatus.PAID,

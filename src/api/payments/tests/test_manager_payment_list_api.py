@@ -12,7 +12,7 @@ from shop_epower.orders.tests.helpers import (
     create_test_order,
 )
 from shop_epower.payments.tests.helpers import (
-    create_payment,
+    create_test_payment,
 )
 
 
@@ -43,7 +43,7 @@ class TestsManagerPaymentListAPI(TestCase):
             user=self.customer,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
         )
 

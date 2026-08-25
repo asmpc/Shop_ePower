@@ -6,16 +6,16 @@ from django.test import TestCase
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
-    Order,
     OrderStatus,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Invoice,
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
 )
+from shop_epower.payments.tests.helpers import create_test_payment
 from shop_epower.payments.validators import (
     validate_client_can_create_invoice,
     validate_manager_can_create_invoice,
@@ -33,7 +33,7 @@ class TestsInvoiceValidators(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.user,
             status=OrderStatus.NEW,
             customer_name="Test Client",
@@ -44,7 +44,7 @@ class TestsInvoiceValidators(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.payment = Payment.objects.create(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,

@@ -3,13 +3,13 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
 )
-from shop_epower.payments.tests.helpers import create_payment
+from shop_epower.payments.tests.helpers import create_test_payment
 from shop_epower.accounts.tests.helpers import create_test_user
 
 
@@ -23,10 +23,11 @@ class TestsPaymentModel(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.user,
             customer_name="Test Client",
             customer_email="client@test.com",
+            customer_phone="",
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )
@@ -35,7 +36,7 @@ class TestsPaymentModel(TestCase):
     # платеж создаётся для конкретного заказа,
     # способ оплаты, сумма и валюта сохраняются корректно.
     def test_payment_can_be_created(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -52,7 +53,7 @@ class TestsPaymentModel(TestCase):
     # новый платеж создаётся в статусе PENDING,
     # а провайдер по умолчанию MANUAL.
     def test_payment_has_default_status_and_provider(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.ON_RECEIPT,
         )
@@ -71,7 +72,7 @@ class TestsPaymentModel(TestCase):
     # новый платеж должен использовать
     # базовую валюту проекта.
     def test_payment_uses_base_currency_by_default(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -85,7 +86,7 @@ class TestsPaymentModel(TestCase):
     # при создании платежа идентификатор транзакции
     # должен создаваться автоматически.
     def test_payment_transaction_id_is_generated_automatically(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.ONLINE,
         )
@@ -101,7 +102,7 @@ class TestsPaymentModel(TestCase):
     # у заказа должен быть доступ к платежу
     # через related_name payment.
     def test_order_has_payment_relation(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -115,7 +116,7 @@ class TestsPaymentModel(TestCase):
     # объект должен удобно отображаться в админке,
     # логах и debug-сценариях.
     def test_payment_string_representation(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )

@@ -2,11 +2,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
-from shop_epower.catalog.models import (
-    Brand,
-    Category,
-    Product,
-)
+from shop_epower.catalog.tests.helpers import create_test_product
 
 from shop_epower.suppliers.models import (
     CurrencyRate,
@@ -28,13 +24,10 @@ class TestCurrencyPricing(TestCase):
     # продукт, поставщик и глобальную наценку 20%.
     # В этих тестах проверяем конвертацию валют и пересчёт product.base_price.
     def setUp(self):
-        self.brand = Brand.objects.create(name="Test Brand")
-        self.category = Category.objects.create(name="Test Category")
-
-        self.product = Product.objects.create(
+        self.product = create_test_product(
             name="Test Product",
-            brand=self.brand,
-            category=self.category,
+            brand_name="Test Brand",
+            category_name="Test Category",
             manufacturer_article="TEST-001",
             base_price=0,
         )

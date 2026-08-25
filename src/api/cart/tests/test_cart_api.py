@@ -5,24 +5,28 @@ from rest_framework.test import APITestCase
 from decimal import Decimal
 from unittest.mock import patch
 
-from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.tests.helpers import (
+    create_test_brand,
+    create_test_category,
+    create_test_product,
+)
 
 
 
 class TestCartAPI(APITestCase):
 
     def setUp(self):
-        self.brand = Brand.objects.create(
+        self.brand = create_test_brand(
             name="Test brand",
             slug="test-brand",
         )
 
-        self.category = Category.objects.create(
+        self.category = create_test_category(
             name="Test category",
             slug="test-category",
         )
 
-        self.product = Product.objects.create(
+        self.product = create_test_product(
             name="Test product",
             slug="test-product",
             brand=self.brand,
