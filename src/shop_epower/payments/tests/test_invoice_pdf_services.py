@@ -10,11 +10,13 @@ from shop_epower.orders.models import (
 from shop_epower.orders.tests.helpers import create_test_order
 
 from shop_epower.payments.models import (
-    CompanySettings,
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
+)
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+    create_test_payment,
 )
 from shop_epower.payments.services import (
     create_invoice_for_payment,
@@ -46,7 +48,8 @@ class TestsInvoicePdfServices(TestCase):
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )
-        self.payment = Payment.objects.create(
+
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
@@ -55,7 +58,7 @@ class TestsInvoicePdfServices(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        CompanySettings.objects.create(
+        create_test_company_settings(
             company_name="Shop ePower LLC",
             short_company_name="Shop ePower",
 

@@ -10,18 +10,17 @@ from shop_epower.accounts.models import Role
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
-from shop_epower.core.currency import get_base_currency
 
 from shop_epower.orders.tests.helpers import (
     create_test_order,
 )
 from shop_epower.payments.models import (
-    Invoice,
     PaymentMethod,
     InvoiceStatus,
 )
 from shop_epower.payments.services import cancel_invoice
 from shop_epower.payments.tests.helpers import (
+    create_test_invoice,
     create_test_payment,
 )
 
@@ -58,33 +57,9 @@ class TestsManagerInvoiceCancelAPI(TestCase):
             amount=Decimal("100.00"),
         )
 
-        self.invoice = Invoice.objects.create(
+        self.invoice = create_test_invoice(
             order=self.order,
             payment=self.payment,
-            invoice_number="INV-2026-000001",
-
-            seller_company_name="Shop ePower LLC",
-            seller_short_company_name="Shop ePower",
-            seller_tax_id="123456789",
-            seller_tax_registration_reason_code="290101001",
-            seller_state_registration_number="1152901008622",
-            seller_legal_address="Seller legal address",
-            seller_actual_address="Seller actual address",
-            seller_bank_name="Seller Bank",
-            seller_bank_account="BY00 TEST 0000 0000 0000 0000 0000",
-            seller_bank_code="TESTBY22",
-            seller_correspondent_account="30101810100000000601",
-            seller_phone="+375291112233",
-            seller_email="seller@test.com",
-
-            buyer_name="Test Client",
-            buyer_email="client@test.com",
-            buyer_phone="+375291112233",
-            buyer_address="Buyer address",
-            buyer_is_legal_entity=False,
-
-            amount=Decimal("100.00"),
-            currency_snapshot=get_base_currency(),
         )
 
     # Проверяем, что администратор

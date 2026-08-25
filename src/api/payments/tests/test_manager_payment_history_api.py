@@ -14,12 +14,13 @@ from shop_epower.orders.tests.helpers import (
     create_test_order,
 )
 from shop_epower.payments.models import (
-    PaymentHistory,
     PaymentStatus,
 )
 from shop_epower.payments.tests.helpers import (
     create_test_payment,
+    create_test_payment_history,
 )
+
 
 
 class TestManagerPaymentHistoryAPI(
@@ -61,7 +62,7 @@ class TestManagerPaymentHistoryAPI(
     def test_manager_can_get_payment_history(
             self,
     ):
-        PaymentHistory.objects.create(
+        create_test_payment_history(
             payment=self.payment,
             old_status=PaymentStatus.PENDING,
             new_status=PaymentStatus.PAID,
@@ -104,7 +105,7 @@ class TestManagerPaymentHistoryAPI(
     def test_admin_can_get_payment_history(
             self,
     ):
-        PaymentHistory.objects.create(
+        create_test_payment_history(
             payment=self.payment,
             old_status=PaymentStatus.PENDING,
             new_status=PaymentStatus.PAID,
@@ -213,7 +214,7 @@ class TestManagerPaymentHistoryAPI(
     def test_payment_history_is_ordered_by_created_at_desc(
             self,
     ):
-        PaymentHistory.objects.create(
+        create_test_payment_history(
             payment=self.payment,
             old_status=PaymentStatus.PENDING,
             new_status=PaymentStatus.PAID,
@@ -221,7 +222,7 @@ class TestManagerPaymentHistoryAPI(
             changed_by=self.manager,
         )
 
-        PaymentHistory.objects.create(
+        create_test_payment_history(
             payment=self.payment,
             old_status=PaymentStatus.PAID,
             new_status=PaymentStatus.CANCELLED,

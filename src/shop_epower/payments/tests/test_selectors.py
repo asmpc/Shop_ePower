@@ -5,11 +5,11 @@ from django.test import TestCase
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
 )
+from shop_epower.payments.tests.helpers import create_test_payment
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
 )
@@ -44,7 +44,7 @@ class TestsPaymentSelectors(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.pending_payment = Payment.objects.create(
+        self.pending_payment = create_test_payment(
             order=self.order_pending,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
@@ -53,7 +53,7 @@ class TestsPaymentSelectors(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.paid_payment = Payment.objects.create(
+        self.paid_payment = create_test_payment(
             order=self.order_paid,
             method=PaymentMethod.ONLINE,
             status=PaymentStatus.PAID,

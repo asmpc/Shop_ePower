@@ -12,6 +12,10 @@ from shop_epower.payments.models import (
     Payment,
     PaymentHistory,
 )
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+)
+
 
 
 class TestsPaymentAdmin(TestCase):
@@ -164,7 +168,7 @@ class TestsPaymentAdmin(TestCase):
             )
         )
 
-        CompanySettings.objects.create(
+        create_test_company_settings(
             company_name="Shop ePower LLC",
             tax_id="123456789",
             legal_address="Test legal address",

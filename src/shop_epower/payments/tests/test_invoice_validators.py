@@ -11,11 +11,11 @@ from shop_epower.orders.models import (
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Invoice,
-    Payment,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
 )
+from shop_epower.payments.tests.helpers import create_test_payment
 from shop_epower.payments.validators import (
     validate_client_can_create_invoice,
     validate_manager_can_create_invoice,
@@ -44,7 +44,7 @@ class TestsInvoiceValidators(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
-        self.payment = Payment.objects.create(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             status=PaymentStatus.PENDING,
