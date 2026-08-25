@@ -19,7 +19,7 @@ from shop_epower.payments.models import (
     Invoice,
     PaymentMethod,
 )
-from shop_epower.payments.tests.helpers import create_payment
+from shop_epower.payments.tests.helpers import create_test_payment
 
 
 class TestsManagerInvoicePdfAPI(TestCase):
@@ -49,7 +49,7 @@ class TestsManagerInvoicePdfAPI(TestCase):
             user=self.client_user,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             amount=Decimal("100.00"),

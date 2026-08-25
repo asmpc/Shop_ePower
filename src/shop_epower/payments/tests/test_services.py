@@ -14,7 +14,7 @@ from shop_epower.payments.services import (
 )
 
 from shop_epower.payments.tests.helpers import (
-    create_payment,
+    create_test_payment,
 )
 
 from shop_epower.payments.models import (
@@ -104,7 +104,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем успешную оплату:
     # pending payment может быть переведен в PAID.
     def test_mark_payment_paid(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -128,7 +128,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем неуспешную оплату:
     # pending payment может быть переведен в FAILED.
     def test_mark_payment_failed(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -152,7 +152,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем отмену оплаты:
     # pending payment может быть переведен в CANCELLED.
     def test_mark_payment_cancelled(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -177,7 +177,7 @@ class TestsPaymentServices(TestCase):
     # оплаченный платеж нельзя повторно перевести
     # в другой статус.
     def test_cannot_update_non_pending_payment(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -193,7 +193,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем исправление ошибки оплаты:
     # оплаченный платеж можно вернуть в PENDING через service layer.
     def test_reset_paid_payment_to_pending(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -221,7 +221,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем исправление неуспешной оплаты:
     # failed payment можно вернуть в PENDING.
     def test_reset_failed_payment_to_pending(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -244,7 +244,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем исправление отмененной оплаты:
     # cancelled payment можно вернуть в PENDING.
     def test_reset_cancelled_payment_to_pending(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -266,7 +266,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем защиту payment workflow:
     # payment в статусе PENDING нельзя reset-ить в PENDING повторно.
     def test_cannot_reset_pending_payment_to_pending(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -278,7 +278,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем payment history:
     # при успешной оплате должна создаваться запись истории.
     def test_mark_payment_paid_creates_payment_history(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -315,7 +315,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем payment history:
     # при неуспешной оплате должна создаваться запись истории.
     def test_mark_payment_failed_creates_payment_history(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -352,7 +352,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем payment history:
     # при отмене оплаты должна создаваться запись истории.
     def test_mark_payment_cancelled_creates_payment_history(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 
@@ -389,7 +389,7 @@ class TestsPaymentServices(TestCase):
     # Проверяем payment history:
     # при admin reset должна сохраняться история возврата в PENDING.
     def test_reset_payment_to_pending_creates_payment_history(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
         )
 

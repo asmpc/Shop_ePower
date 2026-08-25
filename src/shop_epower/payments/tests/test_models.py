@@ -9,7 +9,7 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
-from shop_epower.payments.tests.helpers import create_payment
+from shop_epower.payments.tests.helpers import create_test_payment
 from shop_epower.accounts.tests.helpers import create_test_user
 
 
@@ -36,7 +36,7 @@ class TestsPaymentModel(TestCase):
     # платеж создаётся для конкретного заказа,
     # способ оплаты, сумма и валюта сохраняются корректно.
     def test_payment_can_be_created(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -53,7 +53,7 @@ class TestsPaymentModel(TestCase):
     # новый платеж создаётся в статусе PENDING,
     # а провайдер по умолчанию MANUAL.
     def test_payment_has_default_status_and_provider(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.ON_RECEIPT,
         )
@@ -72,7 +72,7 @@ class TestsPaymentModel(TestCase):
     # новый платеж должен использовать
     # базовую валюту проекта.
     def test_payment_uses_base_currency_by_default(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -86,7 +86,7 @@ class TestsPaymentModel(TestCase):
     # при создании платежа идентификатор транзакции
     # должен создаваться автоматически.
     def test_payment_transaction_id_is_generated_automatically(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.ONLINE,
         )
@@ -102,7 +102,7 @@ class TestsPaymentModel(TestCase):
     # у заказа должен быть доступ к платежу
     # через related_name payment.
     def test_order_has_payment_relation(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )
@@ -116,7 +116,7 @@ class TestsPaymentModel(TestCase):
     # объект должен удобно отображаться в админке,
     # логах и debug-сценариях.
     def test_payment_string_representation(self):
-        payment = create_payment(
+        payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
         )

@@ -7,7 +7,7 @@ from shop_epower.payments.models import (
 )
 
 
-def create_payment(
+def create_test_payment(
     *,
     order,
     method=PaymentMethod.INVOICE,
@@ -22,7 +22,7 @@ def create_payment(
     )
 
 
-def create_company_settings(
+def create_test_company_settings(
     **kwargs,
 ):
     defaults = {

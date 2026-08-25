@@ -22,7 +22,7 @@ from shop_epower.payments.models import (
 )
 from shop_epower.payments.services import cancel_invoice
 from shop_epower.payments.tests.helpers import (
-    create_payment,
+    create_test_payment,
 )
 
 
@@ -52,7 +52,7 @@ class TestsManagerInvoiceCancelAPI(TestCase):
             user=self.client_user,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
             amount=Decimal("100.00"),

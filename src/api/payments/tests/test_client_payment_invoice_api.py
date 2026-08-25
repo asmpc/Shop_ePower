@@ -9,8 +9,8 @@ from shop_epower.payments.services import (
 )
 
 from shop_epower.payments.tests.helpers import (
-    create_company_settings,
-    create_payment,
+    create_test_company_settings,
+    create_test_payment,
 )
 
 from shop_epower.orders.tests.helpers import (
@@ -44,11 +44,11 @@ class TestsClientPaymentInvoiceAPI(TestCase):
             status=OrderStatus.PROCESSING,
         )
 
-        self.payment = create_payment(
+        self.payment = create_test_payment(
             order=self.order,
         )
 
-        create_company_settings()
+        create_test_company_settings()
 
     # Проверяем, что клиент может получить
     # Invoice собственного платежа.
