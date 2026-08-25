@@ -6,9 +6,9 @@ from django.test import TestCase
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
-    Order,
     OrderStatus,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Invoice,
     Payment,
@@ -33,7 +33,7 @@ class TestsInvoiceValidators(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.user,
             status=OrderStatus.NEW,
             customer_name="Test Client",

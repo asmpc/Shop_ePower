@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Payment,
     PaymentHistory,
@@ -33,10 +33,11 @@ class TestsPaymentHistoryModel(TestCase):
             password="testpass123",
         )
 
-        self.order = Order.objects.create(
+        self.order = create_test_order(
             user=self.user,
             customer_name="Test Client",
             customer_email="client@test.com",
+            customer_phone="",
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )

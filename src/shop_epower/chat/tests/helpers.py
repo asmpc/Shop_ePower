@@ -1,4 +1,3 @@
-from shop_epower.orders.models import Order
 from shop_epower.chat.models import (
     ChatAttachment,
     ChatMessage,
@@ -12,12 +11,6 @@ from shop_epower.accounts.tests.helpers import (
 
 
 create_user = create_test_user
-
-
-def create_order(user=None, **kwargs):
-    if user is None:
-        user = create_user()
-    return Order.objects.create(user=user, total_price=100, **kwargs)
 
 
 def create_chat_room(

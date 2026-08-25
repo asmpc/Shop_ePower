@@ -12,23 +12,27 @@ def create_test_order(
     status=OrderStatus.NEW,
     **kwargs,
 ):
+    defaults = {
+        "is_legal_entity": False,
+        "customer_name": user.get_full_name() or user.username,
+        "customer_email": user.email,
+        "customer_phone": getattr(user, "phone", ""),
+        "company_name": "",
+        "tax_id": "",
+        "legal_address": "",
+        "bank_name": "",
+        "bank_account": "",
+        "currency_snapshot": get_base_currency(),
+        "delivery_method": "pickup",
+        "delivery_provider": "",
+        "delivery_address": "",
+        "delivery_comment": "",
+    }
+    defaults.update(kwargs)
+
     return Order.objects.create(
         user=user,
         status=status,
         total_price=total_price,
-        is_legal_entity=False,
-        customer_name=user.get_full_name() or user.username,
-        customer_email=user.email,
-        customer_phone=getattr(user, "phone", ""),
-        company_name="",
-        tax_id="",
-        legal_address="",
-        bank_name="",
-        bank_account="",
-        currency_snapshot=get_base_currency(),
-        delivery_method="pickup",
-        delivery_provider="",
-        delivery_address="",
-        delivery_comment="",
-        **kwargs,
+        **defaults,
     )

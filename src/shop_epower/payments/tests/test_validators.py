@@ -6,9 +6,9 @@ from django.test import TestCase
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
-    Order,
     OrderStatus,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import PaymentMethod
 from shop_epower.payments.services import (
     validate_client_can_pay_online,
@@ -27,16 +27,17 @@ class TestsPaymentValidators(TestCase):
             password="testpass123",
         )
 
-    def create_order(
-        self,
-        *,
-        status=OrderStatus.NEW,
+    def create_order_with_status(
+            self,
+            *,
+            status=OrderStatus.NEW,
     ):
-        return Order.objects.create(
+        return create_test_order(
             user=self.user,
             status=status,
             customer_name="Test Client",
             customer_email="client@test.com",
+            customer_phone="",
             total_price=Decimal("100.00"),
             currency_snapshot=get_base_currency(),
         )
@@ -77,7 +78,7 @@ class TestsPaymentValidators(TestCase):
     # Проверяем online payment:
     # клиент может запустить online payment для нового заказа.
     def test_client_can_pay_online_for_new_order(self):
-        order = self.create_order(
+        order = self.create_order_with_status(
             status=OrderStatus.NEW,
         )
 
@@ -88,7 +89,7 @@ class TestsPaymentValidators(TestCase):
     # Проверяем online payment:
     # клиент может запустить online payment для заказа в обработке.
     def test_client_can_pay_online_for_processing_order(self):
-        order = self.create_order(
+        order = self.create_order_with_status(
             status=OrderStatus.PROCESSING,
         )
 
@@ -100,7 +101,7 @@ class TestsPaymentValidators(TestCase):
     # клиент не может запустить online payment
     # для отмененного заказа.
     def test_client_cannot_pay_online_for_cancelled_order(self):
-        order = self.create_order(
+        order = self.create_order_with_status(
             status=OrderStatus.CANCELLED,
         )
 
@@ -113,7 +114,7 @@ class TestsPaymentValidators(TestCase):
     # клиент не может запустить online payment
     # для завершенного заказа.
     def test_client_cannot_pay_online_for_completed_order(self):
-        order = self.create_order(
+        order = self.create_order_with_status(
             status=OrderStatus.COMPLETED,
         )
 

@@ -10,11 +10,10 @@ from shop_epower.chat.services import (
 
 from .helpers import (
     create_chat_room as helper_create_chat_room,
-
-    create_order,
     create_user,
 )
 from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.orders.tests.helpers import create_test_order
 
 
 
@@ -37,7 +36,9 @@ class TestsChatRoomService(TestCase):
     # комната должна быть связана с этим заказом.
     def test_create_chat_room_with_order(self):
         user = create_user()
-        order = create_order(user=user)
+        order = create_test_order(
+            user=user,
+        )
 
         room = create_chat_room(
             user=user,
