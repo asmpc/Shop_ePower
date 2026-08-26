@@ -1,10 +1,8 @@
-from django.utils import timezone
-from django.db import transaction
-from .models import ChatRoom, ChatRoomStatus
-
-from .models import ChatMessage, ChatAttachment
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
+from django.utils import timezone
 
+from .models import ChatAttachment, ChatMessage, ChatRoom, ChatRoomStatus
 
 
 def create_chat_room(user, order=None):

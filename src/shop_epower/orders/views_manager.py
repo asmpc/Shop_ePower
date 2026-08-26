@@ -1,42 +1,36 @@
-from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView, DetailView
-
-from django.shortcuts import get_object_or_404, redirect
-from django.http import HttpResponseForbidden
-from django.urls import reverse
 from django.contrib import messages
-from django.views import View
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import ValidationError
+from django.http import HttpResponseForbidden
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
+from django.views import View
+from django.views.generic import DetailView, ListView
 
-from shop_epower.orders.services import (
-    update_order_status_by_manager,
-    update_order_delivery_by_manager,
-)
 from shop_epower.chat.selectors import get_chat_rooms_for_order
-from shop_epower.payments.services import (
-    mark_payment_paid,
-    mark_payment_failed,
-    mark_payment_cancelled,
-    reset_payment_to_pending,
-)
-
-from shop_epower.orders.navigation import (
-    redirect_to_manager_order_detail,
-)
-
 from shop_epower.orders.models import (
     Order,
     OrderStatus,
 )
-
+from shop_epower.orders.navigation import (
+    redirect_to_manager_order_detail,
+)
+from shop_epower.orders.services import (
+    update_order_delivery_by_manager,
+    update_order_status_by_manager,
+)
 from shop_epower.payments.models import (
     PaymentMethod,
 )
-
 from shop_epower.payments.selectors import (
     get_invoice_workflow_state,
 )
-
+from shop_epower.payments.services import (
+    mark_payment_cancelled,
+    mark_payment_failed,
+    mark_payment_paid,
+    reset_payment_to_pending,
+)
 
 
 class ManagerOrderListView(
