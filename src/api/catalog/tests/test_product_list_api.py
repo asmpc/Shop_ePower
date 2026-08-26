@@ -9,8 +9,6 @@ from shop_epower.catalog.tests.helpers import (
     create_test_product,
 )
 
-from .helpers import assert_inventory_structure
-
 
 
 class TestProductListAPI(APITestCase):
@@ -53,10 +51,13 @@ class TestProductListAPI(APITestCase):
         self.assertIn("inventory", product_data)
         self.assertEqual(product_data["final_price"], "100.00")
 
-        assert_inventory_structure(
-            self,
-            product_data["inventory"],
-        )
+        inventory = product_data["inventory"]
+
+        self.assertIn("own_stock", inventory)
+        self.assertIn("supplier_stock", inventory)
+        self.assertIn("total_available", inventory)
+        self.assertIn("min_lead_time", inventory)
+        self.assertIn("in_stock", inventory)
 
     # Проверяем фильтрацию списка товаров
     # по slug бренда.

@@ -6,9 +6,6 @@ from rest_framework.test import APITestCase
 
 from shop_epower.catalog.models import ProductImage
 
-from .helpers import (
-    assert_inventory_structure,
-)
 from shop_epower.catalog.tests.helpers import create_test_product
 
 
@@ -43,10 +40,13 @@ class TestProductDetailAPI(APITestCase):
         self.assertIn("brand", response.data)
         self.assertIn("images", response.data)
 
-        assert_inventory_structure(
-            self,
-            response.data["inventory"],
-        )
+        inventory = response.data["inventory"]
+
+        self.assertIn("own_stock", inventory)
+        self.assertIn("supplier_stock", inventory)
+        self.assertIn("total_available", inventory)
+        self.assertIn("min_lead_time", inventory)
+        self.assertIn("in_stock", inventory)
 
     # Проверяем, что detail endpoint
     # возвращает изображения товара
