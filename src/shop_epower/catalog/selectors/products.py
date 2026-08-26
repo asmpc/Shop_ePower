@@ -1,7 +1,6 @@
 from django.db.models import Q
 
-from shop_epower.catalog.models import Product, Category
-
+from shop_epower.catalog.models import Category, Product
 
 
 def get_category_with_descendants(category):

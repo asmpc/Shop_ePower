@@ -1,12 +1,9 @@
 from shop_epower.accounts.services.roles import is_manager
-
+from shop_epower.suppliers.services.cost import get_product_cost_summary
 from shop_epower.suppliers.services.stock import (
     get_product_inventory_public,
     get_supplier_inventory_details,
 )
-
-from shop_epower.suppliers.services.cost import get_product_cost_summary
-
 
 
 def prepare_product_for_user(product, user):

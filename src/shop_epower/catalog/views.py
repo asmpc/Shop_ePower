@@ -1,24 +1,18 @@
-from django.views.generic import DetailView
+from django.views.generic import DetailView, ListView
 
-from django.views.generic import ListView
-from shop_epower.catalog.selectors.products import (
-    get_product_list_queryset,
-    get_product_detail_queryset,
-)
-
-from shop_epower.catalog.models import Product, Brand, Category
-
-from shop_epower.suppliers.models import CurrencyRate
 from shop_epower.accounts.services.roles import is_manager
-
+from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.catalog.selectors.product_data import prepare_product_for_user
+from shop_epower.catalog.selectors.products import (
+    get_product_detail_queryset,
+    get_product_list_queryset,
+)
+from shop_epower.core.currency import get_base_currency
+from shop_epower.suppliers.models import CurrencyRate
+from shop_epower.suppliers.services.cost import get_product_cost_summary
 from shop_epower.suppliers.services.stock import (
     get_supplier_inventory_details,
-
 )
-from shop_epower.suppliers.services.cost import get_product_cost_summary
-from shop_epower.catalog.selectors.product_data import prepare_product_for_user
-from shop_epower.core.currency import get_base_currency
-
 
 
 class CategoryListView(ListView):

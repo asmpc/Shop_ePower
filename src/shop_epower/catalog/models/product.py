@@ -1,11 +1,10 @@
+from decimal import Decimal
+
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
 from shop_epower.core.models import BaseModel
 from shop_epower.core.utils.slugs import generate_unique_slug
-
-from decimal import Decimal
-
 
 
 class Product(BaseModel):
