@@ -1,4 +1,4 @@
-from decimal import Decimal, ROUND_HALF_UP
+from decimal import ROUND_HALF_UP, Decimal
 
 from shop_epower.core.currency import get_base_currency
 from shop_epower.suppliers.models import CurrencyRate, SupplierProduct

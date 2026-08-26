@@ -1,10 +1,9 @@
+from django.shortcuts import get_object_or_404
+
 from shop_epower.orders.models import (
     DeliveryMethod,
     OrderStatus,
 )
-
-from django.shortcuts import get_object_or_404
-
 from shop_epower.payments.models import (
     Invoice,
 )

@@ -1,20 +1,18 @@
 from django.urls import path
 
-from shop_epower.payments.views_manager import (
-    ManagerPaymentListView,
-    ManagerPaymentDetailView,
-    ManagerGenerateInvoiceView,
-    AdminCancelInvoiceView,
-    ManagerInvoicePdfView,
-)
-
 from shop_epower.payments.views import (
     client_invoice_pdf_view,
     mock_checkout_view,
     mock_payment_fail_view,
     mock_payment_success_view,
 )
-
+from shop_epower.payments.views_manager import (
+    AdminCancelInvoiceView,
+    ManagerGenerateInvoiceView,
+    ManagerInvoicePdfView,
+    ManagerPaymentDetailView,
+    ManagerPaymentListView,
+)
 
 app_name = "payments"
 

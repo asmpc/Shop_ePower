@@ -1,5 +1,6 @@
 from django.db import models
 
+
 class CurrencyRate(models.Model):
     CURRENCY_CHOICES = [
         ('RUB', 'RUB'),

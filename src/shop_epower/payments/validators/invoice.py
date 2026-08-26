@@ -1,11 +1,11 @@
 from django.core.exceptions import ValidationError
 
-from shop_epower.payments.models import (
-    PaymentMethod,
-)
 from shop_epower.orders.models import (
     DeliveryMethod,
     OrderStatus,
+)
+from shop_epower.payments.models import (
+    PaymentMethod,
 )
 
 

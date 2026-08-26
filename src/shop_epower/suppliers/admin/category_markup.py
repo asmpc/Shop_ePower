@@ -1,5 +1,4 @@
-from django.contrib import admin
-from django.contrib import messages
+from django.contrib import admin, messages
 
 from shop_epower.catalog.models import Product
 from shop_epower.suppliers.models import CategoryMarkup
