@@ -8,7 +8,7 @@ from shop_epower.chat.services import (
     take_chat_room,
 )
 
-from .helpers import (
+from shop_epower.chat.tests.helpers import (
     create_chat_room as helper_create_chat_room,
     create_user,
 )

@@ -3,7 +3,7 @@ from django.urls import reverse
 
 from shop_epower.chat.models import ChatRoom, ChatRoomStatus
 
-from .helpers import (
+from shop_epower.chat.tests.helpers import (
     create_chat_room,
     create_user,
 )

@@ -7,7 +7,7 @@ from shop_epower.chat.models import (
     ChatRoomStatus,
 )
 
-from .helpers import (
+from shop_epower.chat.tests.helpers import (
     create_chat_attachment,
     create_chat_message,
     create_chat_room,

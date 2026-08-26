@@ -9,7 +9,7 @@ from shop_epower.chat.selectors import (
 )
 from shop_epower.chat.services import send_chat_message
 
-from .helpers import (
+from shop_epower.chat.tests.helpers import (
     create_chat_room,
     create_user,
 )
