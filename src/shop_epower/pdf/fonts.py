@@ -3,7 +3,6 @@ from pathlib import Path
 from reportlab.pdfbase import pdfmetrics
 from reportlab.pdfbase.ttfonts import TTFont
 
-
 PDF_FONT_REGULAR = "ShopEPower-Regular"
 PDF_FONT_BOLD = "ShopEPower-Bold"
 
