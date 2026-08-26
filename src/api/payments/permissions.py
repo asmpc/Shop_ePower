@@ -3,7 +3,6 @@ from rest_framework.permissions import BasePermission
 from shop_epower.accounts.models import Role
 
 
-
 class IsAdmin(BasePermission):
 
     def has_permission(

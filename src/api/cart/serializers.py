@@ -1,6 +1,6 @@
 from rest_framework import serializers
-from shop_epower.catalog.models import Product
 
+from shop_epower.catalog.models import Product
 
 
 class CartItemSerializer(serializers.Serializer):

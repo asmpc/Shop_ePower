@@ -1,19 +1,16 @@
-from rest_framework.permissions import IsAuthenticated
-from rest_framework.generics import RetrieveAPIView
-from rest_framework.generics import ListAPIView
-
-from shop_epower.payments.models import Invoice
-
-from django.shortcuts import get_object_or_404
-
 from django.core.exceptions import ValidationError as DjangoValidationError
-
-from rest_framework.exceptions import ValidationError as DRFValidationError
-
+from django.shortcuts import get_object_or_404
 from rest_framework import status
+from rest_framework.exceptions import ValidationError as DRFValidationError
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.payments.permissions import (
+    IsAdmin,
+    IsManagerOrAdmin,
+)
 from api.payments.serializers import (
     InvoiceDetailSerializer,
     ManagerInvoiceDetailSerializer,
@@ -23,36 +20,26 @@ from api.payments.serializers import (
     PaymentHistorySerializer,
     PaymentListSerializer,
 )
-
+from shop_epower.payments.models import Invoice, Payment
 from shop_epower.payments.selectors.invoice import (
     get_invoice_for_user,
 )
 from shop_epower.payments.selectors.payment import (
     get_payment_for_user,
+    get_payment_history,
     get_payment_history_for_user,
+    get_payments_for_manager,
     get_payments_for_user,
-    get_payments_for_manager, get_payment_history,
 )
-
 from shop_epower.payments.services import (
     build_invoice_pdf_response,
-    reset_payment_to_pending,
-    create_invoice_for_payment,
     cancel_invoice,
-)
-
-from api.payments.permissions import (
-    IsManagerOrAdmin,
-    IsAdmin,
-)
-
-from shop_epower.payments.models import Payment
-from shop_epower.payments.services import (
+    create_invoice_for_payment,
     mark_payment_cancelled,
     mark_payment_failed,
     mark_payment_paid,
+    reset_payment_to_pending,
 )
-
 
 
 class ClientPaymentListAPIView(APIView):

@@ -1,12 +1,11 @@
 from django.urls import path
 
 from .views import (
-    CartAPIView,
     CartAddItemAPIView,
-    CartRemoveItemAPIView,
+    CartAPIView,
     CartClearAPIView,
+    CartRemoveItemAPIView,
 )
-
 
 urlpatterns = [
     path(

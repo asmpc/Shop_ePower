@@ -1,12 +1,11 @@
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.viewsets import ReadOnlyModelViewSet
 
-from shop_epower.suppliers.models import Supplier, SupplierProduct
-
 from api.suppliers.serializers import (
-    SupplierSerializer,
     SupplierProductSerializer,
+    SupplierSerializer,
 )
+from shop_epower.suppliers.models import Supplier, SupplierProduct
 
 
 class SupplierViewSet(ReadOnlyModelViewSet):

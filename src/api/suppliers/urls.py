@@ -1,12 +1,10 @@
 from django.urls import include, path
-
 from rest_framework.routers import DefaultRouter
 
 from api.suppliers.views import (
-    SupplierViewSet,
     SupplierProductViewSet,
+    SupplierViewSet,
 )
-
 
 app_name = "suppliers_api"
 
