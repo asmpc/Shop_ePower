@@ -1,25 +1,6 @@
-from decimal import Decimal
-
 from django.test import TestCase
 
 from rest_framework.test import APIClient
-
-from shop_epower.orders.services import (
-    create_order_from_cart,
-)
-
-from shop_epower.cart.tests.helpers import (
-    create_test_cart_with_item,
-)
-
-from shop_epower.suppliers.tests.helpers import (
-    create_test_supplier,
-    create_test_supplier_product,
-)
-
-from shop_epower.catalog.tests.helpers import (
-    create_test_product,
-)
 
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
@@ -27,6 +8,9 @@ from shop_epower.accounts.tests.helpers import (
 
 from shop_epower.payments.tests.helpers import (
     create_test_payment,
+)
+from shop_epower.payments.tests.helpers import (
+    create_test_payment_for_user,
 )
 
 
@@ -47,55 +31,12 @@ class TestsClientPaymentDetailAPI(TestCase):
             username='other-payment-detail-client',
         )
 
-    def create_payment_for_user(
-        self,
-        *,
-        user,
-        prefix,
-    ):
-        product = create_test_product(
-            name=f'{prefix} Product',
-            brand_name=f'{prefix} Brand',
-            category_name=f'{prefix} Category',
-            manufacturer_article=f'{prefix}-001',
-            base_price=Decimal('100.00'),
-        )
-
-        supplier = create_test_supplier(
-            name=f'{prefix} Supplier',
-        )
-
-        create_test_supplier_product(
-            supplier=supplier,
-            product=product,
-            supplier_article=f'SUP-{prefix}-001',
-            stock_quantity=10,
-        )
-
-        cart = create_test_cart_with_item(
-            user=user,
-            product=product,
-            quantity=1,
-            price_snapshot=Decimal('100.00'),
-        )
-
-        order = create_order_from_cart(
-            user=user,
-            cart=cart,
-        )
-
-        return create_test_payment(
-            order=order,
-            amount=Decimal('100.00'),
-        )
-
     # Проверяем, что клиент может получить
     # платёж собственного заказа.
     def test_client_can_get_own_payment(self):
 
-        payment = self.create_payment_for_user(
+        payment = create_test_payment_for_user(
             user=self.user,
-            prefix='OWN-PAYMENT-DETAIL',
         )
 
         self.client.force_authenticate(
@@ -124,9 +65,9 @@ class TestsClientPaymentDetailAPI(TestCase):
     # Проверяем, что клиент не может получить
     # платёж чужого заказа.
     def test_client_cannot_get_other_user_payment(self):
-        other_payment = self.create_payment_for_user(
+
+        other_payment = create_test_payment_for_user(
             user=self.other_user,
-            prefix='OTHER-PAYMENT-DETAIL',
         )
 
         self.client.force_authenticate(
@@ -145,9 +86,9 @@ class TestsClientPaymentDetailAPI(TestCase):
     # Проверяем, что неавторизованный пользователь
     # не может получить платёж.
     def test_unauthorized_user_cannot_get_payment(self):
-        payment = self.create_payment_for_user(
+
+        payment = create_test_payment_for_user(
             user=self.user,
-            prefix='UNAUTHORIZED-PAYMENT-DETAIL',
         )
 
         response = self.client.get(

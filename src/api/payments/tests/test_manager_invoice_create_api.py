@@ -16,21 +16,9 @@ from shop_epower.orders.models import (
     OrderStatus,
 )
 
-from shop_epower.orders.services import (
-    create_order_from_cart,
-)
-
-from shop_epower.cart.tests.helpers import (
-    create_test_cart_with_item,
-)
-
-from shop_epower.suppliers.tests.helpers import (
-    create_test_supplier,
-    create_test_supplier_product,
-)
-
-from shop_epower.catalog.tests.helpers import (
-    create_test_product,
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+    create_test_payment_for_user,
 )
 
 from shop_epower.payments.models import (
@@ -65,37 +53,13 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         create_test_company_settings()
 
     def create_invoice_payment(self):
-
-        product = create_test_product(
-            name="Invoice Product",
-            brand_name="Invoice Brand",
-            category_name="Invoice Category",
-            manufacturer_article="INV-API-001",
-            base_price=Decimal("100.00"),
-        )
-
-        supplier = create_test_supplier(
-            name="Invoice Supplier",
-        )
-
-        create_test_supplier_product(
-            supplier=supplier,
-            product=product,
-            supplier_article="SUP-INV-API-001",
-            stock_quantity=10,
-        )
-
-        cart = create_test_cart_with_item(
+        payment = create_test_payment_for_user(
             user=self.user,
-            product=product,
-            quantity=1,
-            price_snapshot=Decimal("100.00"),
+            method=PaymentMethod.INVOICE,
+            amount=Decimal("100.00"),
         )
 
-        order = create_order_from_cart(
-            user=self.user,
-            cart=cart,
-        )
+        order = payment.order
 
         order.status = OrderStatus.PROCESSING
         order.delivery_method = DeliveryMethod.PICKUP
@@ -108,11 +72,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
             ],
         )
 
-        return create_test_payment(
-            order=order,
-            method=PaymentMethod.INVOICE,
-            amount=Decimal("100.00"),
-        )
+        return payment
 
     def create_shipping_invoice_payment(self):
         payment = self.create_invoice_payment()
