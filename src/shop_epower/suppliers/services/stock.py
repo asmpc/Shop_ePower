@@ -1,7 +1,7 @@
 from django.db.models import Min, Sum
 
 from shop_epower.catalog.models import Product
-from shop_epower.suppliers.models import Supplier, SupplierProduct
+from shop_epower.suppliers.models import SupplierProduct
 
 
 def get_product_inventory_detailed(product: Product) -> dict:

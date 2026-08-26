@@ -2,7 +2,6 @@ from rest_framework import permissions, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.response import Response
 
-from shop_epower.chat.models import ChatMessage, ChatRoom
 from shop_epower.chat.selectors import get_chat_room_messages
 from shop_epower.chat.services import close_chat_room, send_chat_message, take_chat_room
 

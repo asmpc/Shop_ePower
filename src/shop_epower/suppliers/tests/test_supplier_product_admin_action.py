@@ -14,7 +14,6 @@ from shop_epower.suppliers.models import (
     GlobalMarkup,
     SupplierProduct,
 )
-from shop_epower.suppliers.services.pricing import recalc_product_base_price
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,

@@ -11,10 +11,7 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 
-import os
 from datetime import timedelta
-
-from django.urls import reverse_lazy
 
 from config.env import BASE_DIR, env
 

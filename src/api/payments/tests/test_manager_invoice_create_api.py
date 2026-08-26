@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 from django.urls import reverse
-from rest_framework import response, status
+from rest_framework import status
 from rest_framework.test import APIClient
 
 from shop_epower.accounts.models import Role
@@ -19,7 +19,6 @@ from shop_epower.payments.models import (
 )
 from shop_epower.payments.tests.helpers import (
     create_test_company_settings,
-    create_test_payment,
     create_test_payment_for_user,
 )
 

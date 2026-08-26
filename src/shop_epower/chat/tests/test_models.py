@@ -2,7 +2,6 @@ from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.models import (
-    ChatAttachment,
     ChatMessage,
     ChatRoom,
     ChatRoomStatus,

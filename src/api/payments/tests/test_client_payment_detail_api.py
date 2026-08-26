@@ -5,7 +5,6 @@ from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
 from shop_epower.payments.tests.helpers import (
-    create_test_payment,
     create_test_payment_for_user,
 )
 

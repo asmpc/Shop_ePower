@@ -1,7 +1,6 @@
 from decimal import Decimal
 from unittest.mock import patch
 
-from django.contrib.auth import get_user_model
 from django.contrib.sessions.backends.db import SessionStore
 from django.core.exceptions import ValidationError
 from django.test import RequestFactory, TestCase

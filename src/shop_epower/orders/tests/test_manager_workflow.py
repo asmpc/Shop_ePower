@@ -11,10 +11,9 @@ from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
-from shop_epower.orders.models import Order, OrderItem, OrderStatus
+from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import (
     create_order_from_cart,
-    update_order_delivery_by_manager,
     update_order_status_by_manager,
 )
 from shop_epower.suppliers.tests.helpers import (
