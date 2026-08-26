@@ -1,11 +1,10 @@
-from django.test import TestCase
-
 from django.contrib.auth.tokens import default_token_generator
-from django.utils.http import urlsafe_base64_encode
-from django.utils.encoding import force_bytes
+from django.test import TestCase
 from django.urls import reverse
-from shop_epower.accounts.tests.helpers import create_test_user
+from django.utils.encoding import force_bytes
+from django.utils.http import urlsafe_base64_encode
 
+from shop_epower.accounts.tests.helpers import create_test_user
 
 
 class TestsFrontendAuth(TestCase):

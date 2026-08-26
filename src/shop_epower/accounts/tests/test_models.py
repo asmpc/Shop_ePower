@@ -1,9 +1,9 @@
 from django.test import TestCase
 
 from shop_epower.accounts.models import (
-    User,
-    Role,
     PriceCategory,
+    Role,
+    User,
 )
 
 

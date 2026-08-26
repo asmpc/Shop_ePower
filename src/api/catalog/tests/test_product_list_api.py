@@ -1,5 +1,4 @@
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -8,7 +7,6 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
-
 
 
 class TestProductListAPI(APITestCase):

@@ -1,10 +1,9 @@
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
+
 from shop_epower.accounts.models import LegalProfile
 from shop_epower.accounts.tests.helpers import create_test_user
-
 
 
 class TestsProfileApi(APITestCase):

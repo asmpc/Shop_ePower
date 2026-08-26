@@ -1,20 +1,18 @@
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.models import (
     ChatAttachment,
     ChatMessage,
     ChatRoom,
     ChatRoomStatus,
 )
-
 from shop_epower.chat.tests.helpers import (
     create_chat_attachment,
     create_chat_message,
     create_chat_room,
     create_user,
 )
-from shop_epower.accounts.tests.helpers import create_test_manager
-
 
 
 class TestsChatRoomModel(TestCase):

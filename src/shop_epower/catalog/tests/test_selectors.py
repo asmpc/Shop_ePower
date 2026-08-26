@@ -5,7 +5,6 @@ from shop_epower.catalog.models import (
     Category,
     Product,
 )
-
 from shop_epower.catalog.selectors.products import (
     get_product_list_queryset,
 )

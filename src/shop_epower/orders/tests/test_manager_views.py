@@ -1,27 +1,24 @@
 from decimal import Decimal
-
 from urllib.parse import urlencode
 
 from django.test import TestCase
 from django.urls import reverse
-
-from shop_epower.orders.models import Order, OrderStatus, OrderItem
-from shop_epower.catalog.tests.helpers import create_test_product
-from shop_epower.core.currency import get_base_currency
-from shop_epower.payments.models import (
-    PaymentMethod,
-    PaymentProvider,
-    PaymentStatus,
-)
-from shop_epower.payments.tests.helpers import create_test_payment
-from shop_epower.payments.services import mark_payment_paid
 
 from shop_epower.accounts.tests.helpers import (
     create_test_admin,
     create_test_manager,
     create_test_user,
 )
-
+from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.models import Order, OrderItem, OrderStatus
+from shop_epower.payments.models import (
+    PaymentMethod,
+    PaymentProvider,
+    PaymentStatus,
+)
+from shop_epower.payments.services import mark_payment_paid
+from shop_epower.payments.tests.helpers import create_test_payment
 
 
 class TestsManagerOrderViews(TestCase):

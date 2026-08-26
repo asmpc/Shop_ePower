@@ -1,11 +1,10 @@
-from django.test import TestCase
 from decimal import Decimal
 
-from shop_epower.catalog.models import Product
+from django.test import TestCase
+
 from shop_epower.accounts.models import PriceCategory
 from shop_epower.accounts.tests.helpers import create_test_user
-from shop_epower.catalog.models import Brand, Category
-
+from shop_epower.catalog.models import Brand, Category, Product
 
 
 #Цена товара зависит от пользователя и его price_category, иначе — base_price

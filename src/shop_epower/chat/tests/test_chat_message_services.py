@@ -2,17 +2,15 @@ from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.services import (
     mark_messages_as_read,
     send_chat_message,
 )
-
 from shop_epower.chat.tests.helpers import (
     create_chat_room,
     create_user,
 )
-from shop_epower.accounts.tests.helpers import create_test_manager
-
 
 
 class TestsChatMessageService(TestCase):

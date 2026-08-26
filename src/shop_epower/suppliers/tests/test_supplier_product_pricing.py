@@ -1,15 +1,16 @@
 from django.test import TestCase
+
 from shop_epower.catalog.tests.helpers import (
     create_test_brand,
     create_test_category,
     create_test_product,
 )
 from shop_epower.suppliers.models import GlobalMarkup
+from shop_epower.suppliers.services.pricing import recalc_product_base_price
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
 )
-from shop_epower.suppliers.services.pricing import recalc_product_base_price
 
 
 class TestSupplierProductPricing(TestCase):

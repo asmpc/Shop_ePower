@@ -4,7 +4,6 @@ from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import Order, OrderStatus
 
 
-
 def create_test_order(
     *,
     user,

@@ -4,6 +4,11 @@ from urllib.parse import urlencode
 from django.test import TestCase
 from django.urls import reverse
 
+from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
@@ -16,17 +21,12 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
-from shop_epower.payments.tests.helpers import (
-    create_test_company_settings,
-    create_test_payment,
-)
 from shop_epower.payments.services import (
     create_invoice_for_payment,
 )
-from shop_epower.accounts.tests.helpers import (
-    create_test_manager,
-    create_test_user,
-    create_test_admin,
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+    create_test_payment,
 )
 
 

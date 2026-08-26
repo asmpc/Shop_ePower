@@ -1,10 +1,9 @@
-from django.urls import reverse
 from django.contrib.auth import get_user_model
-
+from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
-from shop_epower.accounts.tests.helpers import create_test_user
 
+from shop_epower.accounts.tests.helpers import create_test_user
 
 User = get_user_model()
 

@@ -1,5 +1,4 @@
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import (
     APIClient,
@@ -20,7 +19,6 @@ from shop_epower.payments.tests.helpers import (
     create_test_payment,
     create_test_payment_history,
 )
-
 
 
 class TestManagerPaymentHistoryAPI(

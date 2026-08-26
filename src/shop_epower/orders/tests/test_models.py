@@ -3,10 +3,9 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.accounts.models import LegalProfile
-from shop_epower.orders.models import Order, OrderStatus, OrderItem
-from shop_epower.catalog.models import Brand, Category, Product
 from shop_epower.accounts.tests.helpers import create_test_user
-
+from shop_epower.catalog.models import Brand, Category, Product
+from shop_epower.orders.models import Order, OrderItem, OrderStatus
 
 
 class TestsOrderModel(TestCase):

@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.models import ChatRoomStatus
 from shop_epower.chat.selectors import (
     get_active_chat_rooms_for_manager,
@@ -8,13 +9,10 @@ from shop_epower.chat.selectors import (
     get_chat_rooms_for_user,
 )
 from shop_epower.chat.services import send_chat_message
-
 from shop_epower.chat.tests.helpers import (
     create_chat_room,
     create_user,
 )
-from shop_epower.accounts.tests.helpers import create_test_manager
-
 
 
 class ChatSelectorsTests(TestCase):

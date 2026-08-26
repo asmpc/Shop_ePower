@@ -1,30 +1,25 @@
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.test import TestCase
 from django.urls import reverse
 
-from shop_epower.orders.models import Order
-from shop_epower.cart.tests.helpers import (
-    create_test_cart_with_item,
-)
-
-from shop_epower.suppliers.tests.helpers import (
-    create_test_supplier,
-    create_test_supplier_product,
-)
-
-from shop_epower.catalog.tests.helpers import create_test_product
-
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
-
+from shop_epower.cart.tests.helpers import (
+    create_test_cart_with_item,
+)
+from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.orders.models import Order
 from shop_epower.payments.models import (
     Payment,
     PaymentMethod,
 )
-
-from urllib.parse import urlencode
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 
 class TestsCheckoutViews(TestCase):

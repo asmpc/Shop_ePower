@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     CompanySettings,
     Invoice,
@@ -9,8 +10,6 @@ from shop_epower.payments.models import (
     PaymentMethod,
     PaymentStatus,
 )
-from shop_epower.orders.tests.helpers import create_test_order
-
 
 
 def create_test_payment(

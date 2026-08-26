@@ -1,5 +1,6 @@
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.models import ChatRoomStatus
 from shop_epower.chat.services import (
     close_chat_room,
@@ -7,14 +8,13 @@ from shop_epower.chat.services import (
     create_chat_room,
     take_chat_room,
 )
-
 from shop_epower.chat.tests.helpers import (
     create_chat_room as helper_create_chat_room,
+)
+from shop_epower.chat.tests.helpers import (
     create_user,
 )
-from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.orders.tests.helpers import create_test_order
-
 
 
 class TestsChatRoomService(TestCase):
