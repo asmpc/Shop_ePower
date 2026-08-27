@@ -1,12 +1,11 @@
 from django.test import TestCase
 
-from shop_epower.payments.tests.helpers import (
-    create_test_company_settings,
-)
 from shop_epower.payments.selectors.company_settings import (
     get_company_settings,
 )
-
+from shop_epower.payments.tests.helpers import (
+    create_test_company_settings,
+)
 
 
 class TestsCompanySettingsSelectors(TestCase):

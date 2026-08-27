@@ -1,9 +1,8 @@
-from django.db import models
 from django.conf import settings
+from django.db import models
 
 from shop_epower.orders.models import Order
 from shop_epower.payments.models.payment import Payment
-
 
 
 class InvoiceStatus(models.TextChoices):

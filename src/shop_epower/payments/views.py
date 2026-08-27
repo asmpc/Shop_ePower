@@ -1,18 +1,15 @@
+from django.contrib.auth.decorators import login_required
 from django.shortcuts import (
     get_object_or_404,
     redirect,
     render,
 )
-
 from django.urls import reverse
-
-from django.contrib.auth.decorators import login_required
 
 from shop_epower.payments.models import (
     Invoice,
     Payment,
 )
-
 from shop_epower.payments.services import (
     build_invoice_pdf_response,
     mark_payment_failed,

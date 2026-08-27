@@ -1,10 +1,10 @@
 from django.contrib import admin
 
 from shop_epower.payments.models import (
-    Payment,
-    PaymentHistory,
     CompanySettings,
     Invoice,
+    Payment,
+    PaymentHistory,
 )
 
 

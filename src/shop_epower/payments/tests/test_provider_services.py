@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_user
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
@@ -9,11 +10,9 @@ from shop_epower.payments.models import (
     PaymentProvider,
 )
 from shop_epower.payments.services import (
-    create_payment_for_order,
     create_mock_payment_url,
+    create_payment_for_order,
 )
-from shop_epower.accounts.tests.helpers import create_test_user
-
 
 
 class TestsPaymentProviderServices(TestCase):

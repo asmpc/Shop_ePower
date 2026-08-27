@@ -1,24 +1,20 @@
+from django.contrib import messages
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect
+from django.views import View
 from django.views.generic import TemplateView
 
 from shop_epower.cart.selectors import (
     get_cart_totals,
     get_cart_with_items,
 )
-
-from django.contrib import messages
-from django.core.exceptions import ValidationError
-from django.shortcuts import get_object_or_404, redirect
-from django.views import View
-
-from shop_epower.catalog.models import Product
 from shop_epower.cart.services import (
     add_product_to_cart,
+    clear_cart,
     get_or_create_cart,
     remove_product_from_cart,
-    clear_cart,
 )
-
-
+from shop_epower.catalog.models import Product
 
 
 class CartDetailView(TemplateView):

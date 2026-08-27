@@ -4,8 +4,6 @@ from django.contrib.admin.sites import AdminSite
 from django.contrib.messages.storage.fallback import FallbackStorage
 from django.test import RequestFactory, TestCase
 
-from shop_epower.suppliers.services.pricing import recalc_product_base_price
-
 from shop_epower.catalog.tests.helpers import (
     create_test_brand,
     create_test_category,
@@ -20,7 +18,6 @@ from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
 )
-
 
 
 class TestSupplierProductAdminAction(TestCase):

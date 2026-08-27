@@ -1,19 +1,17 @@
 from django.test import TestCase
 from django.urls import reverse
 
+from shop_epower.accounts.tests.helpers import create_test_manager
 from shop_epower.chat.models import ChatRoom, ChatRoomStatus
-
-from .helpers import (
-    create_chat_room,
-    create_user,
-)
 from shop_epower.chat.services import (
     send_chat_message,
     take_chat_room,
 )
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.chat.tests.helpers import (
+    create_chat_room,
+    create_user,
+)
 from shop_epower.orders.tests.helpers import create_test_order
-
 
 
 class TestsChatView(TestCase):

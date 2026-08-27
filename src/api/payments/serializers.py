@@ -7,7 +7,6 @@ from shop_epower.payments.models import (
 )
 
 
-
 class PaymentListSerializer(serializers.ModelSerializer):
 
     class Meta:

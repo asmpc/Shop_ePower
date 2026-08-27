@@ -1,23 +1,19 @@
-from django.http import HttpResponse
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import get_object_or_404, render, redirect
-
-
-from shop_epower.chat.selectors import (
-    get_active_chat_rooms_for_manager,
-    get_all_chat_rooms_for_admin,
-    get_available_chat_rooms_for_manager,
-    get_chat_rooms_for_user, get_chat_room_messages,
-)
-
+from django.shortcuts import get_object_or_404, redirect, render
 
 from shop_epower.chat.forms import (
     ChatMessageForm,
     ChatRoomCreateForm,
 )
-
 from shop_epower.chat.models import ChatRoom, ChatRoomStatus
+from shop_epower.chat.selectors import (
+    get_active_chat_rooms_for_manager,
+    get_all_chat_rooms_for_admin,
+    get_available_chat_rooms_for_manager,
+    get_chat_room_messages,
+    get_chat_rooms_for_user,
+)
 from shop_epower.chat.services import (
     close_chat_room,
     close_chat_room_by_client,
@@ -26,7 +22,6 @@ from shop_epower.chat.services import (
     send_chat_message,
     take_chat_room,
 )
-
 
 
 def _check_room_access(user, room):

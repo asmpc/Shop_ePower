@@ -1,24 +1,23 @@
 from django.urls import path
-from .views import (
-    checkout_view,
-    order_success_view,
-    order_list_view,
-    order_detail_view,
-    order_cancel_view,
-)
 
 from shop_epower.orders.views_manager import (
-    ManagerOrderListView,
-    ManagerOrderDetailView,
-    ManagerOrderStatusUpdateView,
-    ManagerOrderDeliveryUpdateView,
-    ManagerMarkPaymentPaidView,
-    ManagerMarkPaymentFailedView,
-    ManagerMarkPaymentCancelledView,
     AdminResetPaymentToPendingView,
+    ManagerMarkPaymentCancelledView,
+    ManagerMarkPaymentFailedView,
+    ManagerMarkPaymentPaidView,
+    ManagerOrderDeliveryUpdateView,
+    ManagerOrderDetailView,
+    ManagerOrderListView,
+    ManagerOrderStatusUpdateView,
 )
 
-
+from .views import (
+    checkout_view,
+    order_cancel_view,
+    order_detail_view,
+    order_list_view,
+    order_success_view,
+)
 
 app_name = "orders"
 

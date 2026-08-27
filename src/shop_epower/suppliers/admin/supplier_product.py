@@ -1,13 +1,10 @@
-from django.contrib import admin
-
-from shop_epower.core.currency import get_base_currency
-from shop_epower.suppliers.models import SupplierProduct
-from shop_epower.suppliers.services.currency import CurrencyService
-from shop_epower.suppliers.models import CurrencyRate
-from django.contrib import messages
 from unittest.mock import patch
 
+from django.contrib import admin, messages
 
+from shop_epower.core.currency import get_base_currency
+from shop_epower.suppliers.models import CurrencyRate, SupplierProduct
+from shop_epower.suppliers.services.currency import CurrencyService
 
 
 @admin.register(SupplierProduct)

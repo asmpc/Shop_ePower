@@ -3,7 +3,6 @@ from django import forms
 from shop_epower.orders.models import Order
 
 
-
 class ChatRoomCreateForm(forms.Form):
     order = forms.ModelChoiceField(
         queryset=Order.objects.none(),

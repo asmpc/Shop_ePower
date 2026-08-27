@@ -1,6 +1,8 @@
 from django.core.management.base import BaseCommand
+
 from shop_epower.catalog.models import Product
 from shop_epower.suppliers.services.pricing import recalc_product_base_price
+
 
 class Command(BaseCommand):
     help = "Recalculate base_price for all products based on supplier prices and global markup"

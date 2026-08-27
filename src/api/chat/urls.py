@@ -3,7 +3,6 @@ from rest_framework.routers import DefaultRouter
 
 from api.chat.views import ChatRoomViewSet
 
-
 app_name = "chat_api"
 
 router = DefaultRouter()

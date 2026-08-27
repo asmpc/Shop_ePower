@@ -1,6 +1,8 @@
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+
 from .price_category import PriceCategory
+
 
 class Role(models.TextChoices):
     CLIENT = 'client', 'Client'

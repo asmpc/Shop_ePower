@@ -1,10 +1,10 @@
 from celery import shared_task
 
-from shop_epower.orders.models import Order
 from shop_epower.notifications.services import (
     send_order_created_email_to_customer,
     send_order_created_notification_to_managers,
 )
+from shop_epower.orders.models import Order
 
 
 @shared_task(

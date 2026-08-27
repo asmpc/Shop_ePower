@@ -1,8 +1,6 @@
-from shop_epower.core.models import BaseModel
-
-
 from django.db import models
 
+from shop_epower.core.models import BaseModel
 
 
 class ProductVariantGroup(BaseModel):

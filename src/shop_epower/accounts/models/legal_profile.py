@@ -1,5 +1,7 @@
 from django.db import models
+
 from .user import User
+
 
 class LegalProfileType(models.TextChoices):
     LEGAL_ENTITY = 'legal_entity', 'Legal entity'

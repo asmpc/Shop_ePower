@@ -9,14 +9,11 @@ from shop_epower.suppliers.models import (
     CurrencyRate,
     GlobalMarkup,
 )
-
+from shop_epower.suppliers.services.currency import CurrencyService
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
 )
-
-from shop_epower.suppliers.services.currency import CurrencyService
-
 
 
 class CategoryMarkupPricingTestCase(TestCase):

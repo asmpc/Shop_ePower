@@ -2,14 +2,13 @@ from django.urls import path
 
 from .views import (
     CheckoutAPIView,
-    OrderListAPIView,
-    OrderDetailAPIView,
-    OrderCancelAPIView,
-    ManagerOrderListAPIView,
     ManagerOrderDetailAPIView,
+    ManagerOrderListAPIView,
     ManagerOrderStatusUpdateAPIView,
+    OrderCancelAPIView,
+    OrderDetailAPIView,
+    OrderListAPIView,
 )
-
 
 app_name = "api_orders"
 

@@ -1,13 +1,11 @@
 from django.contrib import admin
-
 from django.contrib.auth.admin import UserAdmin
 
 from .models import (
-    User,
-    PriceCategory,
     LegalProfile,
+    PriceCategory,
+    User,
 )
-
 
 
 @admin.register(PriceCategory)

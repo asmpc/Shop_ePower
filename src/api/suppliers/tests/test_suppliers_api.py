@@ -1,15 +1,12 @@
 from django.test import TestCase
-
 from rest_framework.test import APIClient
 
+from shop_epower.accounts.tests.helpers import create_test_user
 from shop_epower.catalog.tests.helpers import (
     create_test_brand,
     create_test_category,
     create_test_product,
 )
-
-from shop_epower.accounts.tests.helpers import create_test_user
-
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,

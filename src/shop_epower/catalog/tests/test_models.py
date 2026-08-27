@@ -3,7 +3,6 @@ from django.test import TestCase
 from shop_epower.catalog.models import Brand, Category, Product, ProductVariantGroup
 
 
-
 class TestsProductModel(TestCase):
 
     # Создаём общие Brand и Category, которые нужны всем тестам Product.

@@ -1,16 +1,15 @@
 # accounts/urls.py
 
-from django.urls import path
 from django.contrib.auth import views as auth_views
+from django.urls import path
 
+from . import views
 from .views import (
     CustomLoginView,
     CustomLogoutView,
-    RegisterTemplateView,
     ProfileView,
+    RegisterTemplateView,
 )
-from . import views
-
 
 app_name = 'accounts'
 

@@ -1,4 +1,3 @@
-from .user import User
-from .price_category import PriceCategory
 from .legal_profile import LegalProfile
-from .user import Role
+from .price_category import PriceCategory
+from .user import Role, User

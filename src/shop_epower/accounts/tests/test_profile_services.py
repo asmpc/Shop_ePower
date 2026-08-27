@@ -7,7 +7,6 @@ from shop_epower.accounts.services.profile import (
 from shop_epower.accounts.tests.helpers import create_test_user
 
 
-
 class TestsProfileCompletenessService(TestCase):
 
     def setUp(self):

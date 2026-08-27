@@ -1,39 +1,35 @@
 from decimal import Decimal
-from django.core.exceptions import ValidationError
 
+from django.core.exceptions import ValidationError
 from django.test import TestCase
 from django.utils import timezone
 
+from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
+    create_test_user,
+)
 from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.models import (
+    DeliveryMethod,
+    OrderStatus,
+)
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
+    CompanySettings,
     Invoice,
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
-    CompanySettings,
+)
+from shop_epower.payments.services import (
+    cancel_invoice,
+    create_invoice_for_payment,
+    generate_invoice_number,
 )
 from shop_epower.payments.tests.helpers import (
     create_test_company_settings,
     create_test_payment,
 )
-
-from shop_epower.payments.services import (
-    generate_invoice_number,
-    create_invoice_for_payment,
-    cancel_invoice,
-)
-
-from shop_epower.orders.models import (
-    OrderStatus,
-    DeliveryMethod,
-)
-from shop_epower.orders.tests.helpers import create_test_order
-
-from shop_epower.accounts.tests.helpers import (
-    create_test_user,
-    create_test_admin,
-)
-
 
 
 class TestsInvoiceServices(TestCase):

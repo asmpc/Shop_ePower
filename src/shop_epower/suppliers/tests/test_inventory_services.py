@@ -5,17 +5,14 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
+from shop_epower.suppliers.services.stock import (
+    get_product_inventory_data,
+    get_product_inventory_public,
+)
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
 )
-
-from shop_epower.suppliers.services.stock import (
-    get_product_inventory_data,
-)
-
-from shop_epower.suppliers.services.stock import get_product_inventory_public
-
 
 
 class TestStockService(TestCase):

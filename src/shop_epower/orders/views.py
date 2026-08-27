@@ -1,31 +1,24 @@
-from django.shortcuts import redirect, render
-from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-
+from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
-
-from shop_epower.accounts.navigation import get_profile_edit_url
-from shop_epower.cart.models import Cart
-from shop_epower.orders.services import create_order_from_cart
-from django.shortcuts import get_object_or_404
+from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 from django.views.decorators.http import require_POST
 
-from shop_epower.orders.models import Order, OrderStatus
-from shop_epower.orders.services import cancel_new_order
+from shop_epower.accounts.navigation import get_profile_edit_url
+from shop_epower.accounts.services.profile import (
+    is_profile_complete,
+)
+from shop_epower.cart.models import Cart
 from shop_epower.chat.selectors import get_chat_rooms_for_order
-from django.core.exceptions import ValidationError
-
+from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.services import cancel_new_order, create_order_from_cart
+from shop_epower.payments.models import PaymentMethod
 from shop_epower.payments.services import (
     create_payment_for_order,
     validate_payment_method_for_delivery,
 )
-from shop_epower.payments.models import PaymentMethod
-
-from shop_epower.accounts.services.profile import (
-    is_profile_complete,
-)
-
-from django.urls import reverse
 
 
 def checkout_view(request):

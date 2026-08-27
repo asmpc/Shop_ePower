@@ -1,14 +1,12 @@
+from shop_epower.accounts.tests.helpers import (
+    create_test_user,
+)
 from shop_epower.chat.models import (
     ChatAttachment,
     ChatMessage,
     ChatRoom,
     ChatRoomStatus,
 )
-
-from shop_epower.accounts.tests.helpers import (
-    create_test_user,
-)
-
 
 create_user = create_test_user
 

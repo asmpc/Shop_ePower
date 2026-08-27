@@ -6,20 +6,18 @@ from api.payments.views import (
     ClientPaymentInvoiceAPIView,
     ClientPaymentInvoicePDFAPIView,
     ClientPaymentListAPIView,
-    ManagerPaymentListAPIView,
-    ManagerPaymentDetailAPIView,
-    ManagerPaymentMarkPaidAPIView,
-    ManagerPaymentMarkFailedAPIView,
-    ManagerPaymentMarkCancelledAPIView,
-    ManagerPaymentResetToPendingAPIView,
-    ManagerPaymentHistoryAPIView,
+    ManagerInvoiceCancelAPIView,
     ManagerInvoiceCreateAPIView,
     ManagerInvoiceDetailAPIView,
     ManagerInvoicePdfAPIView,
-    ManagerInvoiceCancelAPIView,
-
+    ManagerPaymentDetailAPIView,
+    ManagerPaymentHistoryAPIView,
+    ManagerPaymentListAPIView,
+    ManagerPaymentMarkCancelledAPIView,
+    ManagerPaymentMarkFailedAPIView,
+    ManagerPaymentMarkPaidAPIView,
+    ManagerPaymentResetToPendingAPIView,
 )
-
 
 app_name = 'api-payments'
 

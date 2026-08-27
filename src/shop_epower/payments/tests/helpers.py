@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from shop_epower.core.currency import get_base_currency
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     CompanySettings,
     Invoice,
@@ -9,7 +10,6 @@ from shop_epower.payments.models import (
     PaymentMethod,
     PaymentStatus,
 )
-
 
 
 def create_test_payment(
@@ -99,5 +99,22 @@ def create_test_payment_history(
         new_status=new_status,
         comment=comment,
         changed_by=changed_by,
+        **kwargs,
+    )
+
+def create_test_payment_for_user(
+    *,
+    user,
+    amount=Decimal("100.00"),
+    **kwargs,
+):
+    order = create_test_order(
+        user=user,
+        total_price=amount,
+    )
+
+    return create_test_payment(
+        order=order,
+        amount=amount,
         **kwargs,
     )

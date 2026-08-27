@@ -5,13 +5,11 @@ from shop_epower.accounts.services.roles import (
     is_client,
     is_manager,
 )
-
 from shop_epower.accounts.tests.helpers import (
     create_test_admin,
     create_test_manager,
     create_test_user,
 )
-
 
 
 class TestsRoleService(TestCase):

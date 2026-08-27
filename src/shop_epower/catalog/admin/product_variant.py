@@ -3,7 +3,6 @@ from django.contrib import admin
 from shop_epower.catalog.models import ProductVariantGroup
 
 
-
 @admin.register(ProductVariantGroup)
 class ProductVariantGroupAdmin(admin.ModelAdmin):
     list_display = (

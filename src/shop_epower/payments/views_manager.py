@@ -1,38 +1,35 @@
+from urllib.parse import urlencode
+
+from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.views.generic import ListView, DetailView
-from django.urls import reverse
-from django.shortcuts import get_object_or_404, redirect
+from django.core.exceptions import ValidationError
 from django.http import (
     HttpResponse,
     HttpResponseForbidden,
 )
-from django.contrib import messages
-from django.core.exceptions import ValidationError
+from django.shortcuts import get_object_or_404, redirect
+from django.urls import reverse
 from django.views import View
+from django.views.generic import DetailView, ListView
 
-from urllib.parse import urlencode
-
+from shop_epower.orders.navigation import (
+    redirect_to_manager_order_detail,
+)
 from shop_epower.payments.models import (
     Invoice,
     Payment,
 )
-
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
+)
+from shop_epower.payments.services import (
+    cancel_invoice,
+    create_invoice_for_payment,
+    generate_invoice_pdf,
 )
 from shop_epower.payments.validators import (
     validate_manager_can_create_invoice,
 )
-
-from shop_epower.payments.services import (
-    create_invoice_for_payment,
-    cancel_invoice,
-    generate_invoice_pdf,
-)
-from shop_epower.orders.navigation import (
-    redirect_to_manager_order_detail,
-)
-
 
 
 class ManagerPaymentListView(

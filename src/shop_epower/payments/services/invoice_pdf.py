@@ -1,11 +1,8 @@
 from io import BytesIO
 
 from django.http import HttpResponse
-
 from reportlab.lib import colors
-
 from reportlab.lib.pagesizes import A4
-
 from reportlab.lib.units import mm
 from reportlab.platypus import (
     KeepTogether,
@@ -16,15 +13,13 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from shop_epower.payments.models import InvoiceStatus
 from shop_epower.pdf import (
     build_party_lines,
     draw_pdf_footer,
     get_pdf_styles,
     safe_text,
 )
-
-from shop_epower.payments.models import InvoiceStatus
-
 
 
 def _build_header(

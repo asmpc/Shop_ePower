@@ -1,8 +1,9 @@
 from django.contrib import admin
 
 from shop_epower.catalog.models import Product
-from .image_inline import ProductImageInline
 from shop_epower.suppliers.services.pricing import recalc_product_base_price
+
+from .image_inline import ProductImageInline
 
 
 @admin.register(Product)

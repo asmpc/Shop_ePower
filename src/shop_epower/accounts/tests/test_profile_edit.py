@@ -5,7 +5,6 @@ from shop_epower.accounts.models import LegalProfile
 from shop_epower.accounts.tests.helpers import create_test_user
 
 
-
 class TestsProfileEditView(TestCase):
 
     def setUp(self):

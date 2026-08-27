@@ -1,10 +1,9 @@
-from shop_epower.suppliers.services.currency import CurrencyService
-from shop_epower.catalog.models import Product
-
 from django.contrib import admin
 
+from shop_epower.catalog.models import Product
 from shop_epower.core.currency import get_base_currency
 from shop_epower.suppliers.models import CurrencyRate
+from shop_epower.suppliers.services.currency import CurrencyService
 
 
 @admin.register(CurrencyRate)

@@ -1,5 +1,6 @@
-from shop_epower.payments.models import Payment
 from django.shortcuts import get_object_or_404
+
+from shop_epower.payments.models import Payment
 
 
 def get_payments_for_user(user):

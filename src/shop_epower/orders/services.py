@@ -3,22 +3,21 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.db import transaction
 
+from shop_epower.accounts.services.profile import (
+    is_profile_complete,
+)
+from shop_epower.notifications.tasks import (
+    notify_managers_about_new_order,
+    send_customer_order_created_email,
+)
+from shop_epower.suppliers.models import SupplierProduct
+
+from ..core.currency import get_base_currency
 from .models import (
     Order,
     OrderItem,
     OrderStatus,
     OrderStockReservation,
-)
-from shop_epower.suppliers.models import SupplierProduct
-from ..core.currency import get_base_currency
-
-from shop_epower.notifications.tasks import (
-    notify_managers_about_new_order,
-    send_customer_order_created_email,
-)
-
-from shop_epower.accounts.services.profile import (
-    is_profile_complete,
 )
 
 

@@ -1,17 +1,15 @@
 from django.test import TestCase
-
 from rest_framework.test import APIClient
 
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.models import (
     ChatMessage,
     ChatRoom,
     ChatRoomStatus,
 )
-from shop_epower.accounts.tests.helpers import (
-    create_test_manager,
-    create_test_user,
-)
-
 
 
 class TestsChatAPI(TestCase):

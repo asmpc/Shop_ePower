@@ -1,14 +1,12 @@
 import django_filters
 
 from shop_epower.catalog.models import (
-    Product,
     Category,
+    Product,
 )
-
 from shop_epower.catalog.selectors.products import (
     get_category_with_descendants,
 )
-
 
 
 class ProductFilter(django_filters.FilterSet):

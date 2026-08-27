@@ -1,29 +1,23 @@
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework.filters import (
+    OrderingFilter,
+    SearchFilter,
+)
+from rest_framework.generics import ListAPIView, RetrieveAPIView
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
-from rest_framework.generics import ListAPIView, RetrieveAPIView
-
-from shop_epower.catalog.selectors.products import (
-    get_product_list_queryset,
-    get_product_detail_queryset,
-)
 from shop_epower.catalog.selectors.product_data import prepare_product_for_user
-
-from .serializers import (
-    ProductListSerializer,
-    ProductDetailSerializer,
-)
-
-from rest_framework.permissions import AllowAny
-
-from django_filters.rest_framework import DjangoFilterBackend
-
-from rest_framework.filters import (
-    SearchFilter,
-    OrderingFilter,
+from shop_epower.catalog.selectors.products import (
+    get_product_detail_queryset,
+    get_product_list_queryset,
 )
 
 from .filters import ProductFilter
-
+from .serializers import (
+    ProductDetailSerializer,
+    ProductListSerializer,
+)
 
 
 class ProductListAPIView(ListAPIView):

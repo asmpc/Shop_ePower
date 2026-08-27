@@ -4,7 +4,6 @@ from django.urls import reverse
 from shop_epower.catalog.models import Brand, Category, Product, ProductVariantGroup
 
 
-
 class TestsCatalogView(TestCase):
 
     # Подготавливаем минимальные данные для каталога:

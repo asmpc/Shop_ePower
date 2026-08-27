@@ -1,13 +1,9 @@
-from django.contrib.auth import get_user_model
-from rest_framework_simplejwt.tokens import RefreshToken
-from django.contrib.auth import authenticate
-
+from django.contrib.auth import authenticate, get_user_model
 from rest_framework import serializers
-
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
+from rest_framework_simplejwt.tokens import RefreshToken
+
 from shop_epower.accounts.models import LegalProfile
-
-
 
 User = get_user_model()
 

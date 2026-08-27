@@ -1,12 +1,10 @@
 from django.core.exceptions import ValidationError
-
-from shop_epower.suppliers.services.stock import get_product_inventory_public
-
 from django.db import transaction
 
-from .models import Cart, CartItem
 from shop_epower.core.currency import get_base_currency
+from shop_epower.suppliers.services.stock import get_product_inventory_public
 
+from .models import Cart, CartItem
 
 
 def get_or_create_cart(user=None, session_key=""):

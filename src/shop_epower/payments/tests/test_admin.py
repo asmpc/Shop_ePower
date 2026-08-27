@@ -1,6 +1,5 @@
 from django.contrib import admin
-from django.test import TestCase
-from django.test import RequestFactory
+from django.test import RequestFactory, TestCase
 
 from shop_epower.payments.admin import (
     CompanySettingsAdmin,
@@ -15,7 +14,6 @@ from shop_epower.payments.models import (
 from shop_epower.payments.tests.helpers import (
     create_test_company_settings,
 )
-
 
 
 class TestsPaymentAdmin(TestCase):

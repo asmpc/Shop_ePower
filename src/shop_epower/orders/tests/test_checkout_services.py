@@ -1,31 +1,25 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
 from django.core.exceptions import ValidationError
-
-from shop_epower.orders.models import Order
-from shop_epower.orders.services import (
-    create_order_from_cart,
-)
-
-from shop_epower.cart.tests.helpers import (
-    create_test_cart_with_item,
-)
-
-from shop_epower.suppliers.tests.helpers import (
-    create_test_supplier,
-    create_test_supplier_product,
-)
-
-from shop_epower.catalog.tests.helpers import create_test_product
+from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
-
-from unittest.mock import patch
-
+from shop_epower.cart.tests.helpers import (
+    create_test_cart_with_item,
+)
+from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.orders.models import Order
+from shop_epower.orders.services import (
+    create_order_from_cart,
+)
+from shop_epower.suppliers.tests.helpers import (
+    create_test_supplier,
+    create_test_supplier_product,
+)
 
 User = get_user_model()
 

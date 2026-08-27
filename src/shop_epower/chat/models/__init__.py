@@ -1,7 +1,6 @@
-from .room import ChatRoom, ChatRoomStatus
-from .message import ChatMessage
 from .attachment import ChatAttachment
-
+from .message import ChatMessage
+from .room import ChatRoom, ChatRoomStatus
 
 __all__ = [
     "ChatRoom",

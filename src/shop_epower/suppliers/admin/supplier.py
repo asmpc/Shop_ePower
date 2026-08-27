@@ -1,7 +1,6 @@
 from django.contrib import admin
 
-from shop_epower.suppliers.models import SupplierProduct
-from shop_epower.suppliers.models import Supplier
+from shop_epower.suppliers.models import Supplier, SupplierProduct
 
 
 class SupplierProductInline(admin.TabularInline):

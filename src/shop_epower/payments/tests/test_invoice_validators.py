@@ -3,6 +3,7 @@ from decimal import Decimal
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
+from shop_epower.accounts.tests.helpers import create_test_user
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
@@ -20,8 +21,6 @@ from shop_epower.payments.validators import (
     validate_client_can_create_invoice,
     validate_manager_can_create_invoice,
 )
-from shop_epower.accounts.tests.helpers import create_test_user
-
 
 
 class TestsInvoiceValidators(TestCase):

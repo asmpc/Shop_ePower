@@ -11,12 +11,9 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 """
 
 
-import os
-from config.env import env, BASE_DIR
-from django.urls import reverse_lazy
 from datetime import timedelta
 
-
+from config.env import BASE_DIR, env
 
 # False if not in os.environ because of casting above
 DEBUG = env('DEBUG')

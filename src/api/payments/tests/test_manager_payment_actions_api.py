@@ -1,5 +1,4 @@
 from django.urls import reverse
-
 from rest_framework import status
 from rest_framework.test import APITestCase
 
@@ -8,7 +7,6 @@ from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
 )
-
 from shop_epower.orders.tests.helpers import (
     create_test_order,
 )
@@ -16,7 +14,6 @@ from shop_epower.payments.models import PaymentStatus
 from shop_epower.payments.tests.helpers import (
     create_test_payment,
 )
-
 
 
 class TestManagerPaymentActionsAPI(APITestCase):

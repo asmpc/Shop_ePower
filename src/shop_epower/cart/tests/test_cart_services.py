@@ -1,24 +1,19 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.contrib.sessions.backends.db import SessionStore
-from django.contrib.auth import get_user_model
-
 from django.core.exceptions import ValidationError
-from django.test import TestCase, RequestFactory
+from django.test import RequestFactory, TestCase
 
-from shop_epower.cart.models import CartItem, Cart
-
-from shop_epower.catalog.models import Brand, Category, Product
-
-from unittest.mock import patch
+from shop_epower.accounts.tests.helpers import create_test_user
+from shop_epower.cart.models import Cart, CartItem
 from shop_epower.cart.services import (
     add_product_to_cart,
     clear_cart,
     get_or_create_cart,
     merge_session_cart_to_user_cart,
 )
-from shop_epower.accounts.tests.helpers import create_test_user
-
+from shop_epower.catalog.models import Brand, Category, Product
 
 
 class TestsCartServices(TestCase):

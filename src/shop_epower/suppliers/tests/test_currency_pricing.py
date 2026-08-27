@@ -3,19 +3,15 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.catalog.tests.helpers import create_test_product
-
 from shop_epower.suppliers.models import (
     CurrencyRate,
     GlobalMarkup,
 )
-
+from shop_epower.suppliers.services.currency import CurrencyService
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
 )
-
-from shop_epower.suppliers.services.currency import CurrencyService
-
 
 
 class TestCurrencyPricing(TestCase):

@@ -1,35 +1,27 @@
-from django.urls import reverse_lazy, reverse
-from django.views.generic import CreateView, TemplateView
+from urllib.parse import urlencode
 
+from django.contrib import messages
+from django.contrib.auth import login
+from django.contrib.auth.decorators import login_required
+from django.contrib.auth.mixins import LoginRequiredMixin
 from django.contrib.auth.views import (
     LoginView,
     LogoutView,
 )
-
-from urllib.parse import urlencode
-
-from django.contrib.auth.mixins import LoginRequiredMixin
-
-from django.contrib import messages
-
-from django.contrib.auth import login
-from django.contrib.auth.decorators import login_required
-
 from django.shortcuts import redirect, render
-
-from .forms import (
-    LoginForm,
-    RegisterForm,
-    LegalProfileForm,
-    UserProfileForm,
-)
+from django.urls import reverse, reverse_lazy
+from django.utils.http import url_has_allowed_host_and_scheme
+from django.views.generic import CreateView, TemplateView
 
 from shop_epower.cart.services import merge_session_cart_to_user_cart
 
+from .forms import (
+    LegalProfileForm,
+    LoginForm,
+    RegisterForm,
+    UserProfileForm,
+)
 from .models import LegalProfile
-
-from django.utils.http import url_has_allowed_host_and_scheme
-
 
 
 class CustomLoginView(LoginView):
