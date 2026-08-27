@@ -574,13 +574,15 @@ class TestsChatView(TestCase):
         room = create_chat_room(status=ChatRoomStatus.OPEN)
 
         self.client.force_login(manager)
-        url = reverse("chat:room_detail", kwargs={"pk": room.pk})
 
         # имитируем POST на Take
         take_url = reverse("chat:room_take", kwargs={"pk": room.pk})
         response = self.client.post(take_url)
 
+        self.assertEqual(response.status_code, 302)
+
         room.refresh_from_db()
+
         self.assertEqual(room.status, ChatRoomStatus.IN_PROGRESS)
         self.assertEqual(room.manager, manager)
 
@@ -594,7 +596,13 @@ class TestsChatView(TestCase):
 
         self.client.force_login(manager)
         send_url = reverse("chat:room_send", kwargs={"pk": room.pk})
-        response = self.client.post(send_url, data={"text": "Hello"})
+        response = self.client.post(
+            send_url,
+            data={"text": "Hello"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+
         room.refresh_from_db()
 
         self.assertEqual(room.messages.count(), 1)
