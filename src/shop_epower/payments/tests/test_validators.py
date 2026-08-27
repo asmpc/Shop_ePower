@@ -1,10 +1,7 @@
-from decimal import Decimal
-
 from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import create_test_user
-from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
     OrderStatus,
@@ -34,11 +31,6 @@ class TestsPaymentValidators(TestCase):
         return create_test_order(
             user=self.user,
             status=status,
-            customer_name="Test Client",
-            customer_email="client@test.com",
-            customer_phone="",
-            total_price=Decimal("100.00"),
-            currency_snapshot=get_base_currency(),
         )
 
     # Проверяем связку доставки и оплаты:
