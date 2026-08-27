@@ -1,6 +1,9 @@
 from django.test import TestCase
 
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.models import ChatRoomStatus
 from shop_epower.chat.selectors import (
     get_active_chat_rooms_for_manager,
@@ -10,8 +13,7 @@ from shop_epower.chat.selectors import (
 )
 from shop_epower.chat.services import send_chat_message
 from shop_epower.chat.tests.helpers import (
-    create_chat_room,
-    create_user,
+    create_test_chat_room,
 )
 
 
@@ -21,14 +23,14 @@ class ChatSelectorsTests(TestCase):
     # пользователь должен видеть только свои комнаты,
     # комнаты других клиентов не попадают в выборку.
     def test_get_chat_rooms_for_user(self):
-        user = create_user()
-        other_user = create_user(
+        user = create_test_user()
+        other_user = create_test_user(
             username="other-user",
             email="other-user@example.com",
         )
 
-        user_room = create_chat_room(user=user)
-        create_chat_room(user=other_user)
+        user_room = create_test_chat_room(user=user)
+        create_test_chat_room(user=other_user)
 
         rooms = get_chat_rooms_for_user(user=user)
 
@@ -41,12 +43,12 @@ class ChatSelectorsTests(TestCase):
     def test_get_available_chat_rooms_for_manager(self):
         manager = create_test_manager()
 
-        open_room = create_chat_room()
-        create_chat_room(
+        open_room = create_test_chat_room()
+        create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
-        create_chat_room(
+        create_test_chat_room(
             status=ChatRoomStatus.CLOSED,
         )
 
@@ -65,15 +67,15 @@ class ChatSelectorsTests(TestCase):
             email="other-manager@example.com",
         )
 
-        manager_room = create_chat_room(
+        manager_room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
-        create_chat_room(
+        create_test_chat_room(
             manager=other_manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
-        create_chat_room(status=ChatRoomStatus.OPEN)
+        create_test_chat_room(status=ChatRoomStatus.OPEN)
 
         rooms = get_active_chat_rooms_for_manager(manager=manager)
 
@@ -84,10 +86,10 @@ class ChatSelectorsTests(TestCase):
     # сообщения выбранной комнаты возвращаются
     # в порядке создания.
     def test_get_chat_room_messages(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
@@ -115,10 +117,10 @@ class ChatSelectorsTests(TestCase):
     # клиент видит непрочитанными только сообщения,
     # которые написал не он сам.
     def test_get_chat_rooms_for_user_with_unread_messages_count(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
@@ -146,10 +148,10 @@ class ChatSelectorsTests(TestCase):
     # менеджер видит непрочитанными только сообщения клиента,
     # свои сообщения в счётчик не попадают.
     def test_get_active_chat_rooms_for_manager_with_unread_messages_count(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
