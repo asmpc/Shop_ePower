@@ -49,6 +49,7 @@ select = [
     "ERA001",
     "F",
     "I",
+    "RUF100",
 ]
 
 [tool.ruff.lint.per-file-ignores]
