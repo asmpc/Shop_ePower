@@ -44,23 +44,6 @@ class PaymentDetailSerializer(
         )
 
 
-class PaymentHistorySerializer(
-    serializers.ModelSerializer,
-):
-
-    class Meta:
-        model = PaymentHistory
-
-        fields = (
-            'id',
-            'old_status',
-            'new_status',
-            'comment',
-            'changed_by',
-            'created_at',
-        )
-
-
 class InvoiceDetailSerializer(
     serializers.ModelSerializer,
 ):

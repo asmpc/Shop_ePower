@@ -1,15 +1,13 @@
 # Forms for accounts
 
 from django import forms
-from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import (
     AuthenticationForm,
     UserCreationForm,
 )
 
-from .models import LegalProfile, User
+from shop_epower.accounts.models import LegalProfile, User
 
-User = get_user_model()
 
 class LoginForm(AuthenticationForm):
 

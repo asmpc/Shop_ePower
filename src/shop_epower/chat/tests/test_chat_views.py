@@ -1,15 +1,17 @@
 from django.test import TestCase
 from django.urls import reverse
 
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.models import ChatRoom, ChatRoomStatus
 from shop_epower.chat.services import (
     send_chat_message,
     take_chat_room,
 )
 from shop_epower.chat.tests.helpers import (
-    create_chat_room,
-    create_user,
+    create_test_chat_room,
 )
 from shop_epower.orders.tests.helpers import create_test_order
 
@@ -30,7 +32,7 @@ class TestsChatView(TestCase):
     # авторизованный пользователь может открыть страницу,
     # view возвращает успешный HTTP 200.
     def test_authorized_user_can_access_room_list(self):
-        user = create_user()
+        user = create_test_user()
         self.client.force_login(user)
 
         url = reverse("chat:room_list")
@@ -43,7 +45,7 @@ class TestsChatView(TestCase):
     # анонимный пользователь не может открыть комнату,
     # Django перенаправляет его на login.
     def test_anonymous_user_cannot_access_room_detail(self):
-        room = create_chat_room()
+        room = create_test_chat_room()
         url = reverse(
             "chat:room_detail",
             kwargs={
@@ -59,8 +61,8 @@ class TestsChatView(TestCase):
     # авторизованный пользователь может открыть комнату,
     # view возвращает успешный HTTP 200.
     def test_authorized_user_can_access_room_detail(self):
-        user = create_user()
-        room = create_chat_room(user=user)
+        user = create_test_user()
+        room = create_test_chat_room(user=user)
         self.client.force_login(user)
 
         url = reverse(
@@ -78,11 +80,11 @@ class TestsChatView(TestCase):
     # клиент видит свою chat room,
     # но не видит комнаты других клиентов.
     def test_client_room_list_shows_only_own_rooms(self):
-        user = create_user()
-        other_user = create_user()
+        user = create_test_user()
+        other_user = create_test_user()
 
-        user_room = create_chat_room(user=user)
-        other_room = create_chat_room(user=other_user)
+        user_room = create_test_chat_room(user=user)
+        other_room = create_test_chat_room(user=other_user)
 
         self.client.force_login(user)
 
@@ -101,12 +103,12 @@ class TestsChatView(TestCase):
         manager = create_test_manager()
         other_manager = create_test_manager()
 
-        open_room = create_chat_room()
-        manager_room = create_chat_room(
+        open_room = create_test_chat_room()
+        manager_room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
-        other_manager_room = create_chat_room(
+        other_manager_room = create_test_chat_room(
             manager=other_manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -126,8 +128,8 @@ class TestsChatView(TestCase):
     # клиент может открыть свою chat room,
     # view возвращает сообщения комнаты.
     def test_client_can_access_own_room_detail(self):
-        user = create_user()
-        room = create_chat_room(user=user)
+        user = create_test_user()
+        room = create_test_chat_room(user=user)
 
         self.client.force_login(user)
 
@@ -147,10 +149,10 @@ class TestsChatView(TestCase):
     # клиент не может открыть chat room,
     # которая принадлежит другому пользователю.
     def test_client_cannot_access_other_user_room_detail(self):
-        user = create_user()
-        other_user = create_user()
+        user = create_test_user()
+        other_user = create_test_user()
 
-        other_room = create_chat_room(user=other_user)
+        other_room = create_test_chat_room(user=other_user)
 
         self.client.force_login(user)
 
@@ -171,7 +173,7 @@ class TestsChatView(TestCase):
     def test_manager_can_access_own_active_room_detail(self):
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -197,7 +199,7 @@ class TestsChatView(TestCase):
         manager = create_test_manager()
         other_manager = create_test_manager()
 
-        other_room = create_chat_room(
+        other_room = create_test_chat_room(
             manager=other_manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -221,7 +223,7 @@ class TestsChatView(TestCase):
     def test_manager_can_take_open_room(self):
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             status=ChatRoomStatus.OPEN,
         )
 
@@ -249,9 +251,9 @@ class TestsChatView(TestCase):
     # клиент не может брать chat room,
     # действие доступно только менеджерам.
     def test_client_cannot_take_room(self):
-        user = create_user()
+        user = create_test_user()
 
-        room = create_chat_room()
+        room = create_test_chat_room()
 
         self.client.force_login(user)
 
@@ -280,7 +282,7 @@ class TestsChatView(TestCase):
             email="manager-2@example.com",
         )
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=manager_1,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -304,7 +306,7 @@ class TestsChatView(TestCase):
     def test_manager_can_close_own_room(self):
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -333,7 +335,7 @@ class TestsChatView(TestCase):
         manager = create_test_manager()
         other_manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=other_manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -357,7 +359,7 @@ class TestsChatView(TestCase):
     def test_closed_room_cannot_be_closed_again(self):
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.CLOSED,
         )
@@ -379,8 +381,8 @@ class TestsChatView(TestCase):
     # клиент может отправить сообщение
     # в свою OPEN chat room.
     def test_client_can_send_message_to_own_room(self):
-        user = create_user()
-        room = create_chat_room(user=user)
+        user = create_test_user()
+        room = create_test_chat_room(user=user)
 
         self.client.force_login(user)
 
@@ -411,7 +413,7 @@ class TestsChatView(TestCase):
     def test_manager_can_send_message_to_own_active_room(self):
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -443,10 +445,10 @@ class TestsChatView(TestCase):
     # клиент не может отправить сообщение
     # в chat room другого клиента.
     def test_client_cannot_send_message_to_other_user_room(self):
-        user = create_user()
-        other_user = create_user()
+        user = create_test_user()
+        other_user = create_test_user()
 
-        other_room = create_chat_room(user=other_user)
+        other_room = create_test_chat_room(user=other_user)
 
         self.client.force_login(user)
 
@@ -471,9 +473,9 @@ class TestsChatView(TestCase):
     # пользователь не может отправить сообщение
     # в CLOSED chat room.
     def test_user_cannot_send_message_to_closed_room(self):
-        user = create_user()
+        user = create_test_user()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             status=ChatRoomStatus.CLOSED,
         )
@@ -501,7 +503,7 @@ class TestsChatView(TestCase):
     # клиент может создать новую комнату,
     # после создания статус комнаты OPEN.
     def test_client_can_create_chat_room(self):
-        user = create_user()
+        user = create_test_user()
 
         self.client.force_login(user)
 
@@ -519,7 +521,7 @@ class TestsChatView(TestCase):
     # клиент может создать обращение,
     # связанное со своим заказом.
     def test_client_can_create_chat_room_with_order(self):
-        user = create_user()
+        user = create_test_user()
         order = create_test_order(
             user=user,
         )
@@ -557,7 +559,7 @@ class TestsChatView(TestCase):
     # manager может открыть OPEN комнату, но писать нельзя, пока не взял
     def test_manager_can_view_open_room_but_cannot_send(self):
         manager = create_test_manager()
-        room = create_chat_room(status=ChatRoomStatus.OPEN)
+        room = create_test_chat_room(status=ChatRoomStatus.OPEN)
 
         self.client.force_login(manager)
         url = reverse("chat:room_detail", kwargs={"pk": room.pk})
@@ -571,30 +573,38 @@ class TestsChatView(TestCase):
     # manager берет комнату через room_detail -> кнопка Take
     def test_manager_can_take_room_in_detail(self):
         manager = create_test_manager()
-        room = create_chat_room(status=ChatRoomStatus.OPEN)
+        room = create_test_chat_room(status=ChatRoomStatus.OPEN)
 
         self.client.force_login(manager)
-        url = reverse("chat:room_detail", kwargs={"pk": room.pk})
 
         # имитируем POST на Take
         take_url = reverse("chat:room_take", kwargs={"pk": room.pk})
         response = self.client.post(take_url)
 
+        self.assertEqual(response.status_code, 302)
+
         room.refresh_from_db()
+
         self.assertEqual(room.status, ChatRoomStatus.IN_PROGRESS)
         self.assertEqual(room.manager, manager)
 
     # после Take manager может писать
     def test_manager_can_send_after_take(self):
         manager = create_test_manager()
-        room = create_chat_room(status=ChatRoomStatus.OPEN)
+        room = create_test_chat_room(status=ChatRoomStatus.OPEN)
 
         # взять комнату
         take_chat_room(room=room, manager=manager)
 
         self.client.force_login(manager)
         send_url = reverse("chat:room_send", kwargs={"pk": room.pk})
-        response = self.client.post(send_url, data={"text": "Hello"})
+        response = self.client.post(
+            send_url,
+            data={"text": "Hello"},
+        )
+
+        self.assertEqual(response.status_code, 302)
+
         room.refresh_from_db()
 
         self.assertEqual(room.messages.count(), 1)
@@ -604,10 +614,10 @@ class TestsChatView(TestCase):
     # когда пользователь открывает room detail,
     # сообщения собеседника помечаются прочитанными.
     def test_room_detail_marks_messages_as_read(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status=ChatRoomStatus.IN_PROGRESS,
@@ -647,15 +657,15 @@ class TestsChatView(TestCase):
     # admin видит все chat rooms,
     # независимо от клиента, менеджера и статуса.
     def test_admin_room_list_shows_all_rooms(self):
-        admin = create_user(
+        admin = create_test_user(
             username="admin",
             email="admin@example.com",
             role="admin",
         )
 
-        user = create_user()
+        user = create_test_user()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             status=ChatRoomStatus.OPEN,
         )
