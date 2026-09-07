@@ -1,16 +1,18 @@
 from django.test import TestCase
 
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.models import (
     ChatMessage,
     ChatRoom,
     ChatRoomStatus,
 )
 from shop_epower.chat.tests.helpers import (
-    create_chat_attachment,
-    create_chat_message,
-    create_chat_room,
-    create_user,
+    create_test_chat_attachment,
+    create_test_chat_message,
+    create_test_chat_room,
 )
 
 
@@ -20,7 +22,7 @@ class TestsChatRoomModel(TestCase):
     # новая комната создаётся со статусом OPEN,
     # manager, order и closed_at по умолчанию пустые.
     def test_chat_room_created_with_default_status(self):
-        user = create_user()
+        user = create_test_user()
 
         room = ChatRoom.objects.create(
             user=user,
@@ -36,10 +38,10 @@ class TestsChatRoomModel(TestCase):
     # комната может быть закреплена за manager,
     # это нужно для workflow OPEN -> IN_PROGRESS.
     def test_chat_room_can_have_manager(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
         )
@@ -50,7 +52,7 @@ class TestsChatRoomModel(TestCase):
     # в админке и debug-выводе должно быть понятно,
     # какая комната отображается и какой у неё статус.
     def test_chat_room_str(self):
-        room = create_chat_room()
+        room = create_test_chat_room()
 
         self.assertEqual(
             str(room),
@@ -64,7 +66,7 @@ class TestsChatMessageModel(TestCase):
     # сообщение создаётся в комнате от конкретного sender,
     # по умолчанию сообщение считается непрочитанным.
     def test_chat_message_created_with_default_is_read_false(self):
-        room = create_chat_room()
+        room = create_test_chat_room()
 
         message = ChatMessage.objects.create(
             room=room,
@@ -81,7 +83,7 @@ class TestsChatMessageModel(TestCase):
     # оно должно показывать id сообщения
     # и id комнаты, к которой сообщение относится.
     def test_chat_message_str(self):
-        message = create_chat_message()
+        message = create_test_chat_message()
 
         self.assertEqual(
             str(message),
@@ -95,9 +97,9 @@ class TestsChatAttachmentModel(TestCase):
     # вложение создаётся и связывается с сообщением,
     # original_name хранит имя исходного файла.
     def test_chat_attachment_created(self):
-        message = create_chat_message()
+        message = create_test_chat_message()
 
-        attachment = create_chat_attachment(
+        attachment = create_test_chat_attachment(
             message=message,
             original_name="test.txt",
         )
@@ -109,7 +111,7 @@ class TestsChatAttachmentModel(TestCase):
     # для вложения возвращается original_name,
     # чтобы файл удобно отображался в админке.
     def test_chat_attachment_str(self):
-        attachment = create_chat_attachment(
+        attachment = create_test_chat_attachment(
             original_name="document.pdf",
         )
 

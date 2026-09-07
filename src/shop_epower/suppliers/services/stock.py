@@ -112,8 +112,6 @@ def get_supplier_inventory_details(product: Product):
         "supplier",
     )
 
-from django.db.models import Min, Sum
-
 
 def get_product_inventory_public(product: Product) -> dict:
     """

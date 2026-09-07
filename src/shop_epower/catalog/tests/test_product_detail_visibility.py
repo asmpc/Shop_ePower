@@ -63,10 +63,7 @@ class TestsProductDetailVisibility(TestCase):
             password="testpass123",
         )
 
-        self.client.login(
-            email="client@example.com",
-            password="testpass123",
-        )
+        self.client.force_login(client_user)
 
         response = self.client.get(
             reverse("catalog:product_detail", kwargs={"slug": self.product.slug})
@@ -90,10 +87,7 @@ class TestsProductDetailVisibility(TestCase):
             password="testpass123",
         )
 
-        self.client.login(
-            email="manager@example.com",
-            password="testpass123",
-        )
+        self.client.force_login(manager_user)
 
         response = self.client.get(
             reverse("catalog:product_detail", kwargs={"slug": self.product.slug})
@@ -121,10 +115,7 @@ class TestsProductDetailVisibility(TestCase):
             password="testpass123",
         )
 
-        self.client.login(
-            email="admin@example.com",
-            password="testpass123",
-        )
+        self.client.force_login(admin_user)
 
         response = self.client.get(
             reverse("catalog:product_detail", kwargs={"slug": self.product.slug})

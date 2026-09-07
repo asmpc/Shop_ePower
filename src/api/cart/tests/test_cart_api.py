@@ -140,7 +140,7 @@ class TestCartAPI(APITestCase):
 
     # Проверяем удаление товара из корзины:
     # после удаления корзина становится пустой,
-    # total_quantity = 0.
+    # суммарное количество товаров становится равным нулю.
     def test_cart_remove_item(self):
 
         with patch(

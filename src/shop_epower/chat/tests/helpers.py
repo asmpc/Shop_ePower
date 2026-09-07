@@ -8,17 +8,15 @@ from shop_epower.chat.models import (
     ChatRoomStatus,
 )
 
-create_user = create_test_user
 
-
-def create_chat_room(
+def create_test_chat_room(
     user=None,
     manager=None,
     order=None,
     status=ChatRoomStatus.OPEN,
 ):
     if user is None:
-        user = create_user()
+        user = create_test_user()
 
     return ChatRoom.objects.create(
         user=user,
@@ -28,9 +26,9 @@ def create_chat_room(
     )
 
 
-def create_chat_message(room=None, sender=None, text="Test message", is_read=False):
+def create_test_chat_message(room=None, sender=None, text="Test message", is_read=False):
     if room is None:
-        room = create_chat_room()
+        room = create_test_chat_room()
     if sender is None:
         sender = room.user
     return ChatMessage.objects.create(
@@ -41,9 +39,9 @@ def create_chat_message(room=None, sender=None, text="Test message", is_read=Fal
     )
 
 
-def create_chat_attachment(message=None, file=None, original_name="file.txt"):
+def create_test_chat_attachment(message=None, file=None, original_name="file.txt"):
     if message is None:
-        message = create_chat_message()
+        message = create_test_chat_message()
     return ChatAttachment.objects.create(
         message=message,
         file=file,

@@ -46,8 +46,6 @@ class TestsCheckoutAPI(TestCase):
     # неавторизованный пользователь не может оформить заказ.
     def test_checkout_api_requires_authentication(self):
 
-        # client = APIClient()
-
         response = self.client.post(
             "/api/orders/checkout/",
             {},

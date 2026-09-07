@@ -1,6 +1,9 @@
 from django.test import TestCase
 
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.models import ChatRoomStatus
 from shop_epower.chat.services import (
     close_chat_room,
@@ -9,10 +12,7 @@ from shop_epower.chat.services import (
     take_chat_room,
 )
 from shop_epower.chat.tests.helpers import (
-    create_chat_room as helper_create_chat_room,
-)
-from shop_epower.chat.tests.helpers import (
-    create_user,
+    create_test_chat_room,
 )
 from shop_epower.orders.tests.helpers import create_test_order
 
@@ -23,7 +23,7 @@ class TestsChatRoomService(TestCase):
     # новая комната создаётся для клиента,
     # статус по умолчанию OPEN, менеджер не назначен.
     def test_create_chat_room(self):
-        user = create_user()
+        user = create_test_user()
 
         room = create_chat_room(user=user)
 
@@ -35,7 +35,7 @@ class TestsChatRoomService(TestCase):
     # если в сервис передан order,
     # комната должна быть связана с этим заказом.
     def test_create_chat_room_with_order(self):
-        user = create_user()
+        user = create_test_user()
         order = create_test_order(
             user=user,
         )
@@ -51,7 +51,7 @@ class TestsChatRoomService(TestCase):
     # менеджер может взять свободную OPEN комнату,
     # после этого комната переходит в IN_PROGRESS.
     def test_manager_can_take_open_room(self):
-        room = helper_create_chat_room()
+        room = create_test_chat_room()
         manager = create_test_manager()
 
         take_chat_room(room, manager)
@@ -65,7 +65,7 @@ class TestsChatRoomService(TestCase):
     # если комната уже взята другим менеджером,
     # повторно взять её нельзя.
     def test_cannot_take_room_that_is_already_in_progress(self):
-        room = helper_create_chat_room()
+        room = create_test_chat_room()
 
         manager_1 = create_test_manager(
             username="manager-1",
@@ -85,7 +85,7 @@ class TestsChatRoomService(TestCase):
     # назначенный менеджер может закрыть свою комнату,
     # статус меняется на CLOSED и заполняется closed_at.
     def test_manager_can_close_room(self):
-        room = helper_create_chat_room()
+        room = create_test_chat_room()
         manager = create_test_manager()
 
         take_chat_room(room, manager)
@@ -100,7 +100,7 @@ class TestsChatRoomService(TestCase):
     # другой менеджер не может закрыть комнату,
     # которая закреплена не за ним.
     def test_other_manager_cannot_close_room(self):
-        room = helper_create_chat_room()
+        room = create_test_chat_room()
 
         manager_1 = create_test_manager(
             username="manager-1",
@@ -120,9 +120,9 @@ class TestsChatRoomService(TestCase):
     # клиент может закрыть свою комнату,
     # статус меняется на CLOSED и заполняется closed_at.
     def test_client_can_close_own_room(self):
-        user = create_user()
+        user = create_test_user()
 
-        room = helper_create_chat_room(
+        room = create_test_chat_room(
             user=user,
             status=ChatRoomStatus.IN_PROGRESS,
         )
@@ -141,10 +141,10 @@ class TestsChatRoomService(TestCase):
     # клиент не может закрыть комнату,
     # которая принадлежит другому пользователю.
     def test_client_cannot_close_other_user_room(self):
-        user = create_user()
-        other_user = create_user()
+        user = create_test_user()
+        other_user = create_test_user()
 
-        room = helper_create_chat_room(
+        room = create_test_chat_room(
             user=other_user,
             status=ChatRoomStatus.IN_PROGRESS,
         )

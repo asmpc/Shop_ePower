@@ -69,47 +69,36 @@ Each completed logical sprint ends with a clean, meaningful Git commit.
 
 # Completed Phases
 
-PHASES 1--19 established the project foundation: - modular Django
-architecture; - catalog and inventory; - order lifecycle; - payment and
-invoice workflow; - chat; - Docker; - GitHub Actions CI; - engineering
+PHASES 1--19 established the project foundation: modular Django
+architecture, catalog and inventory, order lifecycle, payment and
+invoice workflow, chat, Docker, GitHub Actions CI, and engineering
 documentation.
+
+PHASE 20 modernized dependency management with Poetry, updated
+Docker and CI integration, and aligned project documentation.
+
+PHASE 21 standardized test infrastructure: centralized domain helpers,
+removed duplication, unified fixture naming and test imports, and
+introduced Ruff quality checks. Regression testing passed.
 
 ------------------------------------------------------------------------
 
 # Current Phase
 
-## PHASE 20 --- Dependency Management Modernization
+## PHASE 22 --- Customer Financial Core
 
--   Poetry migration
--   pyproject.toml
--   poetry.lock
--   dependency cleanup
--   Docker update
--   CI update
--   documentation update
--   regression testing
+Status: requirements and design; implementation not started.
+
+- Customer Account
+- Financial Ledger
+- Account Transactions
+- immutable balance history
+- audit trail
+- atomic financial operations
 
 ------------------------------------------------------------------------
 
 # Future Roadmap
-
-## PHASE 21 --- Test Infrastructure Refactoring
-
--   unified helpers
--   reusable fixtures
--   reusable assertions
--   API helpers
--   remove duplicated helpers
--   standardized test structure
-
-## PHASE 22 --- Customer Financial Core
-
--   Customer Account
--   Financial Ledger
--   Account Transactions
--   immutable balance history
--   audit trail
--   atomic financial operations
 
 ## PHASE 23 --- Deposits & Order Settlement
 

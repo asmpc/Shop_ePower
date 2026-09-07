@@ -54,7 +54,7 @@ class TestSupplierProductPricing(TestCase):
     # 100 + 20% = 120.
     def test_single_supplier_price(self):
         # Один поставщик
-        sp = create_test_supplier_product(
+        create_test_supplier_product(
             supplier=self.supplier_own,
             product=self.product,
             supplier_article="A1",

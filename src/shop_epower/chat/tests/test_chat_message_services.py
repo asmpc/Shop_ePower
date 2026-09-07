@@ -2,14 +2,16 @@ from django.core.exceptions import PermissionDenied
 from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 
-from shop_epower.accounts.tests.helpers import create_test_manager
+from shop_epower.accounts.tests.helpers import (
+    create_test_manager,
+    create_test_user,
+)
 from shop_epower.chat.services import (
     mark_messages_as_read,
     send_chat_message,
 )
 from shop_epower.chat.tests.helpers import (
-    create_chat_room,
-    create_user,
+    create_test_chat_room,
 )
 
 
@@ -19,8 +21,8 @@ class TestsChatMessageService(TestCase):
     # клиент может отправить сообщение
     # только в свою OPEN chat room.
     def test_client_can_send_message_to_own_open_room(self):
-        user = create_user()
-        room = create_chat_room(user=user)
+        user = create_test_user()
+        room = create_test_chat_room(user=user)
 
         message, attachments = send_chat_message(
             room=room,
@@ -36,8 +38,8 @@ class TestsChatMessageService(TestCase):
     # клиент не может отправить сообщение,
     # если chat room уже находится в статусе CLOSED.
     def test_client_cannot_send_message_to_closed_room(self):
-        user = create_user()
-        room = create_chat_room(
+        user = create_test_user()
+        room = create_test_chat_room(
             user=user,
             status="closed",
         )
@@ -53,10 +55,10 @@ class TestsChatMessageService(TestCase):
     # менеджер может писать в IN_PROGRESS комнату,
     # если она закреплена именно за ним.
     def test_manager_can_send_message_to_in_progress_room(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status="in_progress",
@@ -75,8 +77,8 @@ class TestsChatMessageService(TestCase):
     # если передан файл,
     # сервис создаёт ChatAttachment с original_name.
     def test_client_message_with_attachments(self):
-        user = create_user()
-        room = create_chat_room(user=user)
+        user = create_test_user()
+        room = create_test_chat_room(user=user)
 
         uploaded_file = SimpleUploadedFile(
             "test.txt",
@@ -98,7 +100,7 @@ class TestsChatMessageService(TestCase):
     # менеджер не может писать в IN_PROGRESS комнату,
     # если она закреплена за другим менеджером.
     def test_manager_cannot_send_message_to_room_taken_by_other(self):
-        user = create_user()
+        user = create_test_user()
 
         manager_1 = create_test_manager(
             username="manager-1",
@@ -109,7 +111,7 @@ class TestsChatMessageService(TestCase):
             email="manager-2@example.com",
         )
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager_1,
             status="in_progress",
@@ -126,10 +128,10 @@ class TestsChatMessageService(TestCase):
     # пользователь помечает прочитанными сообщения собеседника,
     # но собственные сообщения остаются без изменений.
     def test_mark_messages_as_read(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room = create_chat_room(
+        room = create_test_chat_room(
             user=user,
             manager=manager,
             status="in_progress",
@@ -168,15 +170,15 @@ class TestsChatMessageService(TestCase):
     # сервис помечает сообщения только в выбранной комнате,
     # сообщения из другой комнаты остаются непрочитанными.
     def test_mark_messages_as_read_only_in_selected_room(self):
-        user = create_user()
+        user = create_test_user()
         manager = create_test_manager()
 
-        room_1 = create_chat_room(
+        room_1 = create_test_chat_room(
             user=user,
             manager=manager,
             status="in_progress",
         )
-        room_2 = create_chat_room(
+        room_2 = create_test_chat_room(
             user=user,
             manager=manager,
             status="in_progress",
