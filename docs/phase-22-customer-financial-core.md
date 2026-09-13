@@ -206,9 +206,14 @@ profile page.
 Disabling legal purchasing or changing the user role must not delete an
 existing financial account or its transaction history.
 
-Existing customers receive personal financial accounts through an explicit
-data migration. Staff and superusers must not receive customer financial
-accounts from that migration.
+Existing users identified as customers receive personal financial accounts
+through an explicit data migration. A user is identified as an existing
+customer when the user has the `CLIENT` role or existing customer orders.
+
+Managers, administrators, staff users, and superusers are not excluded when
+their existing order activity shows that they also act as customers. Staff
+records without customer activity do not receive accounts merely because they
+exist.
 
 ## 4. Current System Analysis
 
@@ -663,7 +668,8 @@ point values are never used for financial amounts.
 
 A personal account:
 
-- belongs to a user with the `CLIENT` role at creation time;
+- belongs to a registered user acting as a customer, regardless of the user's
+  `CLIENT`, `MANAGER`, or `ADMIN` authorization role;
 - has `account_type=PERSONAL`;
 - has no related `LegalProfile`;
 - has no legal tax identifier snapshot;
@@ -671,14 +677,26 @@ A personal account:
 - starts with zero debt;
 - uses the current deployment base currency.
 
+Authorization roles and personal financial account ownership are independent
+concerns. A manager or administrator may also act as a customer and use a
+personal financial account.
+
+Changing a user's authorization role must not replace, deactivate, or delete
+the user's existing personal financial account or its history.
+
 A personal account is created explicitly during successful customer
-registration.
+registration or another explicit customer workflow.
 
 API registration and template registration call the same account creation
 service. User and account creation must complete in one database transaction.
 
-Existing clients receive personal accounts through an explicit data migration.
-Staff and superusers are excluded from automatic migration.
+Existing users receive personal accounts through an explicit data migration
+according to the migration eligibility rules.
+
+Staff and superusers are not prohibited from having personal accounts. Users
+without customer activity are not assigned accounts merely because staff
+records exist; they may receive an account later through an explicit customer
+workflow.
 
 ### 6.6 Legal Account Rules
 
@@ -760,7 +778,9 @@ Some rules cannot be reliably expressed as a single-row database constraint
 and must be enforced by services:
 
 - the legal profile and financial account must belong to the same user;
-- only an eligible customer may receive a customer account;
+- the account owner must be a registered user stored in the database;
+- an authorization role must not determine personal financial account
+  ownership;
 - account currency must equal the deployment base currency;
 - account type must not change after account creation;
 - legal identity replacement must follow the established identity rules.
@@ -1103,8 +1123,10 @@ These names describe business actions rather than direct model operations.
 
 `create_personal_customer_account()` must:
 
-- accept a registered customer;
-- verify that the user is allowed to have a customer account;
+- accept a registered user acting as a customer;
+- verify that the user is stored in the database;
+- not reject the user solely because their authorization role is `CLIENT`,
+  `MANAGER`, or `ADMIN`;
 - create an account with type `PERSONAL`;
 - use the current project base currency;
 - initialize both balances with zero;
@@ -1141,7 +1163,9 @@ No account is created through a model signal.
 - accept a `LegalProfile`;
 - verify that `is_legal_entity` is enabled;
 - verify that all required legal details are complete;
-- verify that the profile belongs to an eligible customer;
+- verify that the profile belongs to a registered user stored in the database;
+- not reject the profile owner solely because their authorization role is
+  `CLIENT`, `MANAGER`, or `ADMIN`;
 - create an account with type `LEGAL`;
 - reference the legal profile;
 - store the legal tax identifier snapshot;
@@ -1711,9 +1735,16 @@ This migration must not create accounts for existing users.
 
 #### Existing Customer Data Migration
 
-A separate data migration creates accounts for existing eligible customers.
+A separate data migration creates accounts for existing users who can already
+be identified as customers.
 
-For every existing customer:
+A user is identified as an existing customer when at least one of the following
+conditions is true:
+
+- the user has the `CLIENT` role;
+- the user has at least one existing customer order.
+
+For every user identified as an existing customer:
 
 - create one personal account;
 - use the configured base currency;
@@ -1722,12 +1753,16 @@ For every existing customer:
 - set the account to `ACTIVE` when the user is active;
 - otherwise set it to `INACTIVE`.
 
-Managers, administrators, staff users, and superusers must not receive
-customer accounts automatically.
+Managers, administrators, staff users, and superusers are not excluded when
+existing order activity shows that they also act as customers.
+
+Users who only have staff access and have no existing customer orders must not
+receive personal accounts automatically. They may receive an account later
+through an explicit customer workflow.
 
 For an existing legal profile, create a legal account only when:
 
-- the related user is an eligible customer;
+- the related user is identified as an existing customer under the rules above;
 - `is_legal_entity` is enabled;
 - company name is present;
 - tax identifier is present;
@@ -1887,7 +1922,8 @@ Expected result: a valid legal profile produces one separate legal account.
 - add the forward data migration;
 - create personal accounts for existing customers;
 - create legal accounts for complete existing legal profiles;
-- skip ineligible users and incomplete profiles;
+- skip staff-only users without customer activity and incomplete legal
+  profiles;
 - test migration behaviour and duplicate protection.
 
 Expected result: existing customer data conforms to the new account rules.
@@ -2002,11 +2038,16 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 
 #### Existing Customers
 
-- existing eligible customers receive personal accounts through a data
-  migration;
-- complete existing legal profiles receive separate legal accounts;
+- users with the `CLIENT` role or existing customer orders receive personal
+  accounts through a data migration;
+- authorization roles do not prohibit financial account ownership;
+- managers, administrators, staff users, and superusers with existing customer
+  orders are included in the migration;
+- users with staff access but without customer activity do not receive accounts
+  automatically;
+- complete existing legal profiles belonging to identified customers receive
+  separate legal accounts;
 - incomplete legal profiles are skipped;
-- staff users and superusers do not receive customer accounts automatically;
 - repeated migration logic cannot create duplicate accounts.
 
 #### Administration and Security
