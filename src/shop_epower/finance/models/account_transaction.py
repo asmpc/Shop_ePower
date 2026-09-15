@@ -112,19 +112,13 @@ class AccountTransaction(models.Model):
                 condition=models.Q(
                     available_balance_after__gte=Decimal("0.00"),
                 ),
-                name=(
-                    "account_transaction_"
-                    "available_balance_after_nonnegative"
-                ),
+                name=("account_transaction_available_balance_after_nonnegative"),
             ),
             models.CheckConstraint(
                 condition=models.Q(
                     debt_balance_after__gte=Decimal("0.00"),
                 ),
-                name=(
-                    "account_transaction_"
-                    "debt_balance_after_nonnegative"
-                ),
+                name=("account_transaction_debt_balance_after_nonnegative"),
             ),
             models.CheckConstraint(
                 condition=~models.Q(

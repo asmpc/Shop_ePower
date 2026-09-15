@@ -2,7 +2,7 @@ import itertools
 
 from django.contrib.auth import get_user_model
 
-from shop_epower.accounts.models import Role
+from shop_epower.accounts.models import LegalProfile, Role
 
 User = get_user_model()
 
@@ -36,6 +36,33 @@ def create_test_user(
         **kwargs,
     )
 
+
+def create_test_legal_profile(
+    *,
+    user=None,
+    is_legal_entity=True,
+    company_name="Test Company",
+    tax_id="123456789",
+    legal_address="Minsk, Test street 1",
+    bank_name="Test Bank",
+    bank_account="BY00TEST0000000000000000000000",
+    **kwargs,
+):
+    if user is None:
+        user = create_test_user()
+
+    return LegalProfile.objects.create(
+        user=user,
+        is_legal_entity=is_legal_entity,
+        company_name=company_name,
+        tax_id=tax_id,
+        legal_address=legal_address,
+        bank_name=bank_name,
+        bank_account=bank_account,
+        **kwargs,
+    )
+
+
 def create_test_manager(
     email=None,
     username=None,
@@ -58,6 +85,7 @@ def create_test_manager(
     return create_test_user(
         **defaults,
     )
+
 
 def create_test_admin(
     email=None,
