@@ -113,11 +113,6 @@ class Order(models.Model):
         blank=True,
     )
 
-    delivery_address = models.TextField(
-        blank=True,
-        null=True,
-    )
-
     company_name = models.CharField(
         max_length=255,
         blank=True,
