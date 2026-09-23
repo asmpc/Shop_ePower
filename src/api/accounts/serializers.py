@@ -4,6 +4,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from shop_epower.accounts.models import LegalProfile
+from shop_epower.accounts.services import register_customer
 
 User = get_user_model()
 
@@ -24,11 +25,10 @@ class RegisterSerializer(serializers.ModelSerializer):
         )
 
     def create(self, validated_data):
-
-        return User.objects.create_user(
-            email=validated_data['email'],
-            username=validated_data['username'],
-            password=validated_data['password'],
+        return register_customer(
+            email=validated_data["email"],
+            username=validated_data["username"],
+            password=validated_data["password"],
         )
 
 

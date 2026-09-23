@@ -1,0 +1,1 @@
+from shop_epower.accounts.services.registration import register_customer
