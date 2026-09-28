@@ -966,11 +966,20 @@ A reversal:
 A reversal transaction must not itself be reversed. If the original business
 effect must be restored, a new explicit financial operation is created.
 
-Dependent operations must be reversed in reverse order.
+Funds are fungible in PHASE 22: a generic allocation does not identify which
+deposit funded it. The financial core therefore does not infer dependencies
+between a particular deposit and an allocation or enforce source-specific
+reversal order.
 
-For example, if deposited funds were already allocated to debt, the allocation
-must be reversed before the deposit can be reversed. Otherwise the available
-balance could become negative.
+A reversal is permitted only when both resulting balances remain non-negative
+and all other reversal rules pass. If reversing a deposit would make the
+available balance negative, the allocation or another later operation must be
+corrected first. A later deposit may instead keep the balance non-negative;
+this does not prove which deposit funded the allocation.
+
+PHASE 23 must define explicit links between funding sources, allocations, and
+the orders or debts they settle before source-specific reversal ordering can
+be enforced.
 
 ### 7.8 Database and Service Constraints
 
@@ -1440,6 +1449,9 @@ It must:
 The caller does not provide reversal deltas. They are calculated exclusively
 from the original transaction.
 
+In PHASE 22 this service checks resulting balances, not source-specific
+dependencies between deposits and allocations.
+
 ### 8.10 Read Operations and Selectors
 
 Read operations belong to selectors rather than balance-changing services.
@@ -1543,7 +1555,7 @@ Service tests must verify:
 - conflicting reuse of an operation key;
 - successful reversal;
 - prevention of duplicate reversal;
-- reversal ordering constraints;
+- non-negative balances after reversals, including when later deposits exist;
 - rollback when transaction creation or account update fails;
 - inactive account rules;
 - creation of account status history;
@@ -1948,7 +1960,9 @@ Expected result: finance data can be inspected without bypassing services.
 - run Django system checks;
 - update current architecture documentation;
 - update the roadmap;
-- record postponed PHASE 23 integration work.
+- record postponed PHASE 23 integration work;
+- when closing PHASE 22, update the detailed PHASE 23 plan with explicit
+  funding-source and settlement links and their reversal rules.
 
 Expected result: PHASE 22 is complete and PHASE 23 may begin.
 
@@ -2198,7 +2212,11 @@ PHASE 23 must define:
 - allocation of customer funds to one or more orders;
 - allocation priority;
 - release or reversal of allocations;
-- payment of debt on inactive accounts.
+- payment of debt on inactive accounts;
+- explicit links from allocations to funding source(s) and settled order(s) or
+  debt, including partial or mixed funding;
+- source-specific reversal and correction order, with tests for dependent
+  operations.
 
 #### Payment Model Evolution
 

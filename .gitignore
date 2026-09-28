@@ -123,3 +123,6 @@ poetry.toml
 .python-version
 site/
 cache/
+
+# Личные русскоязычные копии документации
+/docs/ru-local/

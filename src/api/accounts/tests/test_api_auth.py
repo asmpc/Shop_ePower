@@ -4,6 +4,7 @@ from rest_framework import status
 from rest_framework.test import APITestCase
 
 from shop_epower.accounts.tests.helpers import create_test_user
+from shop_epower.finance.models import CustomerAccount, CustomerAccountType
 
 User = get_user_model()
 
@@ -38,6 +39,16 @@ class TestsAuthApi(APITestCase):
         self.assertEqual(
             User.objects.first().email,
             'test@test.com'
+        )
+
+        user = User.objects.get(email="test@test.com")
+
+        self.assertEqual(
+            CustomerAccount.objects.filter(
+                user=user,
+                account_type=CustomerAccountType.PERSONAL,
+            ).count(),
+            1,
         )
 
     # Проверяем API-логин:

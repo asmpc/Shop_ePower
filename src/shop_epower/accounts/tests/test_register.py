@@ -2,6 +2,8 @@ from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
+from shop_epower.finance.models import CustomerAccount, CustomerAccountType
+
 User = get_user_model()
 
 
@@ -40,6 +42,14 @@ class TestsRegisterView(TestCase):
         self.assertEqual(
             int(self.client.session['_auth_user_id']),
             user.pk,
+        )
+
+        self.assertEqual(
+            CustomerAccount.objects.filter(
+                user=user,
+                account_type=CustomerAccountType.PERSONAL,
+            ).count(),
+            1,
         )
 
     # Проверяем, что при невалидной регистрации

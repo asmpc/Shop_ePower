@@ -13,6 +13,7 @@ from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, TemplateView
 
+from shop_epower.accounts.services import register_customer
 from shop_epower.cart.services import merge_session_cart_to_user_cart
 
 from .forms import (
@@ -68,14 +69,14 @@ class RegisterTemplateView(CreateView):
     template_name = "accounts/register.html"
 
     def form_valid(self, form):
-        response = super().form_valid(form)
-
-        login(
-            self.request,
-            self.object,
+        self.object = register_customer(
+            email=form.cleaned_data["email"],
+            username=form.cleaned_data["username"],
+            password=form.cleaned_data["password1"],
         )
 
-        return response
+        login(self.request, self.object)
+        return redirect(self.get_success_url())
 
     def get_success_url(self):
         profile_edit_url = reverse(

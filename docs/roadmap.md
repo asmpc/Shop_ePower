@@ -107,6 +107,7 @@ Status: requirements and design; implementation not started.
 -   partial payments
 -   mixed payments
 -   order payment allocation
+-   explicit funding and settlement links with dependent reversal rules
 -   refund to customer balance
 
 ## PHASE 24 --- Returns & Reverse Logistics
