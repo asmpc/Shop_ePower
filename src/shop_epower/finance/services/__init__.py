@@ -1,5 +1,6 @@
 from shop_epower.finance.services.customer_account import (
     change_customer_account_status,
+    correct_legal_account_tax_id,
     create_legal_customer_account,
     create_personal_customer_account,
 )

@@ -728,9 +728,14 @@ A legal account represents one legal purchasing identity.
 Ordinary updates such as a corrected company name, address, bank name, or bank
 account do not create a new financial account.
 
-Replacing the legal tax identifier after financial operations exist would
-reinterpret the existing history as belonging to another legal identity.
-This is not allowed.
+Before the first financial transaction, an incorrect legal tax identifier may
+be corrected. An explicit finance service must update the existing account's
+identifier snapshot in the same database transaction as the profile update.
+The correction must not create a second account.
+
+Once financial transactions exist, neither the profile's tax identifier nor
+the account snapshot may be replaced. Doing so would reinterpret the existing
+history as belonging to another legal identity.
 
 A request to use another legal identity requires a separate future workflow.
 
@@ -2155,7 +2160,9 @@ different legal identities.
 
 Mitigation:
 
-- preserve the original tax identifier snapshot;
+- keep the profile identifier and account snapshot synchronized before the
+  first financial transaction;
+- preserve the identifier snapshot once financial history exists;
 - allow ordinary contact and bank-detail updates;
 - reject tax identifier replacement after financial history exists;
 - postpone multiple legal identities per user to a future phase.

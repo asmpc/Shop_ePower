@@ -19,6 +19,7 @@ from shop_epower.finance.models import (
 )
 from shop_epower.finance.services import (
     change_customer_account_status,
+    correct_legal_account_tax_id,
     create_legal_customer_account,
     create_personal_customer_account,
 )
@@ -292,6 +293,36 @@ class TestsCustomerAccountServices(TestCase):
         with self.assertRaisesMessage(
             ValidationError,
             "Legal address is required to create a legal customer account.",
+        ):
+            create_legal_customer_account(
+                legal_profile=legal_profile,
+            )
+
+    # Юридический счёт нельзя открыть без названия банка.
+    def test_create_legal_customer_account_requires_bank_name(self):
+        legal_profile = create_test_legal_profile(
+            user=self.user,
+            bank_name="   ",
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Bank name is required to create a legal customer account.",
+        ):
+            create_legal_customer_account(
+                legal_profile=legal_profile,
+            )
+
+    # Юридический счёт нельзя открыть без номера банковского счёта.
+    def test_create_legal_customer_account_requires_bank_account(self):
+        legal_profile = create_test_legal_profile(
+            user=self.user,
+            bank_account="   ",
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Bank account is required to create a legal customer account.",
         ):
             create_legal_customer_account(
                 legal_profile=legal_profile,
@@ -691,3 +722,20 @@ class TestsCustomerAccountServices(TestCase):
                 new_status=CustomerAccountStatus.INACTIVE,
                 reason="Attempt to deactivate an unsaved account.",
             )
+
+    # Исправление УНП на пустое значение запрещено.
+    def test_correct_legal_account_tax_id_rejects_blank_tax_id(self):
+        legal_profile = create_test_legal_profile(user=self.user)
+        account = create_legal_customer_account(legal_profile=legal_profile)
+
+        legal_profile.tax_id = "   "
+        legal_profile.save(update_fields=["tax_id"])
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Tax ID is required to correct a legal customer account.",
+        ):
+            correct_legal_account_tax_id(legal_profile=legal_profile)
+
+        account.refresh_from_db()
+        self.assertEqual(account.legal_tax_id_snapshot, "123456789")

@@ -49,6 +49,16 @@ def create_legal_customer_account(
             "Legal address is required to create a legal customer account."
         )
 
+    if not legal_profile.bank_name.strip():
+        raise ValidationError(
+            "Bank name is required to create a legal customer account."
+        )
+
+    if not legal_profile.bank_account.strip():
+        raise ValidationError(
+            "Bank account is required to create a legal customer account."
+        )
+
     account, _ = CustomerAccount.objects.get_or_create(
         user=legal_profile.user,
         account_type=CustomerAccountType.LEGAL,
@@ -104,3 +114,31 @@ def change_customer_account_status(
     )
 
     return locked_account
+
+
+@transaction.atomic
+def correct_legal_account_tax_id(*, legal_profile):
+    if not legal_profile.tax_id or not legal_profile.tax_id.strip():
+        raise ValidationError(
+            "Tax ID is required to correct a legal customer account."
+        )
+
+    account = (
+        CustomerAccount.objects.select_for_update()
+        .get(
+            legal_profile=legal_profile,
+            account_type=CustomerAccountType.LEGAL,
+        )
+    )
+
+    if account.legal_tax_id_snapshot == legal_profile.tax_id:
+        return account
+
+    if account.transactions.exists():
+        raise ValidationError(
+            "Legal tax ID cannot be changed after financial activity."
+        )
+
+    account.legal_tax_id_snapshot = legal_profile.tax_id
+    account.save(update_fields=["legal_tax_id_snapshot"])
+    return account
