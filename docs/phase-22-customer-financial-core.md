@@ -206,14 +206,12 @@ profile page.
 Disabling legal purchasing or changing the user role must not delete an
 existing financial account or its transaction history.
 
-Existing users identified as customers receive personal financial accounts
-through an explicit data migration. A user is identified as an existing
-customer when the user has the `CLIENT` role or existing customer orders.
-
-Managers, administrators, staff users, and superusers are not excluded when
-their existing order activity shows that they also act as customers. Staff
-records without customer activity do not receive accounts merely because they
-exist.
+PHASE 22 does not backfill existing users: the project has not been deployed,
+and current user records are for testing and demonstrations. New customer
+accounts are created through explicit customer workflows. If a future launch
+uses a database with real legacy customers, their migration requires a
+separate decision and data audit. Authorization roles must not, by themselves,
+prevent a user from owning a financial account.
 
 ## 4. Current System Analysis
 
@@ -690,8 +688,9 @@ registration or another explicit customer workflow.
 API registration and template registration call the same account creation
 service. User and account creation must complete in one database transaction.
 
-Existing users receive personal accounts through an explicit data migration
-according to the migration eligibility rules.
+PHASE 22 does not automatically create accounts for existing demonstration
+users. A future backfill is conditional on deploying with real legacy customer
+data and requires a separate approved plan.
 
 Staff and superusers are not prohibited from having personal accounts. Users
 without customer activity are not assigned accounts merely because staff
@@ -1734,7 +1733,9 @@ separate design decision.
 
 ### 9.6 Migration Strategy
 
-The finance application requires at least two migrations.
+PHASE 22 requires the finance schema migration. It does not require a data
+migration for existing users because the project has not been deployed and its
+current users are test or demonstration records.
 
 #### Schema Migration
 
@@ -1750,18 +1751,20 @@ The first migration creates:
 
 This migration must not create accounts for existing users.
 
-#### Existing Customer Data Migration
+#### Conditional Legacy Customer Data Migration — Deferred
 
-A separate data migration creates accounts for existing users who can already
-be identified as customers.
+No backfill migration is added in PHASE 22. Before deploying with an existing
+database of real customers, audit that data and approve a separate migration
+plan. The rules below are a starting point for that future decision, not work
+scheduled for the current phase.
 
-A user is identified as an existing customer when at least one of the following
-conditions is true:
+A possible eligibility rule identifies a legacy customer when at least one of
+the following conditions is true:
 
 - the user has the `CLIENT` role;
 - the user has at least one existing customer order.
 
-For every user identified as an existing customer:
+If a backfill is approved, for every user identified as a legacy customer:
 
 - create one personal account;
 - use the configured base currency;
@@ -1783,18 +1786,20 @@ For an existing legal profile, create a legal account only when:
 - `is_legal_entity` is enabled;
 - company name is present;
 - tax identifier is present;
-- legal address is present.
+- legal address is present;
+- bank name is present;
+- bank account is present.
 
 Incomplete legal profiles must be skipped rather than converted into partially
 valid financial accounts.
 
-The data migration must use Django historical migration models. It must not
-import the current finance services or current application model classes.
+Any future data migration must use Django historical migration models. It must
+not import the then-current finance services or application model classes.
 
-Running the migration logic against the same data more than once must not
+Running that migration logic against the same data more than once must not
 create duplicate accounts.
 
-The reverse data migration should not silently delete financial accounts. A
+Its reverse operation must not silently delete financial accounts. A
 no-operation reverse function is safer than automatic deletion of potentially
 used financial records.
 
@@ -1934,18 +1939,7 @@ without using signals.
 
 Expected result: a valid legal profile produces one separate legal account.
 
-#### Sprint 7 — Existing Customer Migration
-
-- add the forward data migration;
-- create personal accounts for existing customers;
-- create legal accounts for complete existing legal profiles;
-- skip staff-only users without customer activity and incomplete legal
-  profiles;
-- test migration behaviour and duplicate protection.
-
-Expected result: existing customer data conforms to the new account rules.
-
-#### Sprint 8 — Read-Only Administration
+#### Sprint 7 — Read-Only Administration
 
 - register finance models in Django admin;
 - make transactions read-only;
@@ -1956,7 +1950,7 @@ Expected result: existing customer data conforms to the new account rules.
 
 Expected result: finance data can be inspected without bypassing services.
 
-#### Sprint 9 — Regression and Documentation
+#### Sprint 8 — Regression and Documentation
 
 - run finance tests;
 - run accounts tests;
@@ -2057,17 +2051,12 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 
 #### Existing Customers
 
-- users with the `CLIENT` role or existing customer orders receive personal
-  accounts through a data migration;
+- PHASE 22 does not backfill test or demonstration users;
+- newly registered customers receive personal accounts through the explicit
+  registration service;
 - authorization roles do not prohibit financial account ownership;
-- managers, administrators, staff users, and superusers with existing customer
-  orders are included in the migration;
-- users with staff access but without customer activity do not receive accounts
-  automatically;
-- complete existing legal profiles belonging to identified customers receive
-  separate legal accounts;
-- incomplete legal profiles are skipped;
-- repeated migration logic cannot create duplicate accounts.
+- a future backfill for real legacy users requires a separate data audit,
+  approved eligibility rules, and dedicated tests.
 
 #### Administration and Security
 
@@ -2084,7 +2073,6 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 - finance service tests pass;
 - account registration tests pass;
 - legal profile integration tests pass;
-- migration tests pass;
 - admin permission tests pass;
 - PostgreSQL concurrency tests pass;
 - the complete project test suite passes;
@@ -2180,18 +2168,17 @@ Mitigation:
 - perform operational changes through explicit admin actions that call
   services.
 
-#### Incorrect Migration of Existing Users
+#### Accidental Backfill of Demonstration Users
 
-A data migration could create accounts for managers, administrators, or
-incomplete legal profiles.
+An unnecessary data migration could create financial accounts for demonstration
+users or incomplete legal profiles before the first production deployment.
 
 Mitigation:
 
-- use explicit eligibility rules;
-- separate schema and data migrations;
-- test every included and excluded user category;
-- preserve zero initial balances;
-- prevent duplicate accounts with database constraints.
+- do not add a customer backfill migration in PHASE 22;
+- create accounts through explicit customer workflows;
+- if real legacy data is introduced later, audit it and approve a separate,
+  tested migration before deployment.
 
 ### 10.3 Explicitly Deferred Decisions
 
