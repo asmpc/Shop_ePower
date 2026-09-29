@@ -53,6 +53,8 @@ PHASE 22 includes:
 - atomic financial services;
 - protection against duplicate financial operations;
 - selectors for reading balances and transaction history;
+- a read-only website interface for managers and administrators to inspect
+  customer accounts and financial history;
 - automated tests for models, services, constraints, and concurrency rules;
 - documentation of integration boundaries with orders and payments.
 
@@ -1655,6 +1657,23 @@ The Django admin interface provides operational inspection.
 Financial transactions and status history must be read-only. Account balances
 must not be editable directly through admin forms.
 
+#### Staff Website Interface
+
+The existing website is the primary workplace for managers and administrators.
+Both roles may inspect the personal and legal financial accounts of all
+customers, including balances, transactions, and account status history.
+Neither role may edit these records through the website in PHASE 22.
+
+The staff interface provides an account list with search, filters, and
+pagination, plus a read-only account detail page with its transaction and
+status histories. Views must enforce manager-or-admin access independently of
+navigation visibility. Anonymous visitors and users without either role must
+not receive another customer's financial data.
+
+Future finance actions, including any administrator-only actions, require
+separate service-backed workflows and tests. The existing differences between
+manager and administrator permissions elsewhere in the project are unchanged.
+
 #### Tests
 
 Finance test helpers may create the initial objects required by a test, but
@@ -1950,7 +1969,22 @@ Expected result: a valid legal profile produces one separate legal account.
 
 Expected result: finance data can be inspected without bypassing services.
 
-#### Sprint 8 — Regression and Documentation
+#### Sprint 8 — Read-Only Staff Website Interface
+
+- add manager/admin account list and account detail pages in the existing
+  website, consistent with the current order and payment management UI;
+- show all customers' personal and legal accounts, balances, transactions,
+  and status history without creating or changing financial records;
+- add account search, filters, and pagination;
+- add a staff-only navigation link;
+- use read-only selectors rather than querying and changing balances in views;
+- use TDD to verify manager and administrator access, denial for anonymous
+  visitors and clients, correct filtering, and read-only behaviour.
+
+Expected result: staff can inspect customer finances in the website without
+using Django admin or bypassing finance services.
+
+#### Sprint 9 — Regression and Documentation
 
 - run finance tests;
 - run accounts tests;
@@ -2074,6 +2108,7 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 - account registration tests pass;
 - legal profile integration tests pass;
 - admin permission tests pass;
+- staff website permission, list, detail, search, and filter tests pass;
 - PostgreSQL concurrency tests pass;
 - the complete project test suite passes;
 - Ruff checks pass;
