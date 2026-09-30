@@ -1,1 +1,2 @@
+from shop_epower.accounts.services.legal_profile import save_legal_profile
 from shop_epower.accounts.services.registration import register_customer

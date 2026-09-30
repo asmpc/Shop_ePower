@@ -53,6 +53,8 @@ PHASE 22 includes:
 - atomic financial services;
 - protection against duplicate financial operations;
 - selectors for reading balances and transaction history;
+- a read-only website interface for managers and administrators to inspect
+  customer accounts and financial history;
 - automated tests for models, services, constraints, and concurrency rules;
 - documentation of integration boundaries with orders and payments.
 
@@ -206,14 +208,12 @@ profile page.
 Disabling legal purchasing or changing the user role must not delete an
 existing financial account or its transaction history.
 
-Existing users identified as customers receive personal financial accounts
-through an explicit data migration. A user is identified as an existing
-customer when the user has the `CLIENT` role or existing customer orders.
-
-Managers, administrators, staff users, and superusers are not excluded when
-their existing order activity shows that they also act as customers. Staff
-records without customer activity do not receive accounts merely because they
-exist.
+PHASE 22 does not backfill existing users: the project has not been deployed,
+and current user records are for testing and demonstrations. New customer
+accounts are created through explicit customer workflows. If a future launch
+uses a database with real legacy customers, their migration requires a
+separate decision and data audit. Authorization roles must not, by themselves,
+prevent a user from owning a financial account.
 
 ## 4. Current System Analysis
 
@@ -690,8 +690,9 @@ registration or another explicit customer workflow.
 API registration and template registration call the same account creation
 service. User and account creation must complete in one database transaction.
 
-Existing users receive personal accounts through an explicit data migration
-according to the migration eligibility rules.
+PHASE 22 does not automatically create accounts for existing demonstration
+users. A future backfill is conditional on deploying with real legacy customer
+data and requires a separate approved plan.
 
 Staff and superusers are not prohibited from having personal accounts. Users
 without customer activity are not assigned accounts merely because staff
@@ -728,9 +729,14 @@ A legal account represents one legal purchasing identity.
 Ordinary updates such as a corrected company name, address, bank name, or bank
 account do not create a new financial account.
 
-Replacing the legal tax identifier after financial operations exist would
-reinterpret the existing history as belonging to another legal identity.
-This is not allowed.
+Before the first financial transaction, an incorrect legal tax identifier may
+be corrected. An explicit finance service must update the existing account's
+identifier snapshot in the same database transaction as the profile update.
+The correction must not create a second account.
+
+Once financial transactions exist, neither the profile's tax identifier nor
+the account snapshot may be replaced. Doing so would reinterpret the existing
+history as belonging to another legal identity.
 
 A request to use another legal identity requires a separate future workflow.
 
@@ -1651,6 +1657,23 @@ The Django admin interface provides operational inspection.
 Financial transactions and status history must be read-only. Account balances
 must not be editable directly through admin forms.
 
+#### Staff Website Interface
+
+The existing website is the primary workplace for managers and administrators.
+Both roles may inspect the personal and legal financial accounts of all
+customers, including balances, transactions, and account status history.
+Neither role may edit these records through the website in PHASE 22.
+
+The staff interface provides an account list with search, filters, and
+pagination, plus a read-only account detail page with its transaction and
+status histories. Views must enforce manager-or-admin access independently of
+navigation visibility. Anonymous visitors and users without either role must
+not receive another customer's financial data.
+
+Future finance actions, including any administrator-only actions, require
+separate service-backed workflows and tests. The existing differences between
+manager and administrator permissions elsewhere in the project are unchanged.
+
 #### Tests
 
 Finance test helpers may create the initial objects required by a test, but
@@ -1729,7 +1752,9 @@ separate design decision.
 
 ### 9.6 Migration Strategy
 
-The finance application requires at least two migrations.
+PHASE 22 requires the finance schema migration. It does not require a data
+migration for existing users because the project has not been deployed and its
+current users are test or demonstration records.
 
 #### Schema Migration
 
@@ -1745,18 +1770,20 @@ The first migration creates:
 
 This migration must not create accounts for existing users.
 
-#### Existing Customer Data Migration
+#### Conditional Legacy Customer Data Migration — Deferred
 
-A separate data migration creates accounts for existing users who can already
-be identified as customers.
+No backfill migration is added in PHASE 22. Before deploying with an existing
+database of real customers, audit that data and approve a separate migration
+plan. The rules below are a starting point for that future decision, not work
+scheduled for the current phase.
 
-A user is identified as an existing customer when at least one of the following
-conditions is true:
+A possible eligibility rule identifies a legacy customer when at least one of
+the following conditions is true:
 
 - the user has the `CLIENT` role;
 - the user has at least one existing customer order.
 
-For every user identified as an existing customer:
+If a backfill is approved, for every user identified as a legacy customer:
 
 - create one personal account;
 - use the configured base currency;
@@ -1778,18 +1805,20 @@ For an existing legal profile, create a legal account only when:
 - `is_legal_entity` is enabled;
 - company name is present;
 - tax identifier is present;
-- legal address is present.
+- legal address is present;
+- bank name is present;
+- bank account is present.
 
 Incomplete legal profiles must be skipped rather than converted into partially
 valid financial accounts.
 
-The data migration must use Django historical migration models. It must not
-import the current finance services or current application model classes.
+Any future data migration must use Django historical migration models. It must
+not import the then-current finance services or application model classes.
 
-Running the migration logic against the same data more than once must not
+Running that migration logic against the same data more than once must not
 create duplicate accounts.
 
-The reverse data migration should not silently delete financial accounts. A
+Its reverse operation must not silently delete financial accounts. A
 no-operation reverse function is safer than automatic deletion of potentially
 used financial records.
 
@@ -1929,18 +1958,7 @@ without using signals.
 
 Expected result: a valid legal profile produces one separate legal account.
 
-#### Sprint 7 — Existing Customer Migration
-
-- add the forward data migration;
-- create personal accounts for existing customers;
-- create legal accounts for complete existing legal profiles;
-- skip staff-only users without customer activity and incomplete legal
-  profiles;
-- test migration behaviour and duplicate protection.
-
-Expected result: existing customer data conforms to the new account rules.
-
-#### Sprint 8 — Read-Only Administration
+#### Sprint 7 — Read-Only Administration
 
 - register finance models in Django admin;
 - make transactions read-only;
@@ -1950,6 +1968,21 @@ Expected result: existing customer data conforms to the new account rules.
 - add admin permission tests.
 
 Expected result: finance data can be inspected without bypassing services.
+
+#### Sprint 8 — Read-Only Staff Website Interface
+
+- add manager/admin account list and account detail pages in the existing
+  website, consistent with the current order and payment management UI;
+- show all customers' personal and legal accounts, balances, transactions,
+  and status history without creating or changing financial records;
+- add account search, filters, and pagination;
+- add a staff-only navigation link;
+- use read-only selectors rather than querying and changing balances in views;
+- use TDD to verify manager and administrator access, denial for anonymous
+  visitors and clients, correct filtering, and read-only behaviour.
+
+Expected result: staff can inspect customer finances in the website without
+using Django admin or bypassing finance services.
 
 #### Sprint 9 — Regression and Documentation
 
@@ -2052,17 +2085,12 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 
 #### Existing Customers
 
-- users with the `CLIENT` role or existing customer orders receive personal
-  accounts through a data migration;
+- PHASE 22 does not backfill test or demonstration users;
+- newly registered customers receive personal accounts through the explicit
+  registration service;
 - authorization roles do not prohibit financial account ownership;
-- managers, administrators, staff users, and superusers with existing customer
-  orders are included in the migration;
-- users with staff access but without customer activity do not receive accounts
-  automatically;
-- complete existing legal profiles belonging to identified customers receive
-  separate legal accounts;
-- incomplete legal profiles are skipped;
-- repeated migration logic cannot create duplicate accounts.
+- a future backfill for real legacy users requires a separate data audit,
+  approved eligibility rules, and dedicated tests.
 
 #### Administration and Security
 
@@ -2079,8 +2107,8 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 - finance service tests pass;
 - account registration tests pass;
 - legal profile integration tests pass;
-- migration tests pass;
 - admin permission tests pass;
+- staff website permission, list, detail, search, and filter tests pass;
 - PostgreSQL concurrency tests pass;
 - the complete project test suite passes;
 - Ruff checks pass;
@@ -2155,7 +2183,9 @@ different legal identities.
 
 Mitigation:
 
-- preserve the original tax identifier snapshot;
+- keep the profile identifier and account snapshot synchronized before the
+  first financial transaction;
+- preserve the identifier snapshot once financial history exists;
 - allow ordinary contact and bank-detail updates;
 - reject tax identifier replacement after financial history exists;
 - postpone multiple legal identities per user to a future phase.
@@ -2173,18 +2203,17 @@ Mitigation:
 - perform operational changes through explicit admin actions that call
   services.
 
-#### Incorrect Migration of Existing Users
+#### Accidental Backfill of Demonstration Users
 
-A data migration could create accounts for managers, administrators, or
-incomplete legal profiles.
+An unnecessary data migration could create financial accounts for demonstration
+users or incomplete legal profiles before the first production deployment.
 
 Mitigation:
 
-- use explicit eligibility rules;
-- separate schema and data migrations;
-- test every included and excluded user category;
-- preserve zero initial balances;
-- prevent duplicate accounts with database constraints.
+- do not add a customer backfill migration in PHASE 22;
+- create accounts through explicit customer workflows;
+- if real legacy data is introduced later, audit it and approve a separate,
+  tested migration before deployment.
 
 ### 10.3 Explicitly Deferred Decisions
 

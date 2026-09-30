@@ -1,10 +1,12 @@
 from django.contrib.auth import authenticate, get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 
 from shop_epower.accounts.models import LegalProfile
-from shop_epower.accounts.services import register_customer
+from shop_epower.accounts.services import register_customer, save_legal_profile
 
 User = get_user_model()
 
@@ -144,6 +146,8 @@ class UserProfileSerializer(serializers.ModelSerializer):
             'legal_profile',
         )
 
+
+    @transaction.atomic
     def update(self, instance, validated_data):
         legal_profile_data = validated_data.pop(
             'legal_profile',
@@ -156,13 +160,14 @@ class UserProfileSerializer(serializers.ModelSerializer):
         instance.save()
 
         if legal_profile_data is not None:
-            legal_profile, created = LegalProfile.objects.get_or_create(
-                user=instance
-            )
-
-            for attr, value in legal_profile_data.items():
-                setattr(legal_profile, attr, value)
-
-            legal_profile.save()
+            try:
+                save_legal_profile(
+                    user=instance,
+                    data=legal_profile_data,
+                )
+            except DjangoValidationError as exc:
+                raise serializers.ValidationError(
+                    {"legal_profile": exc.messages}
+                ) from exc
 
         return instance

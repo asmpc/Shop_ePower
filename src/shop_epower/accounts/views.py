@@ -8,12 +8,14 @@ from django.contrib.auth.views import (
     LoginView,
     LogoutView,
 )
+from django.core.exceptions import ValidationError as DjangoValidationError
+from django.db import transaction
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, TemplateView
 
-from shop_epower.accounts.services import register_customer
+from shop_epower.accounts.services import register_customer, save_legal_profile
 from shop_epower.cart.services import merge_session_cart_to_user_cart
 
 from .forms import (
@@ -130,33 +132,28 @@ def profile_edit(request):
         )
 
         if user_form.is_valid() and legal_profile_form.is_valid():
-            user_form.save()
+            try:
+                with transaction.atomic():
+                    user_form.save()
+                    save_legal_profile(
+                        user=request.user,
+                        data=legal_profile_form.cleaned_data,
+                    )
+            except DjangoValidationError as exc:
+                legal_profile_form.add_error("tax_id", exc)
+            else:
+                messages.success(request, 'Profile updated successfully.')
 
-            legal_profile = legal_profile_form.save(commit=False)
+                next_url = request.GET.get('next')
 
-            if not legal_profile.is_legal_entity:
-                old = LegalProfile.objects.get(user=request.user)
+                if next_url and url_has_allowed_host_and_scheme(
+                        url=next_url,
+                        allowed_hosts={request.get_host()},
+                        require_https=request.is_secure(),
+                ):
+                    return redirect(next_url)
 
-                legal_profile.company_name = old.company_name
-                legal_profile.tax_id = old.tax_id
-                legal_profile.legal_address = old.legal_address
-                legal_profile.bank_name = old.bank_name
-                legal_profile.bank_account = old.bank_account
-
-            legal_profile.save()
-
-            messages.success(request, 'Profile updated successfully.')
-
-            next_url = request.GET.get('next')
-
-            if next_url and url_has_allowed_host_and_scheme(
-                    url=next_url,
-                    allowed_hosts={request.get_host()},
-                    require_https=request.is_secure(),
-            ):
-                return redirect(next_url)
-
-            return redirect('accounts:profile_edit')
+                return redirect('accounts:profile_edit')
 
     else:
         user_form = UserProfileForm(
