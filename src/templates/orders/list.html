@@ -66,7 +66,7 @@
                 </div>
 
                 <div class="col-md-2 text-md-end mt-3 mt-md-0">
-                    <a href="{% url 'orders:detail' order.id %}"
+                    <a href="{% url 'orders:detail' order.id %}{% querystring %}"
                        class="btn btn-outline-secondary">
                         Open
                     </a>
@@ -81,5 +81,33 @@
     <p>You have no orders yet.</p>
 
 {% endfor %}
+{% if orders.has_other_pages %}
+    <nav aria-label="Order pages" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if orders.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=orders.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
 
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ orders.number }} of {{ orders.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if orders.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=orders.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
 {% endblock %}

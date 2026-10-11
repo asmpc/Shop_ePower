@@ -1,9 +1,8 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
-from django.urls import reverse
 from django.views import View
 from django.views.generic import DetailView, ListView
 
@@ -13,6 +12,7 @@ from shop_epower.orders.models import (
     OrderStatus,
 )
 from shop_epower.orders.navigation import (
+    get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
 from shop_epower.orders.services import (
@@ -43,16 +43,13 @@ class ManagerOrderListView(
 
     context_object_name = "orders"
 
-    ordering = ["-created_at"]
+    paginate_by = 20
 
     def get_queryset(self):
         user = self.request.user
 
-        if user.role not in [
-            "manager",
-            "admin",
-        ]:
-            return Order.objects.none()
+        if user.role not in ["manager", "admin"]:
+            raise PermissionDenied("Manager or admin access required.")
 
         qs = (
             Order.objects
@@ -76,7 +73,7 @@ class ManagerOrderListView(
                 status=status,
             )
 
-        return qs
+        return qs.order_by("-created_at", "-pk")
 
     def get_context_data(
         self,
@@ -119,7 +116,7 @@ class ManagerOrderDetailView(
         user = self.request.user
 
         if user.role not in ["manager", "admin"]:
-            return Order.objects.none()
+            raise PermissionDenied("Manager or admin access required.")
 
         return (
             Order.objects
@@ -138,9 +135,8 @@ class ManagerOrderDetailView(
             self.object,
         )
 
-        context["back_url"] = self.request.GET.get(
-            "next",
-            reverse("orders:manager_order_list"),
+        context["back_url"] = get_safe_manager_order_return_url(
+            self.request.GET.get("next"),
         )
 
         try:

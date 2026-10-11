@@ -2,6 +2,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import ValidationError
+from django.core.paginator import Paginator
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -144,7 +145,7 @@ def order_list_view(request):
         Order.objects
         .filter(user=request.user)
         .prefetch_related("items")
-        .order_by("-created_at")
+        .order_by("-created_at", "-pk")
     )
 
     status = request.GET.get("status")
@@ -152,11 +153,14 @@ def order_list_view(request):
     if status and status != "all":
         orders = orders.filter(status=status)
 
+    paginator = Paginator(orders, 20)
+    page_obj = paginator.get_page(request.GET.get("page"))
+
     return render(
         request,
         "orders/list.html",
         {
-            "orders": orders,
+            "orders": page_obj,
         },
     )
 
@@ -195,6 +199,12 @@ def order_cancel_view(request, order_id):
         user=request.user,
     )
 
+    detail_url = reverse("orders:detail", args=[order.id])
+    query_string = request.GET.urlencode()
+
+    if query_string:
+        detail_url = f"{detail_url}?{query_string}"
+
     try:
         cancel_new_order(
             order=order,
@@ -202,7 +212,7 @@ def order_cancel_view(request, order_id):
         )
     except Exception as e:
         messages.error(request, str(e))
-        return redirect("orders:detail", order_id=order.id)
+        return redirect(detail_url)
 
     messages.success(request, "Order cancelled successfully.")
-    return redirect("orders:detail", order_id=order.id)
+    return redirect(detail_url)

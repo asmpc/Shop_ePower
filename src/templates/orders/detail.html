@@ -17,7 +17,7 @@
         {% endif %}
     </div>
 
-    <a href="{% url 'orders:list' %}" class="btn btn-outline-secondary">
+    <a href="{% url 'orders:list' %}{% querystring %}" class="btn btn-outline-secondary">
         Back to my orders
     </a>
 </div>
@@ -361,7 +361,7 @@
 
 {% if can_cancel %}
     <form method="post"
-          action="{% url 'orders:cancel' order.id %}"
+          action="{% url 'orders:cancel' order.id %}{% querystring %}"
           class="mb-3">
         {% csrf_token %}
 

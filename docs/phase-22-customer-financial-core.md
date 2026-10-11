@@ -2043,6 +2043,12 @@ entire payment history. Active orders and chats remain operational lists.
 
 Expected result: chat lists remain bounded without hiding active work.
 
+Across Sprints 9–12, opening a detail page and returning to a list must
+preserve the originating list's search, filters, and page. Actions on a
+detail page must preserve the same return context. A request-supplied
+`next` URL is accepted only when it points to the corresponding internal
+list route; otherwise, use that list's default URL.
+
 #### Sprint 13 — Regression and Documentation
 
 - run finance tests;
