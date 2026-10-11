@@ -135,8 +135,16 @@ class ManagerOrderDetailView(
             self.object,
         )
 
+        try:
+            payment = self.object.payment
+        except Order.payment.RelatedObjectDoesNotExist:
+            payment = None
+
+        context["payment"] = payment
+
         context["back_url"] = get_safe_manager_order_return_url(
             self.request.GET.get("next"),
+            payment_id=payment.pk if payment is not None else None,
         )
 
         try:

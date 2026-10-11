@@ -4,12 +4,17 @@ from django.shortcuts import redirect
 from django.urls import reverse
 
 
-def get_safe_manager_order_return_url(candidate):
+def get_safe_manager_order_return_url(candidate, *, payment_id=None):
     default_url = reverse("orders:manager_order_list")
     allowed_paths = {
         default_url,
         reverse("payments:manager_payment_list"),
     }
+
+    if payment_id is not None:
+        allowed_paths.add(
+            reverse("payments:manager_payment_detail", args=[payment_id])
+        )
 
     if not candidate:
         return default_url

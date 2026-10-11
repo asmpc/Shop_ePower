@@ -112,3 +112,13 @@ class TestsPaymentSelectors(TestCase):
                 self.paid_payment,
             ],
         )
+
+    # При одинаковом времени создания pk задаёт устойчивый
+    # порядок платежей между страницами списка менеджера.
+    def test_get_payments_for_manager_has_stable_pagination_order(self):
+        payments = get_payments_for_manager()
+
+        self.assertEqual(
+            payments.query.order_by,
+            ("-created_at", "-pk"),
+        )

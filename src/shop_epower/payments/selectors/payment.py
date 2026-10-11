@@ -45,7 +45,7 @@ def get_payments_for_manager(
             "order",
             "order__user",
         )
-        .order_by("-created_at")
+        .order_by("-created_at", "-pk")
     )
 
     if status:

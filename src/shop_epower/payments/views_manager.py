@@ -2,7 +2,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import (
     HttpResponse,
     HttpResponseForbidden,
@@ -19,6 +19,7 @@ from shop_epower.payments.models import (
     Invoice,
     Payment,
 )
+from shop_epower.payments.navigation import get_safe_manager_payment_list_url
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
 )
@@ -44,6 +45,8 @@ class ManagerPaymentListView(
 
     context_object_name = "payments"
 
+    paginate_by = 20
+
     def get_queryset(self):
         user = self.request.user
 
@@ -51,7 +54,7 @@ class ManagerPaymentListView(
             "manager",
             "admin",
         ]:
-            return Payment.objects.none()
+            raise PermissionDenied("Manager or admin access required.")
 
         return get_payments_for_manager(
             status=self.request.GET.get("status"),
@@ -101,7 +104,7 @@ class ManagerPaymentDetailView(
             "manager",
             "admin",
         ]:
-            return Payment.objects.none()
+            raise PermissionDenied("Manager or admin access required.")
 
         return (
             Payment.objects
@@ -132,9 +135,8 @@ class ManagerPaymentDetailView(
 
         context["invoice"] = invoice
 
-        context["back_url"] = self.request.GET.get(
-            "next",
-            reverse("payments:manager_payment_list"),
+        context["back_url"] = get_safe_manager_payment_list_url(
+            self.request.GET.get("next"),
         )
 
         return context

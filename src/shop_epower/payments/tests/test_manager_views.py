@@ -103,7 +103,7 @@ class TestsManagerPaymentViews(TestCase):
         )
 
     # Проверяем, что клиент не видит оплаты в manager list.
-    def test_client_cannot_see_payment_list(self):
+    def test_client_cannot_open_payment_list(self):
         self.client.force_login(
             self.client_user,
         )
@@ -112,15 +112,7 @@ class TestsManagerPaymentViews(TestCase):
             reverse("payments:manager_payment_list"),
         )
 
-        self.assertEqual(
-            response.status_code,
-            200,
-        )
-
-        self.assertEqual(
-            list(response.context["payments"]),
-            [],
-        )
+        self.assertEqual(response.status_code, 403)
 
     # Проверяем сохранение выбранных фильтров.
     def test_selected_filters_are_saved_in_context(self):
@@ -213,7 +205,7 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertEqual(
             response.status_code,
-            404,
+            403,
         )
 
     # Проверяем, что detail страницы оплаты показывает историю изменений.
@@ -301,4 +293,108 @@ class TestsManagerPaymentViews(TestCase):
         self.assertEqual(
             history.new_status,
             PaymentStatus.PAID,
+        )
+
+    # При 21 платеже менеджер видит 20 на первой странице
+    # и один оставшийся платёж — на второй.
+    def test_manager_payment_list_is_paginated(self):
+        for _ in range(20):
+            order = create_test_order(user=self.client_user)
+            create_test_payment(order=order)
+
+        self.client.force_login(self.manager)
+        url = reverse("payments:manager_payment_list")
+
+        first_page = self.client.get(url)
+        second_page = self.client.get(url, {"page": 2})
+
+        self.assertEqual(len(first_page.context["payments"]), 20)
+        self.assertEqual(len(second_page.context["payments"]), 1)
+
+    # Ссылка на следующую страницу сохраняет все три фильтра платежей.
+    def test_payment_pagination_preserves_filters(self):
+        for _ in range(20):
+            order = create_test_order(user=self.client_user)
+            create_test_payment(order=order)
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {
+                "status": "pending",
+                "method": "invoice",
+                "provider": "manual",
+            },
+        )
+
+        self.assertContains(
+            response,
+            'href="?status=pending&amp;method=invoice&amp;provider=manual&amp;page=2"',
+        )
+
+    # Внешний адрес из параметра next не должен попадать в кнопку Back.
+    def test_payment_detail_rejects_external_back_url(self):
+        self.client.force_login(self.manager)
+
+        list_url = reverse("payments:manager_payment_list")
+        detail_url = reverse(
+            "payments:manager_payment_detail",
+            args=[self.payment.pk],
+        )
+
+        response = self.client.get(
+            detail_url,
+            {"next": "https://example.org/fake"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["back_url"], list_url)
+
+    # Допустимая ссылка Back сохраняет фильтры и страницу списка.
+    def test_payment_detail_preserves_list_back_url(self):
+        self.client.force_login(self.manager)
+
+        list_url = reverse("payments:manager_payment_list")
+        back_url = (
+            f"{list_url}"
+            "?status=pending&method=invoice&provider=manual&page=1"
+        )
+        detail_url = reverse(
+            "payments:manager_payment_detail",
+            args=[self.payment.pk],
+        )
+
+        response = self.client.get(detail_url, {"next": back_url})
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["back_url"], back_url)
+        self.assertContains(
+            response,
+            f'href="{list_url}?status=pending&amp;method=invoice'
+            '&amp;provider=manual&amp;page=1"',
+        )
+
+    # Из карточки платежа карточка заказа возвращает к платежу.
+    def test_order_detail_returns_to_payment_detail(self):
+        self.client.force_login(self.manager)
+
+        payment_detail_url = reverse(
+            "payments:manager_payment_detail",
+            args=[self.payment.pk],
+        )
+        order_detail_url = reverse(
+            "orders:manager_order_detail",
+            args=[self.order.pk],
+        )
+
+        response = self.client.get(
+            order_detail_url,
+            {"next": payment_detail_url},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["back_url"],
+            payment_detail_url,
         )
