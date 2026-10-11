@@ -17,7 +17,44 @@
     </div>
 
     <div class="card-body">
+        <p class="text-muted mb-3">
+            Enter an order ID, transaction ID, customer email, or choose a filter to find payments.
+        </p>
         <form method="get" class="row g-3">
+            <div class="col-md-4">
+                <label for="payment-order-id" class="form-label">
+                    Order ID
+                </label>
+                <input
+                    id="payment-order-id"
+                    name="order_id"
+                    type="text"
+                    inputmode="numeric"
+                    class="form-control"
+                    value="{{ selected_order_id }}"
+                    placeholder="e.g. 42"
+                >
+            </div>
+            <div class="col-md-4">
+                <label for="transaction-id" class="form-label">Transaction ID</label>
+                <input
+                    id="transaction-id"
+                    type="text"
+                    name="transaction_id"
+                    value="{{ selected_transaction_id }}"
+                    class="form-control"
+                >
+            </div>
+            <div class="col-md-4">
+                <label for="customer-email" class="form-label">Customer email</label>
+                <input
+                    id="customer-email"
+                    type="email"
+                    name="customer_email"
+                    value="{{ selected_customer_email }}"
+                    class="form-control"
+                >
+            </div>
             <div class="col-md-4">
                 <label class="form-label">
                     Status
@@ -159,7 +196,19 @@
         </div>
     </div>
 {% empty %}
-    <div class="alert alert-light border">No payments found.</div>
+    {% if selected_status or selected_method or selected_provider or selected_order_id or selected_transaction_id or selected_customer_email %}
+        <div class="alert alert-light border">
+            No payments found.
+        </div>
+    {% elif request.GET %}
+        <div class="alert alert-warning">
+            Enter a search value or choose at least one filter before searching.
+        </div>
+    {% else %}
+        <div class="alert alert-light border">
+            Payment history is hidden until you search or choose a filter.
+        </div>
+    {% endif %}
 {% endfor %}
 
 {% if page_obj.has_other_pages %}

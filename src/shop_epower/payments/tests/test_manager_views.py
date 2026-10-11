@@ -77,9 +77,9 @@ class TestsManagerPaymentViews(TestCase):
             200,
         )
 
-        self.assertIn(
-            self.payment,
-            response.context["payments"],
+        self.assertEqual(
+            list(response.context["payments"]),
+            [],
         )
 
     # Проверяем, что администратор может открыть список оплат.
@@ -97,9 +97,9 @@ class TestsManagerPaymentViews(TestCase):
             200,
         )
 
-        self.assertIn(
-            self.payment,
-            response.context["payments"],
+        self.assertEqual(
+            list(response.context["payments"]),
+            [],
         )
 
     # Проверяем, что клиент не видит оплаты в manager list.
@@ -305,11 +305,23 @@ class TestsManagerPaymentViews(TestCase):
         self.client.force_login(self.manager)
         url = reverse("payments:manager_payment_list")
 
-        first_page = self.client.get(url)
-        second_page = self.client.get(url, {"page": 2})
+        email = self.order.customer_email
+
+        first_page = self.client.get(
+            url,
+            {"customer_email": email},
+        )
+        second_page = self.client.get(
+            url,
+            {"customer_email": email, "page": 2},
+        )
 
         self.assertEqual(len(first_page.context["payments"]), 20)
         self.assertEqual(len(second_page.context["payments"]), 1)
+        self.assertContains(
+            first_page,
+            'href="?customer_email=client%40test.com&amp;page=2"',
+        )
 
     # Ссылка на следующую страницу сохраняет все три фильтра платежей.
     def test_payment_pagination_preserves_filters(self):
@@ -397,4 +409,186 @@ class TestsManagerPaymentViews(TestCase):
         self.assertEqual(
             response.context["back_url"],
             payment_detail_url,
+        )
+
+    # До поиска показываем инструкцию, а пустое применение
+    # фильтров объясняем отдельно от случая «нет совпадений».
+    def test_payment_list_explains_empty_search(self):
+        self.client.force_login(self.manager)
+        url = reverse("payments:manager_payment_list")
+
+        initial_response = self.client.get(url)
+        blank_response = self.client.get(
+            url,
+            {
+                "order_id": "",
+                "transaction_id": "",
+                "customer_email": "",
+                "status": "",
+                "method": "",
+                "provider": "",
+            },
+        )
+
+        self.assertContains(
+            initial_response,
+            "Payment history is hidden until you search or choose a filter.",
+        )
+
+        self.assertContains(
+            initial_response,
+            "Enter an order ID, transaction ID, customer email, or choose a filter to find payments.",
+        )
+        self.assertNotContains(initial_response, "No payments found.")
+
+        self.assertContains(
+            blank_response,
+            "Enter a search value or choose at least one filter before searching.",
+        )
+        self.assertNotContains(blank_response, "No payments found.")
+
+    # Менеджер находит платёж по точному номеру заказа.
+    def test_manager_can_find_payment_by_order_id(self):
+        other_order = create_test_order(user=self.client_user)
+        create_test_payment(order=other_order)
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"order_id": str(self.order.pk)},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [self.payment],
+        )
+
+    # Форма показывает поиск по заказу и сохраняет введённый номер.
+    def test_payment_list_shows_order_id_search_field(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"order_id": str(self.order.pk)},
+        )
+
+        self.assertContains(response, 'name="order_id"')
+        self.assertContains(
+            response,
+            f'value="{self.order.pk}"',
+        )
+
+    # Некорректный номер заказа не вызывает ошибку сервера.
+    def test_invalid_order_id_returns_no_payments(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"order_id": "abc"},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(list(response.context["payments"]), [])
+        self.assertContains(response, "No payments found.")
+
+    # Менеджер находит платёж по точному ID операции.
+    def test_manager_can_find_payment_by_transaction_id(self):
+        other_order = create_test_order(user=self.client_user)
+        create_test_payment(order=other_order)
+
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"transaction_id": self.payment.transaction_id},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [self.payment],
+        )
+
+    # Форма показывает поиск по ID операции
+    # и сохраняет введённое значение после отправки.
+    def test_payment_list_shows_transaction_id_search_field(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"transaction_id": self.payment.transaction_id},
+        )
+
+        self.assertContains(response, 'name="transaction_id"')
+        self.assertContains(
+            response,
+            f'value="{self.payment.transaction_id}"',
+        )
+
+    # Менеджер находит платёж по email, сохранённому в заказе.
+    def test_manager_can_find_payment_by_customer_email(self):
+        other_order = create_test_order(
+            user=self.client_user,
+            customer_email="another@example.com",
+        )
+        create_test_payment(order=other_order)
+
+        self.client.force_login(self.manager)
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"customer_email": self.order.customer_email.upper()},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [self.payment],
+        )
+
+    # Форма содержит поиск по email и сохраняет введённый адрес.
+    def test_payment_list_shows_customer_email_search_field(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"customer_email": self.order.customer_email},
+        )
+
+        self.assertContains(response, 'name="customer_email"')
+        self.assertContains(
+            response,
+            f'value="{self.order.customer_email}"',
+        )
+
+    # Поиск по email без совпадений показывает результат поиска,
+    # а не просьбу указать условие.
+    def test_payment_list_reports_no_results_for_customer_email_search(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"customer_email": "missing@example.com"},
+        )
+
+        self.assertEqual(list(response.context["payments"]), [])
+        self.assertContains(response, "No payments found.")
+        self.assertNotContains(
+            response,
+            "Select at least one filter before searching.",
+        )
+
+    # Администратор тоже может искать платежи по email клиента.
+    def test_admin_can_find_payment_by_customer_email(self):
+        self.client.force_login(self.admin)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"customer_email": self.order.customer_email},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [self.payment],
         )
