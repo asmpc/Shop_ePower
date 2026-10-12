@@ -2,7 +2,7 @@ from urllib.parse import urlencode
 
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.http import (
     HttpResponse,
     HttpResponseForbidden,
@@ -19,6 +19,7 @@ from shop_epower.payments.models import (
     Invoice,
     Payment,
 )
+from shop_epower.payments.navigation import get_safe_manager_payment_list_url
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
 )
@@ -44,6 +45,8 @@ class ManagerPaymentListView(
 
     context_object_name = "payments"
 
+    paginate_by = 20
+
     def get_queryset(self):
         user = self.request.user
 
@@ -51,12 +54,43 @@ class ManagerPaymentListView(
             "manager",
             "admin",
         ]:
+            raise PermissionDenied("Manager or admin access required.")
+
+        status = self.request.GET.get("status", "").strip()
+        method = self.request.GET.get("method", "").strip()
+        provider = self.request.GET.get("provider", "").strip()
+        order_id = self.request.GET.get("order_id", "").strip()
+        transaction_id = self.request.GET.get("transaction_id", "").strip()
+        customer_email = self.request.GET.get("customer_email", "").strip()
+
+        if not (
+                status
+                or method
+                or provider
+                or order_id
+                or transaction_id
+                or customer_email
+        ):
             return Payment.objects.none()
 
+        parsed_order_id = None
+
+        if order_id:
+            try:
+                parsed_order_id = int(order_id)
+            except ValueError:
+                return Payment.objects.none()
+
+            if not 1 <= parsed_order_id <= 2 ** 63 - 1:
+                return Payment.objects.none()
+
         return get_payments_for_manager(
-            status=self.request.GET.get("status"),
-            method=self.request.GET.get("method"),
-            provider=self.request.GET.get("provider"),
+            status=status,
+            method=method,
+            provider=provider,
+            order_id=parsed_order_id,
+            transaction_id=transaction_id or None,
+            customer_email=customer_email or None,
         )
 
     def get_context_data(
@@ -68,16 +102,31 @@ class ManagerPaymentListView(
         )
 
         context["selected_status"] = (
-            self.request.GET.get("status", "")
+            self.request.GET.get("status", "").strip()
         )
 
         context["selected_method"] = (
-            self.request.GET.get("method", "")
+            self.request.GET.get("method", "").strip()
         )
 
         context["selected_provider"] = (
-            self.request.GET.get("provider", "")
+            self.request.GET.get("provider", "").strip()
         )
+
+        context["selected_order_id"] = self.request.GET.get(
+            "order_id",
+            "",
+        ).strip()
+
+        context["selected_transaction_id"] = self.request.GET.get(
+            "transaction_id",
+            "",
+        ).strip()
+
+        context["selected_customer_email"] = self.request.GET.get(
+            "customer_email",
+            "",
+        ).strip()
 
         return context
 
@@ -101,7 +150,7 @@ class ManagerPaymentDetailView(
             "manager",
             "admin",
         ]:
-            return Payment.objects.none()
+            raise PermissionDenied("Manager or admin access required.")
 
         return (
             Payment.objects
@@ -132,9 +181,8 @@ class ManagerPaymentDetailView(
 
         context["invoice"] = invoice
 
-        context["back_url"] = self.request.GET.get(
-            "next",
-            reverse("payments:manager_payment_list"),
+        context["back_url"] = get_safe_manager_payment_list_url(
+            self.request.GET.get("next"),
         )
 
         return context

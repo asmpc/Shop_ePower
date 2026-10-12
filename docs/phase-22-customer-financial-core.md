@@ -1664,11 +1664,19 @@ Both roles may inspect the personal and legal financial accounts of all
 customers, including balances, transactions, and account status history.
 Neither role may edit these records through the website in PHASE 22.
 
-The staff interface provides an account list with search, filters, and
-pagination, plus a read-only account detail page with its transaction and
-status histories. Views must enforce manager-or-admin access independently of
-navigation visibility. Anonymous visitors and users without either role must
-not receive another customer's financial data.
+The staff account page is a search entry point, not an automatic listing of
+every balance. Its initial state shows the search form but no account results.
+A meaningful search or filter request may find accounts by account ID,
+customer email or phone, or legal tax identifier, with optional account type
+and status filters. Results are paginated. Staff can then open a read-only
+account detail page with its transaction and status histories. A separate
+read-only journal of all customers' transactions is also search-first and
+paginated; it must not load the full journal on initial display.
+
+Views must enforce manager-or-admin access independently of navigation
+visibility. Anonymous visitors and users without either role must not receive
+another customer's financial data. An authorized empty search may show an
+empty page; unauthorized access must not be disguised as an empty result.
 
 Future finance actions, including any administrator-only actions, require
 separate service-backed workflows and tests. The existing differences between
@@ -1973,18 +1981,85 @@ Expected result: finance data can be inspected without bypassing services.
 
 - add manager/admin account list and account detail pages in the existing
   website, consistent with the current order and payment management UI;
-- show all customers' personal and legal accounts, balances, transactions,
-  and status history without creating or changing financial records;
-- add account search, filters, and pagination;
+- allow staff to find any customer's personal or legal account, balances,
+  transactions, and status history without changing financial records;
+- show no account results before a meaningful search or filter; add account
+  search, filters, and pagination;
+- add a separate search-first, paginated read-only transaction journal for
+  staff, without loading all transactions on initial display;
 - add a staff-only navigation link;
 - use read-only selectors rather than querying and changing balances in views;
 - use TDD to verify manager and administrator access, denial for anonymous
-  visitors and clients, correct filtering, and read-only behaviour.
+  visitors and clients, empty initial results, correct filtering, pagination,
+  and read-only behaviour.
 
 Expected result: staff can inspect customer finances in the website without
 using Django admin or bypassing finance services.
 
-#### Sprint 9 — Regression and Documentation
+#### Sprint 9 — Order List Pagination
+
+- paginate customer order history and the manager/administrator order list;
+- keep existing status filters and return-to-list links when changing pages;
+- use a bounded page size and deterministic ordering, including a tie-breaker;
+- use TDD to check ownership, first and later pages, and preserved filters;
+- keep active-order management usable rather than making it search-first;
+- show only `NEW` and `PROCESSING` orders by default in the staff list;
+  access `COMPLETED` and `CANCELLED` orders through explicit status filters,
+  without an unfiltered `All` option;
+- make the customer My orders list active-first as well: show `NEW` and
+  `PROCESSING` by default and expose `COMPLETED` and `CANCELLED` through
+  explicit status filters while preserving pagination and return links.
+
+Expected result: customer and staff order pages remain useful as order volume
+grows without rendering every historical order at once.
+
+#### Sprint 10 — Payment List Pagination
+
+- paginate the existing manager/administrator payment list;
+- preserve status, method, and provider filters in page links;
+- align the payment list's Bootstrap layout with the order management page
+  without changing payment actions;
+- use deterministic ordering and test page boundaries and access rules;
+
+Expected result: staff can browse payment pages without loading the full
+history into one response.
+
+#### Sprint 11 — Search-First Payment Management
+
+- make the initial manager/administrator payment page show search and filters
+  without automatically listing historical payments;
+- find payments by order ID, transaction ID, or customer email, while retaining
+  the existing status, method, and provider filters;
+- require a meaningful search or filter before showing results;
+- preserve search and filter parameters across paginated result pages;
+- use TDD for the empty initial state, matching and missing results, page
+  navigation, and manager/administrator access.
+
+Expected result: staff can locate a payment without scanning or displaying the
+entire payment history. Active orders and chats remain operational lists.
+
+#### Sprint 12 — Chat Room List Pagination
+
+- paginate customer and administrator chat-room lists;
+- paginate the manager's available and active room groups independently;
+- audit role-specific defaults: manager queues already target `OPEN` and
+  `IN_PROGRESS`, while the administrator list currently loads all rooms;
+- show only active rooms on initial staff pages and make `CLOSED` history
+  available through an explicit filter with role-specific access tests;
+- bring staff chat lists toward the order management page's Bootstrap layout
+  without changing chat actions;
+- preserve status filters and make urgent active conversations easy to reach;
+- test role-specific visibility and navigation between pages.
+
+Expected result: chat lists remain bounded without hiding active work.
+
+Across Sprints 9–12, opening a detail page and returning to a list must
+preserve the originating list's search, filters, and page. Actions on a
+detail page must preserve the same return context. A request-supplied
+`next` URL is accepted only when it points to the corresponding internal
+list route; otherwise, use that list's default URL.
+
+#### Sprint 13 — Regression and Documentation
 
 - run finance tests;
 - run accounts tests;
@@ -2109,6 +2184,8 @@ PHASE 22 is complete when all of the following conditions are satisfied.
 - legal profile integration tests pass;
 - admin permission tests pass;
 - staff website permission, list, detail, search, and filter tests pass;
+- customer and staff order, payment, and chat list pagination tests pass;
+- search-first payment management tests pass;
 - PostgreSQL concurrency tests pass;
 - the complete project test suite passes;
 - Ruff checks pass;

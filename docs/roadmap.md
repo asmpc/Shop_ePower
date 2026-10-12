@@ -87,7 +87,8 @@ introduced Ruff quality checks. Regression testing passed.
 
 ## PHASE 22 --- Customer Financial Core
 
-Status: requirements and design; implementation not started.
+Status: implementation in progress; staff finance UI and final list
+pagination/search remain.
 
 - Customer Account
 - Financial Ledger
@@ -95,6 +96,8 @@ Status: requirements and design; implementation not started.
 - immutable balance history
 - audit trail
 - atomic financial operations
+- bounded, paginated customer and staff website lists before phase closure
+- search-first historical payment management after payment list pagination
 
 ------------------------------------------------------------------------
 
@@ -167,6 +170,8 @@ These initiatives are intentionally not tied to a specific phase and
 will be implemented when appropriate:
 
 -   Security Hardening
+-   Audit staff-only pages that return HTTP 200 with an empty queryset to
+    unauthorized users; deny access explicitly instead.
 -   Observability & Monitoring
 -   Business Analytics
 -   Loyalty Program

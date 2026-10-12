@@ -1,0 +1,134 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Account #{{ account.pk }}</h1>
+
+<div class="card">
+    <div class="card-body">
+        <p>Customer: {{ account.user.email }}</p>
+        <p>Type: {{ account.get_account_type_display }}</p>
+        <p>Status: {{ account.get_status_display }}</p>
+        <p>Available: {{ account.available_balance }} {{ account.currency }}</p>
+        <p>Debt: {{ account.debt_balance }} {{ account.currency }}</p>
+    </div>
+</div>
+
+<div class="card mt-4">
+    <div class="card-header">Transactions</div>
+    <div class="card-body">
+        {% for transaction in transactions %}
+            <div class="border-bottom py-2">
+                <strong>{{ transaction.get_operation_type_display }}</strong>
+                <span class="text-muted">{{ transaction.created_at }}</span>
+                <div class="small">Key: {{ transaction.operation_key }}</div>
+                <div class="row g-2 mt-2">
+                    <div class="col-md-6">
+                        Available change: {{ transaction.available_delta }} {{ transaction.currency_snapshot }}
+                    </div>
+                    <div class="col-md-6">
+                        Debt change: {{ transaction.debt_delta }} {{ transaction.currency_snapshot }}
+                    </div>
+                    <div class="col-md-6">
+                        Available after: {{ transaction.available_balance_after }} {{ transaction.currency_snapshot }}
+                    </div>
+                    <div class="col-md-6">
+                        Debt after: {{ transaction.debt_balance_after }} {{ transaction.currency_snapshot }}
+                    </div>
+                </div>
+
+                {% if transaction.comment %}
+                    <div class="small mt-2">Comment: {{ transaction.comment }}</div>
+                {% endif %}
+            </div>
+        {% empty %}
+            <div class="text-muted">No transactions yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if transactions.has_other_pages %}
+    <nav aria-label="Transaction history pages" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if transactions.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring transactions_page=transactions.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ transactions.number }} of {{ transactions.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if transactions.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring transactions_page=transactions.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
+
+<div class="card mt-4">
+    <div class="card-header">Account status history</div>
+    <div class="card-body">
+        {% for entry in status_history %}
+            <div class="border-bottom py-2">
+                <strong>
+                    {{ entry.get_old_status_display }}
+                    → {{ entry.get_new_status_display }}
+                </strong>
+                <span class="text-muted">{{ entry.created_at }}</span>
+                <div>Reason: {{ entry.reason }}</div>
+                <div>
+                    Changed by:
+                    {% if entry.changed_by %}
+                        {{ entry.changed_by.email }}
+                    {% else %}
+                        System
+                    {% endif %}
+                </div>
+            </div>
+        {% empty %}
+            <div class="text-muted">No status changes yet.</div>
+        {% endfor %}
+    </div>
+</div>
+
+{% if status_history.has_other_pages %}
+    <nav aria-label="Account status history pages" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if status_history.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring status_page=status_history.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ status_history.number }} of {{ status_history.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if status_history.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring status_page=status_history.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
+{% endblock %}

@@ -38,6 +38,9 @@ def get_payments_for_manager(
     status=None,
     method=None,
     provider=None,
+    order_id=None,
+    transaction_id=None,
+    customer_email=None,
 ):
     queryset = (
         Payment.objects
@@ -45,7 +48,7 @@ def get_payments_for_manager(
             "order",
             "order__user",
         )
-        .order_by("-created_at")
+        .order_by("-created_at", "-pk")
     )
 
     if status:
@@ -61,6 +64,17 @@ def get_payments_for_manager(
     if provider:
         queryset = queryset.filter(
             provider=provider,
+        )
+
+    if order_id is not None:
+        queryset = queryset.filter(order_id=order_id)
+
+    if transaction_id is not None:
+        queryset = queryset.filter(transaction_id=transaction_id)
+
+    if customer_email is not None:
+        queryset = queryset.filter(
+            order__customer_email__iexact=customer_email,
         )
 
     return queryset

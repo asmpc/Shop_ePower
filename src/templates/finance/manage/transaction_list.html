@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<h1 class="mb-4">Financial transactions</h1>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-6">
+        <label for="operation-key-search" class="form-label">
+            Operation key
+        </label>
+        <input id="operation-key-search"
+               name="operation_key"
+               type="search"
+               class="form-control"
+               value="{{ request.GET.operation_key|default:'' }}">
+    </div>
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+    <div class="col-auto">
+        <a href="{% url 'finance:manager_transaction_list' %}"
+           class="btn btn-outline-secondary">Reset</a>
+    </div>
+</form>
+
+{% for transaction in transactions %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <strong>{{ transaction.get_operation_type_display }}</strong>
+            <span class="text-muted">{{ transaction.created_at }}</span>
+            <div>Key: {{ transaction.operation_key }}</div>
+            <div>
+                <a href="{% url 'finance:manager_account_detail' transaction.account_id %}">
+                    Account #{{ transaction.account_id }}
+                </a>
+                — {{ transaction.account.user.email }}
+            </div>
+
+            <div class="row g-2 mt-2">
+                <div class="col-md-6">
+                    Available change: {{ transaction.available_delta }} {{ transaction.currency_snapshot }}
+                </div>
+                <div class="col-md-6">
+                    Debt change: {{ transaction.debt_delta }} {{ transaction.currency_snapshot }}
+                </div>
+                <div class="col-md-6">
+                    Available after: {{ transaction.available_balance_after }} {{ transaction.currency_snapshot }}
+                </div>
+                <div class="col-md-6">
+                    Debt after: {{ transaction.debt_balance_after }} {{ transaction.currency_snapshot }}
+                </div>
+            </div>
+        </div>
+    </div>
+{% empty %}
+    <div class="alert alert-light border">
+        {% if request.GET.operation_key %}
+            No transactions found.
+        {% else %}
+            Enter an operation key to search the journal.
+        {% endif %}
+    </div>
+{% endfor %}
+{% if is_paginated %}
+    <nav aria-label="Transaction pages">
+        <ul class="pagination">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=page_obj.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=page_obj.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
+{% endblock %}

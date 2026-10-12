@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<h1 class="mb-4">Customer accounts</h1>
+
+<div class="mb-4">
+    <a href="{% url 'finance:manager_transaction_list' %}"
+       class="btn btn-outline-primary">
+        Transaction journal
+    </a>
+</div>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-5">
+        <label for="account-search" class="form-label">
+            Email, phone, or tax ID
+        </label>
+        <input
+            id="account-search"
+            name="q"
+            type="search"
+            class="form-control"
+            value="{{ request.GET.q|default:'' }}"
+            placeholder="Enter email, phone, or tax ID"
+        >
+    </div>
+
+    <div class="col-md-2">
+        <label for="account-id-search" class="form-label">
+            Account number
+        </label>
+        <input
+            id="account-id-search"
+            name="account_id"
+            type="text"
+            inputmode="numeric"
+            class="form-control"
+            value="{{ request.GET.account_id|default:'' }}"
+            placeholder="e.g. 42"
+        >
+    </div>
+
+    <div class="col-md-2">
+        <label for="account-type-filter" class="form-label">
+            Account type
+        </label>
+        <select
+            id="account-type-filter"
+            name="account_type"
+            class="form-select"
+        >
+            <option value="">All types</option>
+            <option value="personal" {% if request.GET.account_type == "personal" %}selected{% endif %}>
+                Personal
+            </option>
+            <option value="legal" {% if request.GET.account_type == "legal" %}selected{% endif %}>
+                Legal
+            </option>
+        </select>
+    </div>
+
+    <div class="col-md-2">
+        <label for="account-status-filter" class="form-label">
+            Account status
+        </label>
+        <select
+            id="account-status-filter"
+            name="status"
+            class="form-select"
+        >
+            <option value="">All statuses</option>
+            <option value="active" {% if request.GET.status == "active" %}selected{% endif %}>
+                Active
+            </option>
+            <option value="inactive" {% if request.GET.status == "inactive" %}selected{% endif %}>
+                Inactive
+            </option>
+        </select>
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">Search</button>
+    </div>
+
+    <div class="col-auto">
+        <a href="{% url 'finance:manager_account_list' %}"
+           class="btn btn-outline-secondary">
+            Reset
+        </a>
+    </div>
+</form>
+
+{% for account in accounts %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-center g-3">
+
+                <div class="col-md-2">
+                    <div class="d-flex flex-wrap align-items-center gap-2">
+                        <span class="h5 mb-0">Account #{{ account.id }}</span>
+
+                        {% if account.status == "active" %}
+                            <span class="badge bg-success">ACTIVE</span>
+                        {% else %}
+                            <span class="badge bg-secondary">INACTIVE</span>
+                        {% endif %}
+                    </div>
+                    <div class="text-muted small mt-1">
+                        {{ account.created_at }}
+                    </div>
+                </div>
+
+                <div class="col-md-3 border-start">
+                    <div class="text-muted">Customer</div>
+                    <div class="text-break">{{ account.user.email }}</div>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <div class="text-muted">Account type</div>
+                    <div>{{ account.get_account_type_display }}</div>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <div class="text-muted">Available</div>
+                    <div>{{ account.available_balance }} {{ account.currency }}</div>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <div class="text-muted">Debt</div>
+                    <div>{{ account.debt_balance }} {{ account.currency }}</div>
+                </div>
+
+                <div class="col-md-1 text-md-end">
+                    <a href="{% url 'finance:manager_account_detail' account.pk %}"
+                       class="btn btn-outline-secondary btn-sm">
+                        Open
+                    </a>
+                </div>
+
+            </div>
+        </div>
+    </div>
+{% empty %}
+    {% if request.GET.q or request.GET.account_id or request.GET.account_type or request.GET.status %}
+        <div class="alert alert-light border">No accounts found.</div>
+    {% else %}
+        <div class="alert alert-light border">
+            Enter a search term or choose a filter to find an account.
+        </div>
+    {% endif %}
+{% endfor %}
+{% if is_paginated %}
+    <nav aria-label="Account search pages">
+        <ul class="pagination justify-content-center">
+
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=page_obj.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=page_obj.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+
+        </ul>
+    </nav>
+{% endif %}
+{% endblock %}

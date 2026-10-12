@@ -112,3 +112,46 @@ class TestsPaymentSelectors(TestCase):
                 self.paid_payment,
             ],
         )
+
+    # При одинаковом времени создания pk задаёт устойчивый
+    # порядок платежей между страницами списка менеджера.
+    def test_get_payments_for_manager_has_stable_pagination_order(self):
+        payments = get_payments_for_manager()
+
+        self.assertEqual(
+            payments.query.order_by,
+            ("-created_at", "-pk"),
+        )
+
+    # По номеру заказа находим только связанный с ним платёж.
+    def test_get_payments_for_manager_filters_by_order_id(self):
+        payments = get_payments_for_manager(
+            order_id=self.order_pending.pk,
+        )
+
+        self.assertEqual(
+            list(payments),
+            [self.pending_payment],
+        )
+
+    # По ID операции находим ровно соответствующий платёж.
+    def test_get_payments_for_manager_filters_by_transaction_id(self):
+        payments = get_payments_for_manager(
+            transaction_id=self.pending_payment.transaction_id,
+        )
+
+        self.assertEqual(
+            list(payments),
+            [self.pending_payment],
+        )
+
+    # Ищем по email, сохранённому в заказе, без учёта регистра.
+    def test_get_payments_for_manager_filters_by_customer_email(self):
+        payments = get_payments_for_manager(
+            customer_email="PENDING@TEST.COM",
+        )
+
+        self.assertEqual(
+            list(payments),
+            [self.pending_payment],
+        )

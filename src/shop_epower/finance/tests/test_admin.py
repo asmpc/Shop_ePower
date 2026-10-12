@@ -3,7 +3,7 @@ from decimal import Decimal
 from django.contrib import admin
 from django.test import TestCase
 from django.test.client import RequestFactory
-from django.urls.base import reverse
+from django.urls import reverse
 
 from shop_epower.accounts.tests.helpers import create_test_user
 from shop_epower.finance.models import (
