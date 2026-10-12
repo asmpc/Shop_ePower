@@ -7,7 +7,7 @@
 <form method="get" class="mb-3 d-flex gap-2 align-items-center">
     <label class="form-label">Filter by status:</label>
     <select name="status" class="form-select w-auto">
-        <option value="all" {% if request.GET.status == "all" %}selected{% endif %}>All</option>
+        <option value="active" {% if not request.GET.status or request.GET.status == "active" %}selected{% endif %}>Active</option>
         <option value="open" {% if request.GET.status == "open" %}selected{% endif %}>Open</option>
         <option value="in_progress" {% if request.GET.status == "in_progress" %}selected{% endif %}>In Progress</option>
         <option value="closed" {% if request.GET.status == "closed" %}selected{% endif %}>Closed</option>
@@ -16,7 +16,7 @@
     <a href="{% url 'chat:room_list' %}" class="btn btn-outline-secondary">Reset</a>
 </form>
 
-{% if request.user.role == "manager" %}
+{% if request.user.role == "manager" and request.GET.status != "closed" %}
 
     <h2 class="mb-3">Available rooms</h2>
 
@@ -27,7 +27,7 @@
                 <div class="row align-items-center">
 
                     <div class="col-md-3 mb-3 mb-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}" class="h5 mb-0">
                             Room #{{ room.id }}
                         </a>
 
@@ -73,7 +73,7 @@
                     </div>
 
                     <div class="col-md-2 text-md-end mt-3 mt-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}"
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}"
                            class="btn btn-outline-secondary">
                             Open
                         </a>
@@ -89,6 +89,36 @@
 
     {% endfor %}
 
+    {% if available_rooms.has_other_pages %}
+        <nav aria-label="Available chat room pages" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if available_rooms.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{% querystring available_page=available_rooms.previous_page_number %}">
+                            Previous
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Page {{ available_rooms.number }} of {{ available_rooms.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if available_rooms.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{% querystring available_page=available_rooms.next_page_number %}">
+                            Next
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
     <h2 class="mt-4 mb-3">My active rooms</h2>
 
     {% for room in active_rooms %}
@@ -98,7 +128,7 @@
                 <div class="row align-items-center">
 
                     <div class="col-md-3 mb-3 mb-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}" class="h5 mb-0">
                             Room #{{ room.id }}
                         </a>
 
@@ -144,7 +174,7 @@
                     </div>
 
                     <div class="col-md-2 text-md-end mt-3 mt-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}"
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}"
                            class="btn btn-outline-secondary">
                             Open
                         </a>
@@ -160,6 +190,36 @@
 
     {% endfor %}
 
+    {% if active_rooms.has_other_pages %}
+        <nav aria-label="Active chat room pages" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if active_rooms.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{% querystring active_page=active_rooms.previous_page_number %}">
+                            Previous
+                        </a>
+                    </li>
+                {% endif %}
+
+                <li class="page-item disabled">
+                    <span class="page-link">
+                        Page {{ active_rooms.number }} of {{ active_rooms.paginator.num_pages }}
+                    </span>
+                </li>
+
+                {% if active_rooms.has_next %}
+                    <li class="page-item">
+                        <a class="page-link"
+                           href="{% querystring active_page=active_rooms.next_page_number %}">
+                            Next
+                        </a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+    {% endif %}
+
 {% else %}
 
     {% for room in rooms %}
@@ -169,7 +229,7 @@
                 <div class="row align-items-center">
 
                     <div class="col-md-3 mb-3 mb-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}" class="h5 mb-0">
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}" class="h5 mb-0">
                             Room #{{ room.id }}
                         </a>
 
@@ -219,7 +279,7 @@
                     </div>
 
                     <div class="col-md-2 text-md-end mt-3 mt-md-0">
-                        <a href="{% url 'chat:room_detail' room.pk %}"
+                        <a href="{% url 'chat:room_detail' room.pk %}{% querystring %}"
                            class="btn btn-outline-secondary">
                             Open
                         </a>
@@ -234,6 +294,35 @@
         <p>No chat rooms.</p>
 
     {% endfor %}
+{% if rooms.has_other_pages %}
+    <nav aria-label="Chat room pages" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if rooms.has_previous %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=rooms.previous_page_number %}">
+                        Previous
+                    </a>
+                </li>
+            {% endif %}
+
+            <li class="page-item disabled">
+                <span class="page-link">
+                    Page {{ rooms.number }} of {{ rooms.paginator.num_pages }}
+                </span>
+            </li>
+
+            {% if rooms.has_next %}
+                <li class="page-item">
+                    <a class="page-link"
+                       href="{% querystring page=rooms.next_page_number %}">
+                        Next
+                    </a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+{% endif %}
 
 {% endif %}
 

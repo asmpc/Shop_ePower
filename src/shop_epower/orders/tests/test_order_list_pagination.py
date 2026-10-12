@@ -127,6 +127,117 @@ class TestsCustomerOrderListPagination(TestCase):
             f"{detail_url}?status=new&page=2",
         )
 
+    # Без выбранного фильтра клиент видит только активные заказы.
+    def test_customer_order_list_shows_active_orders_by_default(self):
+        user = create_test_user()
+
+        new_order = create_test_order(user=user, status=OrderStatus.NEW)
+        processing_order = create_test_order(
+            user=user,
+            status=OrderStatus.PROCESSING,
+        )
+        create_test_order(user=user, status=OrderStatus.COMPLETED)
+        create_test_order(user=user, status=OrderStatus.CANCELLED)
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("orders:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["orders"],
+            [new_order, processing_order],
+        )
+
+    # Форма показывает тот же фильтр, который применяется к заказам.
+    def test_customer_order_filter_defaults_to_active(self):
+        user = create_test_user()
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("orders:list"))
+
+        self.assertContains(
+            response,
+            '<option value="active" selected>Active</option>',
+        )
+        self.assertNotContains(response, '<option value="all"')
+
+    # Архивные заказы доступны через явный фильтр.
+    def test_customer_can_filter_completed_and_cancelled_orders(self):
+        user = create_test_user()
+        create_test_order(user=user, status=OrderStatus.NEW)
+        completed_order = create_test_order(
+            user=user,
+            status=OrderStatus.COMPLETED,
+        )
+        cancelled_order = create_test_order(
+            user=user,
+            status=OrderStatus.CANCELLED,
+        )
+
+        self.client.force_login(user)
+        url = reverse("orders:list")
+
+        completed_response = self.client.get(
+            url,
+            {"status": OrderStatus.COMPLETED},
+        )
+        cancelled_response = self.client.get(
+            url,
+            {"status": OrderStatus.CANCELLED},
+        )
+
+        self.assertEqual(
+            list(completed_response.context["orders"]),
+            [completed_order],
+        )
+        self.assertEqual(
+            list(cancelled_response.context["orders"]),
+            [cancelled_order],
+        )
+
+    # Архивный фильтр сохраняется при пагинации и возврате из заказа.
+    def test_completed_orders_preserve_filter_and_page_on_return(self):
+        user = create_test_user()
+
+        for _ in range(21):
+            create_test_order(user=user, status=OrderStatus.COMPLETED)
+
+        self.client.force_login(user)
+        list_url = reverse("orders:list")
+
+        first_page = self.client.get(
+            list_url,
+            {"status": "completed"},
+        )
+        second_page = self.client.get(
+            list_url,
+            {"status": "completed", "page": 2},
+        )
+
+        self.assertEqual(len(first_page.context["orders"]), 20)
+        self.assertEqual(len(second_page.context["orders"]), 1)
+        self.assertContains(
+            first_page,
+            'href="?status=completed&amp;page=2"',
+        )
+
+        order = second_page.context["orders"][0]
+        detail_url = reverse("orders:detail", args=[order.pk])
+
+        self.assertContains(
+            second_page,
+            f'href="{detail_url}?status=completed&amp;page=2"',
+        )
+
+        detail_response = self.client.get(
+            detail_url,
+            {"status": "completed", "page": 2},
+        )
+        self.assertContains(
+            detail_response,
+            f'href="{list_url}?status=completed&amp;page=2"',
+        )
+
 
 class TestsManagerOrderListPagination(TestCase):
     # Список менеджера показывает 20 заказов на первой странице
@@ -382,4 +493,25 @@ class TestsManagerOrderListPagination(TestCase):
         self.assertEqual(
             list(cancelled_response.context["orders"]),
             [cancelled_order],
+        )
+
+    # Без выбранного фильтра клиент видит только активные заказы.
+    def test_customer_order_list_shows_active_orders_by_default(self):
+        user = create_test_user()
+
+        new_order = create_test_order(user=user, status=OrderStatus.NEW)
+        processing_order = create_test_order(
+            user=user,
+            status=OrderStatus.PROCESSING,
+        )
+        create_test_order(user=user, status=OrderStatus.COMPLETED)
+        create_test_order(user=user, status=OrderStatus.CANCELLED)
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("orders:list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["orders"],
+            [new_order, processing_order],
         )

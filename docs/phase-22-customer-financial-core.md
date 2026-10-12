@@ -2040,12 +2040,14 @@ entire payment history. Active orders and chats remain operational lists.
 
 #### Sprint 12 — Chat Room List Pagination
 
-- paginate customer and administrator chat-room lists;
-- paginate the manager's available and active room groups independently;
-- audit role-specific defaults: manager queues already target `OPEN` and
-  `IN_PROGRESS`, while the administrator list currently loads all rooms;
-- show only active rooms on initial staff pages and make `CLOSED` history
-  available through an explicit filter with role-specific access tests;
+- paginate customer and administrator chat-room lists, including archive views;
+- paginate the manager's available and active room groups independently, and
+  paginate the manager's `CLOSED` archive;
+- keep role-specific defaults: customer and administrator lists initially show
+  `OPEN` and `IN_PROGRESS`; manager queues show available `OPEN` and the
+  manager's own `IN_PROGRESS` rooms;
+- make `CLOSED` history available only through an explicit filter with
+  role-specific access tests;
 - bring staff chat lists toward the order management page's Bootstrap layout
   without changing chat actions;
 - preserve status filters and make urgent active conversations easy to reach;

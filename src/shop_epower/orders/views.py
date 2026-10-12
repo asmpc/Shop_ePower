@@ -148,9 +148,16 @@ def order_list_view(request):
         .order_by("-created_at", "-pk")
     )
 
-    status = request.GET.get("status")
+    status = request.GET.get("status") or "active"
 
-    if status and status != "all":
+    if status == "active":
+        orders = orders.filter(
+            status__in=[
+                OrderStatus.NEW,
+                OrderStatus.PROCESSING,
+            ],
+        )
+    else:
         orders = orders.filter(status=status)
 
     paginator = Paginator(orders, 20)

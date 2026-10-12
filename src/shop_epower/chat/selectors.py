@@ -29,6 +29,7 @@ def _with_last_message(queryset):
         ),
     )
 
+
 def _with_unread_messages_count(queryset, user=None):
     """
     Добавляет к queryset chat rooms количество непрочитанных сообщений.
@@ -55,21 +56,26 @@ def _with_unread_messages_count(queryset, user=None):
         )
     )
 
+
 def get_chat_rooms_for_user(user):
     """
     Возвращает комнаты конкретного клиента.
 
     Клиент видит только свои chat rooms.
     """
-    rooms = ChatRoom.objects.filter(
-        user=user,
-    ).select_related(
-        "user",
-        "manager",
-        "order",
-    ).order_by(
-        "-updated_at",
-        "-created_at",
+    rooms = (
+        ChatRoom.objects.filter(
+            user=user,
+        )
+        .select_related(
+            "user",
+            "manager",
+            "order",
+        )
+        .order_by(
+            "-updated_at",
+            "-created_at",
+        )
     )
 
     rooms = _with_last_message(rooms)
@@ -87,16 +93,20 @@ def get_available_chat_rooms_for_manager():
 
     Это OPEN комнаты, которые ещё не взял ни один менеджер.
     """
-    rooms = ChatRoom.objects.filter(
-        status=ChatRoomStatus.OPEN,
-        manager__isnull=True,
-    ).select_related(
-        "user",
-        "manager",
-        "order",
-    ).order_by(
-        "-updated_at",
-        "-created_at",
+    rooms = (
+        ChatRoom.objects.filter(
+            status=ChatRoomStatus.OPEN,
+            manager__isnull=True,
+        )
+        .select_related(
+            "user",
+            "manager",
+            "order",
+        )
+        .order_by(
+            "-updated_at",
+            "-created_at",
+        )
     )
 
     return _with_last_message(rooms)
@@ -108,16 +118,40 @@ def get_active_chat_rooms_for_manager(manager):
 
     Это IN_PROGRESS комнаты, которые закреплены за этим менеджером.
     """
-    rooms = ChatRoom.objects.filter(
-        manager=manager,
-        status=ChatRoomStatus.IN_PROGRESS,
-    ).select_related(
-        "user",
-        "manager",
-        "order",
-    ).order_by(
-        "-updated_at",
-        "-created_at",
+    rooms = (
+        ChatRoom.objects.filter(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+        .select_related(
+            "user",
+            "manager",
+            "order",
+        )
+        .order_by(
+            "-updated_at",
+            "-created_at",
+        )
+    )
+
+    rooms = _with_last_message(rooms)
+    rooms = _with_unread_messages_count(
+        queryset=rooms,
+        user=manager,
+    )
+
+    return rooms
+
+
+def get_closed_chat_rooms_for_manager(manager):
+    """Возвращает только закрытые комнаты этого менеджера."""
+    rooms = (
+        ChatRoom.objects.filter(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        .select_related("user", "manager", "order")
+        .order_by("-updated_at", "-created_at")
     )
 
     rooms = _with_last_message(rooms)
@@ -135,13 +169,17 @@ def get_chat_room_messages(room):
 
     Сообщения идут в порядке создания, как обычная история чата.
     """
-    return ChatMessage.objects.filter(
-        room=room,
-    ).select_related(
-        "room",
-        "sender",
-    ).prefetch_related(
-        "attachments",
+    return (
+        ChatMessage.objects.filter(
+            room=room,
+        )
+        .select_related(
+            "room",
+            "sender",
+        )
+        .prefetch_related(
+            "attachments",
+        )
     )
 
 
@@ -152,13 +190,17 @@ def get_all_chat_rooms_for_admin(user):
     Администратор видит все комнаты независимо от клиента,
     менеджера и статуса.
     """
-    rooms = ChatRoom.objects.all().select_related(
-        "user",
-        "manager",
-        "order",
-    ).order_by(
-        "-updated_at",
-        "-created_at",
+    rooms = (
+        ChatRoom.objects.all()
+        .select_related(
+            "user",
+            "manager",
+            "order",
+        )
+        .order_by(
+            "-updated_at",
+            "-created_at",
+        )
     )
 
     rooms = _with_last_message(rooms)
@@ -169,6 +211,7 @@ def get_all_chat_rooms_for_admin(user):
 
     return rooms
 
+
 def get_chat_rooms_for_order(order):
     """
     Возвращает chat rooms, связанные с конкретным заказом.
@@ -176,18 +219,23 @@ def get_chat_rooms_for_order(order):
     Используем на странице заказа, чтобы клиент, менеджер
     и администратор видели переписку по этому заказу.
     """
-    rooms = ChatRoom.objects.filter(
-        order=order,
-    ).select_related(
-        "user",
-        "manager",
-        "order",
-    ).order_by(
-        "-updated_at",
-        "-created_at",
+    rooms = (
+        ChatRoom.objects.filter(
+            order=order,
+        )
+        .select_related(
+            "user",
+            "manager",
+            "order",
+        )
+        .order_by(
+            "-updated_at",
+            "-created_at",
+        )
     )
 
     return _with_last_message(rooms)
+
 
 def get_unread_chat_messages_count_for_user(user):
     """
@@ -223,16 +271,18 @@ def get_unread_chat_messages_count_for_user(user):
         ).count()
 
     if user.role == "manager":
-        return base_queryset.filter(
-            room__status=ChatRoomStatus.OPEN,
-            room__manager__isnull=True,
-        ).count() + base_queryset.filter(
-            room__status=ChatRoomStatus.IN_PROGRESS,
-            room__manager=user,
-        ).count()
+        return (
+            base_queryset.filter(
+                room__status=ChatRoomStatus.OPEN,
+                room__manager__isnull=True,
+            ).count()
+            + base_queryset.filter(
+                room__status=ChatRoomStatus.IN_PROGRESS,
+                room__manager=user,
+            ).count()
+        )
 
     if user.role == "admin":
         return base_queryset.count()
 
     return 0
-

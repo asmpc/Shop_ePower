@@ -15,7 +15,7 @@
         {% endif %}
     </div>
 
-    <a href="{% url 'chat:room_list' %}" class="btn btn-outline-secondary">
+    <a href="{% url 'chat:room_list' %}{% querystring %}" class="btn btn-outline-secondary">
         Back to chats
     </a>
 </div>
@@ -64,7 +64,7 @@
     {% if request.user.role == "manager" or request.user.role == "admin" %}
         <div class="mb-4">
             <form method="post"
-                  action="{% url 'chat:room_take' room.pk %}">
+                  action="{% url 'chat:room_take' room.pk %}{% querystring %}">
                 {% csrf_token %}
 
                 <button type="submit"
@@ -146,7 +146,7 @@
 
         <div class="mb-3">
             <form method="post"
-                  action="{% url 'chat:room_close' room.pk %}"
+                  action="{% url 'chat:room_close' room.pk %}{% querystring %}"
                   onsubmit="return confirm('Are you sure you want to close this chat?');">
                 {% csrf_token %}
 
@@ -164,7 +164,7 @@
 
             <div class="card-body">
                 <form method="post"
-                      action="{% url 'chat:room_send' room.pk %}"
+                      action="{% url 'chat:room_send' room.pk %}{% querystring %}"
                       enctype="multipart/form-data">
                     {% csrf_token %}
                     {{ form.as_p }}
@@ -181,7 +181,7 @@
 
         <div class="mb-3">
             <form method="post"
-                  action="{% url 'chat:room_close' room.pk %}"
+                  action="{% url 'chat:room_close' room.pk %}{% querystring %}"
                   onsubmit="return confirm('Are you sure you want to close this chat?');">
                 {% csrf_token %}
 
@@ -199,7 +199,7 @@
 
             <div class="card-body">
                 <form method="post"
-                      action="{% url 'chat:room_send' room.pk %}"
+                      action="{% url 'chat:room_send' room.pk %}{% querystring %}"
                       enctype="multipart/form-data">
                     {% csrf_token %}
                     {{ form.as_p }}

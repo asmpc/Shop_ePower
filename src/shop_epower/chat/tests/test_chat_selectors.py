@@ -10,6 +10,7 @@ from shop_epower.chat.selectors import (
     get_available_chat_rooms_for_manager,
     get_chat_room_messages,
     get_chat_rooms_for_user,
+    get_closed_chat_rooms_for_manager,
 )
 from shop_epower.chat.services import send_chat_message
 from shop_epower.chat.tests.helpers import (
@@ -18,7 +19,6 @@ from shop_epower.chat.tests.helpers import (
 
 
 class ChatSelectorsTests(TestCase):
-
     # Проверяем selector клиентских комнат:
     # пользователь должен видеть только свои комнаты,
     # комнаты других клиентов не попадают в выборку.
@@ -176,3 +176,26 @@ class ChatSelectorsTests(TestCase):
             rooms[0].unread_messages_count,
             1,
         )
+
+    # Архив менеджера содержит только его закрытые комнаты.
+    def test_get_closed_chat_rooms_for_manager(self):
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        own_closed_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            manager=other_manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(status=ChatRoomStatus.CLOSED)
+        create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+
+        rooms = get_closed_chat_rooms_for_manager(manager=manager)
+
+        self.assertEqual(list(rooms), [own_closed_room])

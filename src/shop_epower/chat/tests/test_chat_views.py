@@ -1,7 +1,8 @@
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
     create_test_manager,
     create_test_user,
 )
@@ -17,7 +18,6 @@ from shop_epower.orders.tests.helpers import create_test_order
 
 
 class TestsChatView(TestCase):
-
     # Проверяем доступ к списку chat rooms:
     # анонимный пользователь не может открыть страницу,
     # Django перенаправляет его на login.
@@ -112,6 +112,10 @@ class TestsChatView(TestCase):
             manager=other_manager,
             status=ChatRoomStatus.IN_PROGRESS,
         )
+        closed_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
 
         self.client.force_login(manager)
 
@@ -123,6 +127,10 @@ class TestsChatView(TestCase):
         self.assertIn(open_room, response.context["available_rooms"])
         self.assertIn(manager_room, response.context["active_rooms"])
         self.assertNotIn(other_manager_room, response.context["active_rooms"])
+        self.assertNotIn(closed_room, response.context["available_rooms"])
+        self.assertNotIn(closed_room, response.context["active_rooms"])
+        self.assertEqual(list(response.context["rooms"]), [])
+        self.assertNotContains(response, f"Room #{closed_room.pk}")
 
     # Проверяем room detail для клиента:
     # клиент может открыть свою chat room,
@@ -246,6 +254,36 @@ class TestsChatView(TestCase):
             room.status,
             ChatRoomStatus.IN_PROGRESS,
         )
+
+    # Проверяем отправку формы «Take room» с настоящей CSRF-проверкой.
+    def test_manager_can_take_open_room_with_csrf(self):
+        manager = create_test_manager()
+        room = create_test_chat_room(status=ChatRoomStatus.OPEN)
+        browser = Client(enforce_csrf_checks=True)
+        browser.force_login(manager)
+
+        detail_url = reverse("chat:room_detail", args=[room.pk])
+        take_url = reverse("chat:room_take", args=[room.pk])
+
+        page = browser.get(f"{detail_url}?status=active")
+        html = page.content.decode()
+
+        form_start = f'action="{take_url}?status=active">'
+        self.assertIn(form_start, html)
+
+        take_form = html.split(form_start, 1)[1].split("</form>", 1)[0]
+        token_start = 'name="csrfmiddlewaretoken" value="'
+        self.assertIn(token_start, take_form)
+        token = take_form.split(token_start, 1)[1].split('"', 1)[0]
+
+        response = browser.post(
+            f"{take_url}?status=active",
+            {"csrfmiddlewaretoken": token},
+        )
+
+        self.assertEqual(response.status_code, 302)
+        room.refresh_from_db()
+        self.assertEqual(room.status, ChatRoomStatus.IN_PROGRESS)
 
     # Проверяем права room_take:
     # клиент не может брать chat room,
@@ -568,7 +606,10 @@ class TestsChatView(TestCase):
         self.assertEqual(response.status_code, 200)
 
         # форма отправки сообщений должна быть скрыта
-        self.assertNotContains(response, '<form method="post" action="{% url \'chat:room_send\' room.pk %}"')
+        self.assertNotContains(
+            response,
+            '<form method="post" action="{% url \'chat:room_send\' room.pk %}"',
+        )
 
     # manager берет комнату через room_detail -> кнопка Take
     def test_manager_can_take_room_in_detail(self):
@@ -678,3 +719,288 @@ class TestsChatView(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertIn(room, response.context["rooms"])
+
+    # Администратор без фильтра видит рабочие комнаты, но не архив.
+    def test_admin_room_list_shows_only_active_rooms_by_default(self):
+        admin = create_test_user(role="admin")
+        manager = create_test_manager()
+
+        open_room = create_test_chat_room(status=ChatRoomStatus.OPEN)
+        active_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+        create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+
+        self.client.force_login(admin)
+        response = self.client.get(reverse("chat:room_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["rooms"],
+            [open_room, active_room],
+        )
+
+    # Форма администратора показывает активный список по умолчанию.
+    def test_admin_room_filter_defaults_to_active(self):
+        admin = create_test_user(role="admin")
+        self.client.force_login(admin)
+
+        response = self.client.get(reverse("chat:room_list"))
+
+        self.assertContains(
+            response,
+            '<option value="active" selected>Active</option>',
+        )
+        self.assertNotContains(response, '<option value="all"')
+
+    # Клиент без фильтра видит только свои незакрытые комнаты.
+    def test_client_room_list_shows_only_active_rooms_by_default(self):
+        user = create_test_user()
+
+        open_room = create_test_chat_room(
+            user=user,
+            status=ChatRoomStatus.OPEN,
+        )
+        active_room = create_test_chat_room(
+            user=user,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+        create_test_chat_room(
+            user=user,
+            status=ChatRoomStatus.CLOSED,
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(reverse("chat:room_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["rooms"],
+            [open_room, active_room],
+        )
+
+    # Форма клиента показывает активный список по умолчанию.
+    def test_client_room_filter_defaults_to_active(self):
+        user = create_test_user()
+        self.client.force_login(user)
+
+        response = self.client.get(reverse("chat:room_list"))
+
+        self.assertContains(
+            response,
+            '<option value="active" selected>Active</option>',
+        )
+        self.assertNotContains(response, '<option value="all"')
+
+    # Фильтр OPEN скрывает комнаты IN_PROGRESS менеджера.
+    def test_manager_open_filter_shows_only_available_rooms(self):
+        manager = create_test_manager()
+
+        open_room = create_test_chat_room(status=ChatRoomStatus.OPEN)
+        create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+
+        self.client.force_login(manager)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.OPEN},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["available_rooms"]),
+            [open_room],
+        )
+        self.assertEqual(
+            list(response.context["active_rooms"]),
+            [],
+        )
+
+    # Фильтр IN_PROGRESS скрывает свободные OPEN-комнаты.
+    def test_manager_in_progress_filter_shows_only_own_active_rooms(self):
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        create_test_chat_room(status=ChatRoomStatus.OPEN)
+        own_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+        create_test_chat_room(
+            manager=other_manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+
+        self.client.force_login(manager)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.IN_PROGRESS},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["available_rooms"]),
+            [],
+        )
+        self.assertEqual(
+            list(response.context["active_rooms"]),
+            [own_room],
+        )
+
+    # Фильтр CLOSED показывает менеджеру только его архив.
+    def test_manager_closed_filter_shows_only_own_rooms(self):
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        own_closed_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        other_closed_room = create_test_chat_room(
+            manager=other_manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+
+        self.client.force_login(manager)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.CLOSED},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["available_rooms"]),
+            [],
+        )
+        self.assertEqual(
+            list(response.context["active_rooms"]),
+            [],
+        )
+        self.assertEqual(
+            list(response.context["rooms"]),
+            [own_closed_room],
+        )
+        self.assertContains(
+            response,
+            f"Room #{own_closed_room.pk}",
+        )
+        self.assertNotContains(
+            response,
+            f"Room #{other_closed_room.pk}",
+        )
+
+    # Прямая ссылка не даёт менеджеру доступ к чужому архиву.
+    def test_manager_cannot_access_other_manager_closed_room(self):
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        other_room = create_test_chat_room(
+            manager=other_manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+
+        self.client.force_login(manager)
+        response = self.client.get(
+            reverse(
+                "chat:room_detail",
+                kwargs={"pk": other_room.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+    # Клиент открывает только свой архив через явный фильтр.
+    def test_client_closed_filter_shows_only_own_rooms(self):
+        user = create_test_user()
+        other_user = create_test_user()
+
+        own_closed_room = create_test_chat_room(
+            user=user,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            user=other_user,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            user=user,
+            status=ChatRoomStatus.OPEN,
+        )
+
+        self.client.force_login(user)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.CLOSED},
+        )
+
+        self.assertEqual(
+            list(response.context["rooms"]),
+            [own_closed_room],
+        )
+
+    # Администратор видит общий архив только при выборе CLOSED.
+    def test_admin_closed_filter_shows_closed_rooms(self):
+        admin = create_test_user(role="admin")
+        first_user = create_test_user()
+        second_user = create_test_user()
+
+        first_closed_room = create_test_chat_room(
+            user=first_user,
+            status=ChatRoomStatus.CLOSED,
+        )
+        second_closed_room = create_test_chat_room(
+            user=second_user,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            user=first_user,
+            status=ChatRoomStatus.OPEN,
+        )
+
+        self.client.force_login(admin)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.CLOSED},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["rooms"],
+            [first_closed_room, second_closed_room],
+        )
+
+    # Админ, действующий как клиент, может закрыть свой новый чат,
+    # даже если предыдущий чат по этому заказу уже закрыт.
+    def test_admin_can_close_own_second_room_for_same_order(self):
+        admin = create_test_admin()
+        order = create_test_order(user=admin)
+
+        create_test_chat_room(
+            user=admin,
+            order=order,
+            status=ChatRoomStatus.CLOSED,
+        )
+        new_room = create_test_chat_room(
+            user=admin,
+            order=order,
+            status=ChatRoomStatus.OPEN,
+        )
+
+        self.client.force_login(admin)
+        response = self.client.post(
+            reverse("chat:room_close", args=[new_room.pk]),
+        )
+
+        self.assertEqual(response.status_code, 302)
+        new_room.refresh_from_db()
+        self.assertEqual(new_room.status, ChatRoomStatus.CLOSED)
