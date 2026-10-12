@@ -12,6 +12,7 @@ from shop_epower.chat.services import (
     take_chat_room,
 )
 from shop_epower.chat.tests.helpers import (
+    create_test_chat_message,
     create_test_chat_room,
 )
 from shop_epower.orders.tests.helpers import create_test_order
@@ -853,6 +854,42 @@ class TestsChatView(TestCase):
             [own_room],
         )
 
+    # Явный фильтр IN_PROGRESS не показывает закрытый чат,
+    # даже если в нём есть непрочитанное сообщение менеджеру.
+    def test_manager_in_progress_filter_excludes_unread_closed_room(self):
+        customer = create_test_user()
+        manager = create_test_manager()
+        active_room = create_test_chat_room(
+            user=customer,
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+        closed_room = create_test_chat_room(
+            user=customer,
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_message(
+            room=closed_room,
+            sender=customer,
+            is_read=False,
+        )
+
+        self.client.force_login(manager)
+        response = self.client.get(
+            reverse("chat:room_list"),
+            {"status": ChatRoomStatus.IN_PROGRESS},
+        )
+
+        self.assertEqual(
+            list(response.context["active_rooms"]),
+            [active_room],
+        )
+        self.assertNotIn(
+            closed_room,
+            response.context["active_rooms"],
+        )
+
     # Фильтр CLOSED показывает менеджеру только его архив.
     def test_manager_closed_filter_shows_only_own_rooms(self):
         manager = create_test_manager()
@@ -1004,3 +1041,90 @@ class TestsChatView(TestCase):
         self.assertEqual(response.status_code, 302)
         new_room.refresh_from_db()
         self.assertEqual(new_room.status, ChatRoomStatus.CLOSED)
+
+    # Закрытый чат с непрочитанным ответом остаётся в Active
+    # до того момента, когда клиент откроет и прочитает его.
+    def test_client_sees_closed_room_in_active_until_reply_is_read(self):
+        user = create_test_user()
+        manager = create_test_manager()
+        room = create_test_chat_room(
+            user=user,
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        reply = create_test_chat_message(
+            room=room,
+            sender=manager,
+            is_read=False,
+        )
+
+        self.client.force_login(user)
+        list_url = reverse("chat:room_list")
+
+        before = self.client.get(list_url)
+        self.assertIn(room, before.context["rooms"])
+
+        self.client.get(reverse("chat:room_detail", args=[room.pk]))
+        reply.refresh_from_db()
+        self.assertTrue(reply.is_read)
+
+        after = self.client.get(list_url)
+        self.assertNotIn(room, after.context["rooms"])
+
+    # Закрытый чат с непрочитанным сообщением клиента остаётся
+    # в активной очереди назначенного менеджера до прочтения.
+    def test_manager_sees_closed_room_with_unread_message_until_read(self):
+        customer = create_test_user()
+        manager = create_test_manager()
+        room = create_test_chat_room(
+            user=customer,
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        message = create_test_chat_message(
+            room=room,
+            sender=customer,
+            is_read=False,
+        )
+
+        self.client.force_login(manager)
+        list_url = reverse("chat:room_list")
+
+        before = self.client.get(list_url)
+        self.assertIn(room, before.context["active_rooms"])
+        self.assertContains(before, "CLOSED")
+
+        self.client.get(reverse("chat:room_detail", args=[room.pk]))
+        message.refresh_from_db()
+        self.assertTrue(message.is_read)
+
+        after = self.client.get(list_url)
+        self.assertNotIn(room, after.context["active_rooms"])
+
+    # Свой закрытый чат остаётся виден админу до прочтения ответа клиента.
+    def test_admin_sees_own_closed_room_until_message_is_read(self):
+        customer = create_test_user()
+        admin = create_test_admin()
+        room = create_test_chat_room(
+            user=customer,
+            manager=admin,
+            status=ChatRoomStatus.CLOSED,
+        )
+        message = create_test_chat_message(
+            room=room,
+            sender=customer,
+            is_read=False,
+        )
+
+        self.client.force_login(admin)
+        list_url = reverse("chat:room_list")
+
+        before = self.client.get(list_url)
+        self.assertIn(room, before.context["rooms"])
+
+        self.client.get(reverse("chat:room_detail", args=[room.pk]))
+        message.refresh_from_db()
+        self.assertTrue(message.is_read)
+
+        after = self.client.get(list_url)
+        self.assertNotIn(room, after.context["rooms"])

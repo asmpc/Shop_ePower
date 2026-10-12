@@ -1,6 +1,7 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
 from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 
@@ -69,10 +70,17 @@ def room_list(request):
 
         if not status_filter or status_filter == "active":
             rooms = rooms.filter(
-                status__in=[
-                    ChatRoomStatus.OPEN,
-                    ChatRoomStatus.IN_PROGRESS,
-                ],
+                Q(
+                    status__in=[
+                        ChatRoomStatus.OPEN,
+                        ChatRoomStatus.IN_PROGRESS,
+                    ],
+                )
+                | Q(
+                    status=ChatRoomStatus.CLOSED,
+                    manager=user,
+                    unread_messages_count__gt=0,
+                )
             )
         else:
             rooms = rooms.filter(status=status_filter)
@@ -93,6 +101,9 @@ def room_list(request):
                 active_rooms = active_rooms.none()
             elif status_filter == "in_progress":
                 available_rooms = available_rooms.none()
+                active_rooms = active_rooms.filter(
+                    status=ChatRoomStatus.IN_PROGRESS,
+                )
             elif status_filter == "closed":
                 available_rooms = available_rooms.none()
                 active_rooms = active_rooms.none()
@@ -133,10 +144,16 @@ def room_list(request):
 
     if not status_filter or status_filter == "active":
         rooms = rooms.filter(
-            status__in=[
-                ChatRoomStatus.OPEN,
-                ChatRoomStatus.IN_PROGRESS,
-            ],
+            Q(
+                status__in=[
+                    ChatRoomStatus.OPEN,
+                    ChatRoomStatus.IN_PROGRESS,
+                ],
+            )
+            | Q(
+                status=ChatRoomStatus.CLOSED,
+                unread_messages_count__gt=0,
+            )
         )
     else:
         rooms = rooms.filter(status=status_filter)
@@ -144,6 +161,8 @@ def room_list(request):
     rooms = Paginator(rooms, 20).get_page(
         request.GET.get("page"),
     )
+
+    return render(request, "chat/room_list.html", {"rooms": rooms})
 
     return render(request, "chat/room_list.html", {"rooms": rooms})
 

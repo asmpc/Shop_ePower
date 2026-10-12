@@ -2046,8 +2046,19 @@ entire payment history. Active orders and chats remain operational lists.
 - keep role-specific defaults: customer and administrator lists initially show
   `OPEN` and `IN_PROGRESS`; manager queues show available `OPEN` and the
   manager's own `IN_PROGRESS` rooms;
-- make `CLOSED` history available only through an explicit filter with
-  role-specific access tests;
+- also show a participant's `CLOSED` room in the default active list while it
+  contains an unread incoming message: the customer sees their own room and an
+  assigned manager sees only their own managed room;
+- remove that `CLOSED` room from the active list after the participant reads
+  the message, while keeping all `CLOSED` history available through an
+  explicit filter with role-specific access tests;
+- count unread staff notifications only for unassigned `OPEN` rooms and rooms
+  assigned to that staff member in `IN_PROGRESS` or `CLOSED` status; a closed
+  unassigned room remains in the archive but does not create a staff alert;
+- make an administrator's own `CLOSED` room with an unread incoming message
+  reachable from the default active list until the administrator reads it;
+  inspecting someone else's room must not mark its messages read because the
+  current read flag belongs to a message, not to each viewer;
 - bring staff chat lists toward the order management page's Bootstrap layout
   without changing chat actions;
 - preserve status filters and make urgent active conversations easy to reach;

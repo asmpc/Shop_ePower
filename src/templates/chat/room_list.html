@@ -138,9 +138,12 @@
                             </span>
                         {% endif %}
 
-                        <span class="badge bg-primary ms-2">
-                            IN PROGRESS
-                        </span>
+                        {% if room.status == "closed" %}
+                            <span class="badge bg-secondary ms-2">CLOSED</span>
+                        {% else %}
+                            <span class="badge bg-primary ms-2">IN PROGRESS</span>
+                        {% endif %}
+
                     </div>
 
                     <div class="col-md-2 border-start">

@@ -116,12 +116,12 @@ def get_active_chat_rooms_for_manager(manager):
     """
     Возвращает активные комнаты конкретного менеджера.
 
-    Это IN_PROGRESS комнаты, которые закреплены за этим менеджером.
+    Это закреплённые за ним IN_PROGRESS комнаты и CLOSED комнаты
+    с непрочитанными входящими сообщениями.
     """
     rooms = (
         ChatRoom.objects.filter(
             manager=manager,
-            status=ChatRoomStatus.IN_PROGRESS,
         )
         .select_related(
             "user",
@@ -140,7 +140,13 @@ def get_active_chat_rooms_for_manager(manager):
         user=manager,
     )
 
-    return rooms
+    return rooms.filter(
+        Q(status=ChatRoomStatus.IN_PROGRESS)
+        | Q(
+            status=ChatRoomStatus.CLOSED,
+            unread_messages_count__gt=0,
+        )
+    )
 
 
 def get_closed_chat_rooms_for_manager(manager):
@@ -248,13 +254,15 @@ def get_unread_chat_messages_count_for_user(user):
 
     Manager:
     считает непрочитанные сообщения:
-    - в OPEN комнатах;
-    - в своих IN_PROGRESS комнатах;
+    - в свободных OPEN комнатах;
+    - в назначенных ему IN_PROGRESS и CLOSED комнатах;
     кроме собственных сообщений.
 
     Admin:
-    считает все непрочитанные сообщения,
-    кроме собственных сообщений.
+    считает непрочитанные сообщения в свободных OPEN комнатах
+    и назначенных лично ему IN_PROGRESS и CLOSED комнатах,
+    кроме собственных сообщений. Чужие комнаты доступны для
+    просмотра, но не создают личное уведомление.
     """
     if not user.is_authenticated:
         return 0
@@ -277,12 +285,27 @@ def get_unread_chat_messages_count_for_user(user):
                 room__manager__isnull=True,
             ).count()
             + base_queryset.filter(
-                room__status=ChatRoomStatus.IN_PROGRESS,
+                room__status__in=[
+                    ChatRoomStatus.IN_PROGRESS,
+                    ChatRoomStatus.CLOSED,
+                ],
                 room__manager=user,
             ).count()
         )
 
     if user.role == "admin":
-        return base_queryset.count()
+        return base_queryset.filter(
+            Q(
+                room__status=ChatRoomStatus.OPEN,
+                room__manager__isnull=True,
+            )
+            | Q(
+                room__manager=user,
+                room__status__in=[
+                    ChatRoomStatus.IN_PROGRESS,
+                    ChatRoomStatus.CLOSED,
+                ],
+            )
+        ).count()
 
     return 0
