@@ -2002,7 +2002,13 @@ using Django admin or bypassing finance services.
 - keep existing status filters and return-to-list links when changing pages;
 - use a bounded page size and deterministic ordering, including a tie-breaker;
 - use TDD to check ownership, first and later pages, and preserved filters;
-- keep active-order management usable rather than making it search-first.
+- keep active-order management usable rather than making it search-first;
+- show only `NEW` and `PROCESSING` orders by default in the staff list;
+  access `COMPLETED` and `CANCELLED` orders through explicit status filters,
+  without an unfiltered `All` option;
+- make the customer My orders list active-first as well: show `NEW` and
+  `PROCESSING` by default and expose `COMPLETED` and `CANCELLED` through
+  explicit status filters while preserving pagination and return links.
 
 Expected result: customer and staff order pages remain useful as order volume
 grows without rendering every historical order at once.
@@ -2036,6 +2042,10 @@ entire payment history. Active orders and chats remain operational lists.
 
 - paginate customer and administrator chat-room lists;
 - paginate the manager's available and active room groups independently;
+- audit role-specific defaults: manager queues already target `OPEN` and
+  `IN_PROGRESS`, while the administrator list currently loads all rooms;
+- show only active rooms on initial staff pages and make `CLOSED` history
+  available through an explicit filter with role-specific access tests;
 - bring staff chat lists toward the order management page's Bootstrap layout
   without changing chat actions;
 - preserve status filters and make urgent active conversations easy to reach;

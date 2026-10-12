@@ -309,3 +309,77 @@ class TestsManagerOrderListPagination(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.context["back_url"], back_url)
+
+    # Без фильтра менеджер видит только заказы в работе.
+    def test_manager_order_list_defaults_to_active_orders(self):
+        customer = create_test_user()
+        manager = create_test_manager()
+
+        new_order = create_test_order(
+            user=customer,
+            status=OrderStatus.NEW,
+        )
+        processing_order = create_test_order(
+            user=customer,
+            status=OrderStatus.PROCESSING,
+        )
+        create_test_order(user=customer, status=OrderStatus.COMPLETED)
+        create_test_order(user=customer, status=OrderStatus.CANCELLED)
+
+        self.client.force_login(manager)
+        response = self.client.get(reverse("orders:manager_order_list"))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertCountEqual(
+            response.context["orders"],
+            [new_order, processing_order],
+        )
+
+    # Форма предлагает рабочий список вместо загрузки всех заказов.
+    def test_manager_order_filter_defaults_to_active(self):
+        manager = create_test_manager()
+        self.client.force_login(manager)
+
+        response = self.client.get(reverse("orders:manager_order_list"))
+
+        self.assertContains(
+            response,
+            '<option value="active" selected>Active</option>',
+        )
+        self.assertNotContains(response, '<option value="all"')
+
+    # Архивные заказы доступны по выбранному статусу.
+    def test_manager_can_filter_completed_and_cancelled_orders(self):
+        customer = create_test_user()
+        manager = create_test_manager()
+
+        create_test_order(user=customer, status=OrderStatus.NEW)
+        completed_order = create_test_order(
+            user=customer,
+            status=OrderStatus.COMPLETED,
+        )
+        cancelled_order = create_test_order(
+            user=customer,
+            status=OrderStatus.CANCELLED,
+        )
+
+        self.client.force_login(manager)
+        url = reverse("orders:manager_order_list")
+
+        completed_response = self.client.get(
+            url,
+            {"status": OrderStatus.COMPLETED},
+        )
+        cancelled_response = self.client.get(
+            url,
+            {"status": OrderStatus.CANCELLED},
+        )
+
+        self.assertEqual(
+            list(completed_response.context["orders"]),
+            [completed_order],
+        )
+        self.assertEqual(
+            list(cancelled_response.context["orders"]),
+            [cancelled_order],
+        )

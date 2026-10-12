@@ -63,15 +63,17 @@ class ManagerOrderListView(
             )
         )
 
-        status = self.request.GET.get(
-            "status",
-            "all",
-        )
+        status = self.request.GET.get("status", "active")
 
-        if status != "all":
+        if status == "active":
             qs = qs.filter(
-                status=status,
+                status__in=[
+                    OrderStatus.NEW,
+                    OrderStatus.PROCESSING,
+                ],
             )
+        else:
+            qs = qs.filter(status=status)
 
         return qs.order_by("-created_at", "-pk")
 
