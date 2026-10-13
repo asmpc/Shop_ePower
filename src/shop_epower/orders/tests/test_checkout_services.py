@@ -6,12 +6,17 @@ from django.core.exceptions import ValidationError
 from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import (
+    create_test_legal_profile,
     create_test_user,
 )
 from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import (
+    create_legal_customer_account,
+    create_personal_customer_account,
+)
 from shop_epower.orders.models import Order
 from shop_epower.orders.services import (
     create_order_from_cart,
@@ -26,16 +31,18 @@ User = get_user_model()
 
 class TestsOrderServices(TestCase):
 
-    # Проверяем checkout service для физлица:
-    # заказ создаётся из корзины, данные пользователя копируются,
-    # создаётся OrderItem, total_price считается по CartItem,
-    # а корзина после checkout становится неактивной.
+    # Проверяем checkout для физлица:
+    # заказ получает личный финансовый счёт владельца,
+    # копирует данные пользователя и корзины,
+    # а после оформления корзина становится неактивной.
     def test_create_order_from_cart_for_client(self):
         user = create_test_user(
             email="checkout@example.com",
             username="checkout",
             phone="+10000000004",
         )
+
+        account = create_personal_customer_account(user=user)
 
         product = create_test_product(
             name="Checkout Product",
@@ -72,6 +79,7 @@ class TestsOrderServices(TestCase):
 
         self.assertEqual(order.user, user)
         self.assertFalse(order.is_legal_entity)
+        self.assertEqual(order.customer_account, account)
         self.assertEqual(order.customer_email, "checkout@example.com")
         self.assertEqual(order.customer_phone, "+10000000004")
         # Проверяем, что по умолчанию используется самовывоз:
@@ -94,16 +102,17 @@ class TestsOrderServices(TestCase):
         self.assertEqual(supplier_product.stock_quantity, 8)
 
         # Проверяем защиту от oversell:
-        # если товара на складе меньше, чем в корзине,
-        # checkout должен завершиться ошибкой.
-        # Заказ не создаётся, корзина остаётся активной,
-        # stock у поставщика не изменяется.
+        # при наличии личного счёта оформление доходит до проверки запасов,
+        # а нехватка товара не создаёт заказ, не меняет корзину
+        # и не списывает остаток со склада.
     def test_checkout_raises_error_when_not_enough_stock(self):
         user = create_test_user(
             email="nostock@example.com",
             username="nostock",
             phone="+10000000005",
         )
+
+        create_personal_customer_account(user=user)
 
         product = create_test_product(
             name="No Stock Product",
@@ -131,7 +140,10 @@ class TestsOrderServices(TestCase):
             price_snapshot=Decimal("20.00"),
         )
 
-        with self.assertRaises(ValidationError):
+        with self.assertRaisesMessage(
+                ValidationError,
+                "Not enough stock for product: No Stock Product",
+        ):
             create_order_from_cart(
                 user=user,
                 cart=cart,
@@ -153,6 +165,8 @@ class TestsOrderServices(TestCase):
             username="delivery",
             phone="+10000000009",
         )
+
+        create_personal_customer_account(user=user)
 
         product = create_test_product(
             name="Delivery Product",
@@ -279,6 +293,8 @@ class TestsOrderServices(TestCase):
             phone="+10000000020",
         )
 
+        create_personal_customer_account(user=user)
+
         product = create_test_product(
             name="Notification Product",
             brand_name="Notification Brand",
@@ -385,3 +401,84 @@ class TestsOrderServices(TestCase):
         mocked_customer_email_delay.assert_not_called()
 
         mocked_manager_notification_delay.assert_not_called()
+
+    # Проверяем оформление заказа без личного финансового счёта:
+    # сервис сообщает об ошибке, не создавая заказ и не меняя
+    # корзину или остаток товара.
+    def test_checkout_requires_existing_personal_account(self):
+        user = create_test_user(
+            email="checkout-no-account@example.com",
+            username="checkout-no-account",
+        )
+        product = create_test_product(
+            name="Missing Account Product",
+            brand_name="Missing Account Brand",
+            category_name="Missing Account Category",
+            manufacturer_article="NO-ACCOUNT-001",
+            base_price=Decimal("15.00"),
+        )
+        supplier_product = create_test_supplier_product(
+            supplier=create_test_supplier(),
+            product=product,
+            supplier_article="SUP-NO-ACCOUNT-001",
+            stock_quantity=10,
+        )
+        cart = create_test_cart_with_item(
+            user=user,
+            product=product,
+            quantity=1,
+            price_snapshot=Decimal("15.00"),
+        )
+
+        with self.assertRaisesMessage(
+                ValidationError,
+                "Personal customer account is required to place an order.",
+        ):
+            create_order_from_cart(user=user, cart=cart)
+
+        cart.refresh_from_db()
+        supplier_product.refresh_from_db()
+        self.assertFalse(Order.objects.filter(user=user).exists())
+        self.assertTrue(cart.is_active)
+        self.assertEqual(supplier_product.stock_quantity, 10)
+
+    # Проверяем оформление заказа для юридического лица:
+    # заказ получает юридический финансовый счёт владельца
+    # и сохраняет признак заказа от юрлица.
+    def test_create_order_from_cart_for_legal_customer(self):
+        user = create_test_user(
+            email="legal-checkout@example.com",
+            username="legal-checkout",
+        )
+        legal_profile = create_test_legal_profile(user=user)
+        account = create_legal_customer_account(
+            legal_profile=legal_profile,
+        )
+
+        product = create_test_product(
+            name="Legal Checkout Product",
+            brand_name="Legal Checkout Brand",
+            category_name="Legal Checkout Category",
+            manufacturer_article="LEGAL-CHECKOUT-001",
+            base_price=Decimal("15.00"),
+        )
+        create_test_supplier_product(
+            supplier=create_test_supplier(),
+            product=product,
+            supplier_article="SUP-LEGAL-CHECKOUT-001",
+            stock_quantity=10,
+        )
+        cart = create_test_cart_with_item(
+            user=user,
+            product=product,
+            quantity=1,
+            price_snapshot=Decimal("15.00"),
+        )
+
+        order = create_order_from_cart(
+            user=user,
+            cart=cart,
+        )
+
+        self.assertTrue(order.is_legal_entity)
+        self.assertEqual(order.customer_account, account)

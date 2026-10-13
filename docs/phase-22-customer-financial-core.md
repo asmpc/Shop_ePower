@@ -3,8 +3,9 @@
 ## Document Status
 
 - Phase: PHASE 22
-- Status: Requirements and architecture design
-- Implementation status: Not started
+- Status: Final architecture and implementation record
+- Implementation status: Complete; full test suite, Ruff, Django checks, and
+  migration-state check passed at phase closure
 
 This document describes the business rules, architecture, implementation
 plan, and testing strategy for the customer financial core.
@@ -2040,12 +2041,25 @@ entire payment history. Active orders and chats remain operational lists.
 
 #### Sprint 12 — Chat Room List Pagination
 
-- paginate customer and administrator chat-room lists;
-- paginate the manager's available and active room groups independently;
-- audit role-specific defaults: manager queues already target `OPEN` and
-  `IN_PROGRESS`, while the administrator list currently loads all rooms;
-- show only active rooms on initial staff pages and make `CLOSED` history
-  available through an explicit filter with role-specific access tests;
+- paginate customer and administrator chat-room lists, including archive views;
+- paginate the manager's available and active room groups independently, and
+  paginate the manager's `CLOSED` archive;
+- keep role-specific defaults: customer and administrator lists initially show
+  `OPEN` and `IN_PROGRESS`; manager queues show available `OPEN` and the
+  manager's own `IN_PROGRESS` rooms;
+- also show a participant's `CLOSED` room in the default active list while it
+  contains an unread incoming message: the customer sees their own room and an
+  assigned manager sees only their own managed room;
+- remove that `CLOSED` room from the active list after the participant reads
+  the message, while keeping all `CLOSED` history available through an
+  explicit filter with role-specific access tests;
+- count unread staff notifications only for unassigned `OPEN` rooms and rooms
+  assigned to that staff member in `IN_PROGRESS` or `CLOSED` status; a closed
+  unassigned room remains in the archive but does not create a staff alert;
+- make an administrator's own `CLOSED` room with an unread incoming message
+  reachable from the default active list until the administrator reads it;
+  inspecting someone else's room must not mark its messages read because the
+  current read flag belongs to a message, not to each viewer;
 - bring staff chat lists toward the order management page's Bootstrap layout
   without changing chat actions;
 - preserve status filters and make urgent active conversations easy to reach;

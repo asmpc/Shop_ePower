@@ -1,6 +1,7 @@
 from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import (
+    create_test_admin,
     create_test_manager,
     create_test_user,
 )
@@ -10,15 +11,17 @@ from shop_epower.chat.selectors import (
     get_available_chat_rooms_for_manager,
     get_chat_room_messages,
     get_chat_rooms_for_user,
+    get_closed_chat_rooms_for_manager,
+    get_unread_chat_messages_count_for_user,
 )
 from shop_epower.chat.services import send_chat_message
 from shop_epower.chat.tests.helpers import (
+    create_test_chat_message,
     create_test_chat_room,
 )
 
 
 class ChatSelectorsTests(TestCase):
-
     # Проверяем selector клиентских комнат:
     # пользователь должен видеть только свои комнаты,
     # комнаты других клиентов не попадают в выборку.
@@ -175,4 +178,84 @@ class ChatSelectorsTests(TestCase):
         self.assertEqual(
             rooms[0].unread_messages_count,
             1,
+        )
+
+    # Архив менеджера содержит только его закрытые комнаты.
+    def test_get_closed_chat_rooms_for_manager(self):
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        own_closed_room = create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(
+            manager=other_manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_room(status=ChatRoomStatus.CLOSED)
+        create_test_chat_room(
+            manager=manager,
+            status=ChatRoomStatus.IN_PROGRESS,
+        )
+
+        rooms = get_closed_chat_rooms_for_manager(manager=manager)
+
+        self.assertEqual(list(rooms), [own_closed_room])
+
+    # Закрытый чат, который никто не взял, остаётся в архиве,
+    # но не создаёт админу задачу в счётчике уведомлений.
+    def test_admin_unread_count_ignores_unassigned_closed_room(self):
+        admin = create_test_admin()
+        customer = create_test_user()
+
+        open_room = create_test_chat_room(
+            user=customer,
+            status=ChatRoomStatus.OPEN,
+        )
+        closed_room = create_test_chat_room(
+            user=customer,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_message(
+            room=open_room,
+            sender=customer,
+            is_read=False,
+        )
+        create_test_chat_message(
+            room=closed_room,
+            sender=customer,
+            is_read=False,
+        )
+
+        self.assertEqual(
+            get_unread_chat_messages_count_for_user(admin),
+            1,
+        )
+
+    # Закрытый чат с непрочитанным сообщением считается
+    # только назначенному на него менеджеру.
+    def test_manager_unread_count_includes_own_closed_room(self):
+        customer = create_test_user()
+        manager = create_test_manager()
+        other_manager = create_test_manager()
+
+        room = create_test_chat_room(
+            user=customer,
+            manager=manager,
+            status=ChatRoomStatus.CLOSED,
+        )
+        create_test_chat_message(
+            room=room,
+            sender=customer,
+            is_read=False,
+        )
+
+        self.assertEqual(
+            get_unread_chat_messages_count_for_user(manager),
+            1,
+        )
+        self.assertEqual(
+            get_unread_chat_messages_count_for_user(other_manager),
+            0,
         )

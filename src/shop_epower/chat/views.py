@@ -1,6 +1,9 @@
 from django.contrib.auth.decorators import login_required
 from django.core.exceptions import PermissionDenied
+from django.core.paginator import Paginator
+from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from django.urls import reverse
 
 from shop_epower.chat.forms import (
     ChatMessageForm,
@@ -13,6 +16,7 @@ from shop_epower.chat.selectors import (
     get_available_chat_rooms_for_manager,
     get_chat_room_messages,
     get_chat_rooms_for_user,
+    get_closed_chat_rooms_for_manager,
 )
 from shop_epower.chat.services import (
     close_chat_room,
@@ -46,6 +50,16 @@ def _check_room_access(user, room):
     raise PermissionDenied
 
 
+def _redirect_to_room_detail(request, room):
+    detail_url = reverse("chat:room_detail", args=[room.pk])
+    query_string = request.GET.urlencode()
+
+    if query_string:
+        detail_url = f"{detail_url}?{query_string}"
+
+    return redirect(detail_url)
+
+
 @login_required
 def room_list(request):
     user = request.user
@@ -53,22 +67,68 @@ def room_list(request):
 
     if user.role == "admin":
         rooms = get_all_chat_rooms_for_admin(user=user)
-        if status_filter and status_filter != "all":
+
+        if not status_filter or status_filter == "active":
+            rooms = rooms.filter(
+                Q(
+                    status__in=[
+                        ChatRoomStatus.OPEN,
+                        ChatRoomStatus.IN_PROGRESS,
+                    ],
+                )
+                | Q(
+                    status=ChatRoomStatus.CLOSED,
+                    manager=user,
+                    unread_messages_count__gt=0,
+                )
+            )
+        else:
             rooms = rooms.filter(status=status_filter)
+
+        rooms = Paginator(rooms, 20).get_page(
+            request.GET.get("page"),
+        )
+
         return render(request, "chat/room_list.html", {"rooms": rooms})
 
     if user.role == "manager":
         available_rooms = get_available_chat_rooms_for_manager()
         active_rooms = get_active_chat_rooms_for_manager(user)
+        closed_rooms = active_rooms.none()
 
-        if status_filter and status_filter != "all":
+        if status_filter:
             if status_filter == "open":
-                available_rooms = available_rooms.filter(status="open")
+                active_rooms = active_rooms.none()
             elif status_filter == "in_progress":
-                active_rooms = active_rooms.filter(status="in_progress")
+                available_rooms = available_rooms.none()
+                active_rooms = active_rooms.filter(
+                    status=ChatRoomStatus.IN_PROGRESS,
+                )
             elif status_filter == "closed":
-                available_rooms = available_rooms.filter(status="closed")
-                active_rooms = active_rooms.filter(status="closed")
+                available_rooms = available_rooms.none()
+                active_rooms = active_rooms.none()
+                closed_rooms = get_closed_chat_rooms_for_manager(user)
+
+        available_rooms = Paginator(
+            available_rooms,
+            20,
+        ).get_page(
+            request.GET.get("available_page"),
+        )
+
+        active_rooms = Paginator(
+            active_rooms,
+            20,
+        ).get_page(
+            request.GET.get("active_page"),
+        )
+
+        closed_rooms = Paginator(
+            closed_rooms,
+            20,
+        ).get_page(
+            request.GET.get("page"),
+        )
 
         return render(
             request,
@@ -76,12 +136,34 @@ def room_list(request):
             {
                 "available_rooms": available_rooms,
                 "active_rooms": active_rooms,
+                "rooms": closed_rooms,
             },
         )
 
     rooms = get_chat_rooms_for_user(user)
-    if status_filter and status_filter != "all":
+
+    if not status_filter or status_filter == "active":
+        rooms = rooms.filter(
+            Q(
+                status__in=[
+                    ChatRoomStatus.OPEN,
+                    ChatRoomStatus.IN_PROGRESS,
+                ],
+            )
+            | Q(
+                status=ChatRoomStatus.CLOSED,
+                unread_messages_count__gt=0,
+            )
+        )
+    else:
         rooms = rooms.filter(status=status_filter)
+
+    rooms = Paginator(rooms, 20).get_page(
+        request.GET.get("page"),
+    )
+
+    return render(request, "chat/room_list.html", {"rooms": rooms})
+
     return render(request, "chat/room_list.html", {"rooms": rooms})
 
 
@@ -162,6 +244,7 @@ def room_detail(request, pk):
         },
     )
 
+
 @login_required
 def room_take(request, pk):
     if request.user.role not in ("manager", "admin"):
@@ -183,10 +266,7 @@ def room_take(request, pk):
     except ValueError as error:
         raise PermissionDenied from error
 
-    return redirect(
-        "chat:room_detail",
-        pk=room.pk,
-    )
+    return _redirect_to_room_detail(request, room)
 
 
 @login_required
@@ -203,7 +283,7 @@ def room_close(request, pk):
         raise PermissionDenied
 
     try:
-        if request.user.role == "client":
+        if room.user_id == request.user.id:
             close_chat_room_by_client(
                 room=room,
                 user=request.user,
@@ -221,10 +301,8 @@ def room_close(request, pk):
     except (PermissionError, ValueError) as error:
         raise PermissionDenied from error
 
-    return redirect(
-        "chat:room_detail",
-        pk=room.pk,
-    )
+    return _redirect_to_room_detail(request, room)
+
 
 @login_required
 def room_send(request, pk):
@@ -244,10 +322,7 @@ def room_send(request, pk):
     )
 
     if not form.is_valid():
-        return redirect(
-            "chat:room_detail",
-            pk=room.pk,
-        )
+        return _redirect_to_room_detail(request, room)
 
     try:
         send_chat_message(
@@ -259,7 +334,4 @@ def room_send(request, pk):
     except PermissionDenied:
         raise
 
-    return redirect(
-        "chat:room_detail",
-        pk=room.pk,
-    )
+    return _redirect_to_room_detail(request, room)

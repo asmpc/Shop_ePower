@@ -6,19 +6,22 @@ from django.db import transaction
 from shop_epower.accounts.services.profile import (
     is_profile_complete,
 )
+from shop_epower.core.currency import get_base_currency
+from shop_epower.finance.models import (
+    CustomerAccount,
+    CustomerAccountType,
+)
 from shop_epower.notifications.tasks import (
     notify_managers_about_new_order,
     send_customer_order_created_email,
 )
-from shop_epower.suppliers.models import SupplierProduct
-
-from ..core.currency import get_base_currency
-from .models import (
+from shop_epower.orders.models import (
     Order,
     OrderItem,
     OrderStatus,
     OrderStockReservation,
 )
+from shop_epower.suppliers.models import SupplierProduct
 
 
 @transaction.atomic
@@ -58,12 +61,29 @@ def create_order_from_cart(
         and legal_profile.is_legal_entity
     )
 
+    account_type = (
+        CustomerAccountType.LEGAL
+        if is_legal_entity
+        else CustomerAccountType.PERSONAL
+    )
+
+    customer_account = CustomerAccount.objects.filter(
+        user=user,
+        account_type=account_type,
+    ).first()
+
+    if customer_account is None:
+        raise ValidationError(
+            f"{account_type.label} customer account is required to place an order."
+        )
+
     total_price = sum(
         item.total_price for item in cart_items
     )
 
     order = Order.objects.create(
         user=user,
+        customer_account=customer_account,
         is_legal_entity=is_legal_entity,
         customer_name=user.get_full_name() or user.username,
         customer_email=user.email,
