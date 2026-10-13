@@ -9,6 +9,7 @@ from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import OrderStatus
 from shop_epower.orders.services import (
     cancel_new_order,
@@ -31,6 +32,8 @@ class TestsOrderCancellationServices(TestCase):
             username="cancel",
             phone="+10000000008",
         )
+
+        create_personal_customer_account(user=user)
 
         product = create_test_product(
             name="Cancel Product",

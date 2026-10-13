@@ -11,6 +11,7 @@ from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import (
     create_order_from_cart,
@@ -163,6 +164,8 @@ class TestsManagerOrderWorkflow(TestCase):
     # статус меняется на CANCELLED,
     # а зарезервированный stock возвращается поставщику.
     def test_manager_can_cancel_processing_order_and_restore_stock(self):
+        create_personal_customer_account(user=self.client)
+
         product = create_test_product(
             name="Manager Cancel Product",
             brand_name="Manager Cancel Brand",

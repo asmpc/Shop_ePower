@@ -2,9 +2,9 @@
 
 # ⚡ Shop_ePower
 
-### Enterprise-ready B2B/B2C platform for electrical equipment
+### A modular B2B/B2C platform for electrical equipment
 
-A modular Django platform that covers the complete order lifecycle:  
+A Django platform being developed for wholesale and retail workflows:
 **catalog → cart → checkout → stock reservation → manager workflow → payment → invoice → notifications → history**
 
 <br>
@@ -16,7 +16,7 @@ A modular Django platform that covers the complete order lifecycle:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-465-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-685-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -26,11 +26,13 @@ A modular Django platform that covers the complete order lifecycle:
 
 ## 🚀 Project Overview
 
-**Shop_ePower** is an enterprise-oriented Django platform that models the complete lifecycle of wholesale and retail electrical equipment sales.
+**Shop_ePower** is a Django platform for wholesale and retail electrical equipment sales, developed through small, tested changes.
 
 Rather than being a simple online store, Shop_ePower is evolving into a modular business platform. Independent business domains cooperate through well-defined services, allowing the system to grow without large-scale rewrites.
 
-The platform already includes product catalog management, supplier inventory, stock reservation, order processing, payment and invoice workflows, customer support chat, REST APIs, Docker infrastructure, asynchronous background processing and automated CI.
+The platform includes catalog and supplier inventory, stock reservation, order processing, payment status and invoice workflows, customer support chat, REST APIs, customer financial accounts, asynchronous notifications and Docker infrastructure.
+
+PHASE 22 established the financial core. PHASE 23 has started by linking new orders to the customer's matching personal or legal account. Connecting payment receipts, shipment debt and manual allocation is the next major step. The priority path is PHASE 23 → minimal 1C integration → a controlled online test pilot without real sales or live payments.
 
 ---
 
@@ -46,7 +48,7 @@ The long-term vision is to evolve Shop_ePower into a complete business platform 
 - real-time communication;
 - scalable cloud-ready architecture.
 
-See **docs/roadmap.md** for the complete development roadmap.
+See the [development roadmap](docs/roadmap.md) for completed phases, current work and deferred capabilities.
 
 ---
 
@@ -83,7 +85,7 @@ See **docs/roadmap.md** for the complete development roadmap.
                            ORDER HISTORY
 ```
 
-This workflow reflects the central idea of Shop_ePower: independent business domains cooperate through clear responsibilities instead of being tightly coupled into a single application.
+This diagram summarizes the existing shopping, order, payment-status and support workflows. Checkout also records the customer's financial account. Payment status changes and order completion do not yet create account ledger entries; their integration is being developed in PHASE 23.
 
 ---
 
@@ -116,6 +118,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 - Customer profile management
 - Individual customer support
 - Legal entity profile support
+- Explicit personal account creation during registration
+- Legal account creation and tax-ID snapshot validation
 - Profile completeness validation
 - Secure redirect back to the original workflow
 - JWT authentication for REST API
@@ -132,6 +136,7 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 - Cart merge after authentication
 - Price snapshots
 - Checkout validation
+- Required existing personal or legal financial account
 - Pickup and shipping workflows
 - Delivery provider and address
 - Customer and delivery comments
@@ -143,7 +148,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 
 ### 📦 Order Management
 
-- Complete order lifecycle
+- Order status workflow
+- Persistent link to the owner's financial account
 - Customer data snapshots
 - Legal entity snapshots
 - Automatic stock reservation
@@ -153,6 +159,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 - Controlled cancellation workflow
 - Reservation rollback after cancellation
 - Customer and manager order views
+- Paginated lists with preserved filters and return links
+- New and processing orders shown by default; history through explicit filters
 
 </td>
 </tr>
@@ -163,7 +171,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 ### 💳 Payments & Invoices
 
 - Payment creation for orders
-- Payment methods: invoice, on receipt, online
+- Invoice and on-receipt payment workflows
+- Online method retained in the model; live provider integration deferred
 - Pending, paid, failed and cancelled statuses
 - Immutable payment history
 - Manager payment actions
@@ -172,6 +181,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 - PDF generation with ReportLab
 - Client and manager invoice access
 - Controlled invoice cancellation
+- Staff payment search by order, transaction ID or customer email
+- Paginated staff payment results loaded after a search or filter
 
 </td>
 <td width="50%" valign="top">
@@ -187,6 +198,8 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 - File attachments
 - Unread counters
 - Customer room closing
+- Paginated room lists with preserved filters and return links
+- Closed rooms with unread messages remain visible to the relevant recipient
 
 </td>
 </tr>
@@ -225,6 +238,28 @@ This workflow reflects the central idea of Shop_ePower: independent business dom
 
 </td>
 </tr>
+<tr>
+<td colspan="2" valign="top">
+
+### 💰 Customer Financial Core
+
+- Separate personal and legal customer accounts
+- Available funds and debt balance projections
+- Account status lifecycle with audit history
+- Atomic ledger creation and balance updates with account locking
+- Idempotent operation keys and conflicting-retry validation
+- Core services for deposits, debt, allocations, refunds and reversals
+- Validation of amounts, actor information and resulting balances
+- Read-only Django admin and staff website finance pages
+- Account search, transaction journal and paginated account history
+- Explicit account creation and legal-profile updates through services
+
+These domain services are implemented. Connecting them to order payments
+and full shipment, and displaying balances in the customer account area,
+remain PHASE 23 work.
+
+</td>
+</tr>
 </table>
 
 ---
@@ -243,6 +278,7 @@ Shop_ePower uses modular Django applications. Each application owns a specific b
 | `cart` | Shopping cart, cart items and price snapshots |
 | `orders` | Checkout, orders, order items, stock reservation and delivery |
 | `payments` | Payments, statuses, history, invoices and PDF generation |
+| `finance` | Personal and legal financial accounts, transaction ledger, atomic balance services, status history and staff finance views |
 | `notifications` | Email services and asynchronous notification tasks |
 | `chat` | Rooms, messages, attachments, assignment and unread state |
 | `api` | REST API endpoints, serializers and permissions |
@@ -261,6 +297,7 @@ flowchart TD
     Cart[cart]
     Orders[orders]
     Payments[payments]
+    Finance[finance]
     Notifications[notifications]
     Chat[chat]
     API[api]
@@ -275,16 +312,19 @@ flowchart TD
 
     Manager --> Orders
     Manager --> Payments
+    Manager --> Finance
     Manager --> Chat
     Manager --> Suppliers
 
     Accounts --> Cart
     Accounts --> Orders
+    Accounts --> Finance
     Catalog --> Cart
     Catalog --> Orders
     Suppliers --> Orders
     Cart --> Orders
     Orders --> Payments
+    Orders --> Finance
     Orders --> Notifications
     Orders --> Chat
     Payments --> Notifications
@@ -300,6 +340,7 @@ flowchart TD
     Core -. shared services .-> Suppliers
     Core -. shared services .-> Orders
     Core -. shared services .-> Payments
+    Core -. shared services .-> Finance
 ```
 
 ### Infrastructure Architecture
@@ -358,7 +399,8 @@ The project follows a small set of engineering principles.
 | Layer | Technologies |
 |---|---|
 | Language | Python 3.14 |
-| Web Framework | Django 6 |
+| Web Framework | Django 6.0.5 |
+| Dependency Management | Poetry and poetry.lock |
 | REST API | Django REST Framework, Simple JWT |
 | API Documentation | drf-spectacular, Swagger / OpenAPI |
 | Database | PostgreSQL |
@@ -370,9 +412,10 @@ The project follows a small set of engineering principles.
 | Frontend | Django Templates, Bootstrap, JavaScript |
 | Infrastructure | Docker, Docker Compose |
 | Testing | Django TestCase, DRF API tests, regression tests |
+| Code Quality | Ruff |
 | Version Control | Git, GitHub |
 | Continuous Integration | GitHub Actions |
-| Branch Protection | GitHub Rulesets |
+| Container Registry | GitHub Container Registry (GHCR) |
 
 ---
 
@@ -381,7 +424,7 @@ The project follows a small set of engineering principles.
 ### 1. Clone the Repository
 
 ```bash
-git clone <repository-url>
+git clone https://github.com/asmpc/Shop_ePower.git
 cd Shop_ePower
 ```
 
@@ -401,30 +444,48 @@ Copy-Item .env.example .env
 
 Update the values in `.env` before starting the project.
 
-### 3. Build and Start the Infrastructure
+### 3. Build the Image and Start PostgreSQL / Redis
 
 ```bash
-docker compose up -d --build
+docker compose build
+docker compose up -d --wait postgres redis
 ```
 
 ### 4. Apply Database Migrations
 
 ```bash
-docker compose exec web python manage.py migrate
+docker compose run --rm --no-deps web python manage.py migrate
 ```
 
-### 5. Create an Administrator
+### 5. Start the Full Stack
+
+```bash
+docker compose up -d --wait
+```
+
+Applying migrations before starting all application services allows the
+web health check to succeed on a fresh database.
+
+### 6. Create a Django Administrator
 
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
 
-### 6. Open the Application
+Application roles (`CLIENT`, `MANAGER`, `ADMIN`) are separate from Django's
+staff and superuser flags. Assign the appropriate application role through
+the user form in Django admin to access staff pages on the website.
+Customer registration and legal-profile services create financial accounts;
+manually created demonstration users may require explicit account setup
+before checkout.
+
+### 7. Open the Application
 
 | Service | Address |
 |---|---|
 | Shop | <http://127.0.0.1:8000/shop/> |
 | Django Admin | <http://127.0.0.1:8000/admin/> |
+| Swagger / OpenAPI | <http://127.0.0.1:8000/api/schema/swagger-ui/> |
 | Flower | <http://127.0.0.1:5555> |
 
 ---
@@ -508,6 +569,23 @@ docker compose exec celery_worker celery -A config inspect registered
 docker compose exec celery_worker celery -A config inspect active
 ```
 
+### Local Poetry Environment
+
+Run these commands from the repository root after configuring `.env` and
+making PostgreSQL and Redis available to the local application:
+
+```bash
+poetry install --no-root
+poetry run python src/manage.py check
+poetry run python src/manage.py makemigrations --check --dry-run
+poetry run ruff check src
+poetry run python src/manage.py test
+```
+
+When working inside `src`, use `manage.py` instead of `src/manage.py`.
+The application Docker image installs runtime dependencies; local Poetry
+and the CI quality job also install the development tools.
+
 More commands and troubleshooting instructions are available in [`docs/docker.md`](docs/docker.md).
 
 ---
@@ -529,7 +607,9 @@ The project exposes client, manager and administrator workflows through Django R
 - invoice details;
 - PDF invoice downloads.
 
-Swagger / OpenAPI documentation is available through the configured project documentation routes after the application starts.
+Swagger / OpenAPI documentation is available at
+[`/api/schema/swagger-ui/`](http://127.0.0.1:8000/api/schema/swagger-ui/),
+with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 ---
 
@@ -537,9 +617,10 @@ Swagger / OpenAPI documentation is available through the configured project docu
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The current complete suite contains **465 automated tests**. It runs against an
-isolated PostgreSQL test database and is executed automatically by GitHub Actions
-for pushes to `dev` and `main`, as well as for pull requests targeting `main`.
+The latest verified full run passed **685 tests on 2026-10-13**. Tests run
+against an isolated PostgreSQL test database. GitHub Actions is configured
+to execute the full suite on pushes to `dev` and `main`, and on pull requests
+targeting `main`.
 
 The test suite covers:
 
@@ -550,6 +631,8 @@ The test suite covers:
 - checkout and profile workflows;
 - stock reservation and rollback;
 - payment transitions;
+- financial account lifecycle, ledger entries and balance projections;
+- idempotency, allocation limits, reversals, rollback and concurrent operations;
 - permissions;
 - invoice lifecycle;
 - PDF responses;
@@ -564,7 +647,10 @@ Examples of protected regressions include:
 - inventory quantity and supplier lead time in catalog cards;
 - payment state-transition validation;
 - administrator-only payment reset;
-- invoice generation and cancellation rules.
+- invoice generation and cancellation rules;
+- order-to-account linking and rejection of checkout without the matching account;
+- list pagination, preserved filters and safe return navigation;
+- unread-message visibility and closed-room behavior by role.
 
 ---
 
@@ -573,40 +659,27 @@ Examples of protected regressions include:
 Shop_ePower uses GitHub Actions as an automated quality gate.
 
 ```text
-Push to dev / main
-        │
-        ▼
-Pull Request to main
-        │
-        ▼
-Checkout Repository
-        │
-        ▼
-Set Up Python 3.14
-        │
-        ▼
-Restore pip Cache
-        │
-        ▼
-Install Dependencies
-        │
-        ▼
-Start PostgreSQL + Redis
-        │
-        ▼
-Run Health & Connection Checks
-        │
-        ▼
-Django System Check
-        │
-        ▼
-Missing Migration Check
-        │
-        ▼
-Run 465 Automated Tests
-        │
-        ▼
-✅ Django CI
+Push to dev / main OR pull request to main
+                    │
+          ┌─────────┴─────────┐
+          ▼                   ▼
+      Django CI          Ruff Quality
+  PostgreSQL / Redis     Poetry + Ruff
+  Checks + migrations
+  Full test suite
+          │                   │
+          └─────────┬─────────┘
+                    ▼
+             Docker image build
+                    │
+                    ▼
+      Image checks + container smoke test
+                    │
+                    ▼
+       Full Docker Compose integration
+                    │
+                    ▼
+      GHCR publishing on push events only
 ```
 
 The CI workflow currently provides:
@@ -614,15 +687,20 @@ The CI workflow currently provides:
 - execution on pushes to `dev` and `main`;
 - execution for pull requests targeting `main`;
 - Python 3.14 setup;
-- pip dependency caching;
+- Poetry installation and dependencies from the lock file;
 - isolated PostgreSQL and Redis service containers;
 - service health checks;
 - Django configuration validation;
 - real PostgreSQL and Redis connection checks;
 - protection against forgotten migrations;
-- execution of all **465 tests**;
-- protected `main` branch through a GitHub Ruleset;
-- mandatory `Django CI` status before merging.
+- execution of the full automated test suite;
+- a separate Ruff quality job;
+- a Docker build after the test and quality jobs succeed;
+- Docker layer caching through GitHub Actions;
+- Django checks and a container smoke test;
+- full Compose startup with migrations, web, Flower, worker and Beat checks;
+- image publishing to GHCR on pushes, with `dev`, `latest` and commit tags
+  according to the branch.
 
 The workflow is stored in:
 
@@ -630,7 +708,9 @@ The workflow is stored in:
 .github/workflows/ci.yml
 ```
 
-The next CI milestone is evolving the current pipeline into a complete CI/CD workflow with automated image publishing and deployment.
+Image publishing is already configured. Deployment automation remains later
+work; the immediate delivery target is the controlled test pilot after
+PHASE 23 settlement integration and PHASE 24 minimal 1C exchange.
 
 ---
 
@@ -645,6 +725,11 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 | [`docs/deployment.md`](docs/deployment.md) | Production deployment plan |
 | [`docs/github-actions.md`](docs/github-actions.md) | Current CI workflow and future CI/CD plan |
 | [`docs/roadmap.md`](docs/roadmap.md) | Master development roadmap |
+| [`docs/phase-22-customer-financial-core.md`](docs/phase-22-customer-financial-core.md) | Financial core rules and completed PHASE 22 work |
+| [`docs/phase-23-deposits-and-order-settlement.md`](docs/phase-23-deposits-and-order-settlement.md) | Current order funds and shipment settlement design |
+
+Documentation records both implemented behavior and planned work. The
+roadmap and current phase plan identify the remaining integration tasks.
 
 ---
 
@@ -652,84 +737,72 @@ Technical documentation is stored in the [`docs/`](docs/) directory.
 
 ### ✅ Completed
 
-- Customer accounts and role model
-- Profile completeness workflow
-- Legal entity support
-- Product catalog
-- Dynamic pricing and currencies
-- Supplier inventory
-- Shopping cart
-- Checkout
-- Orders and reservations
-- Delivery management
-- Payment workflows
-- Payment history
-- Invoice generation
-- PDF invoices
-- Email notifications
-- Customer–manager chat
-- Client and manager REST API
-- JWT authentication
+- Catalog, pricing, suppliers and inventory
+- Customer profiles, authentication and authorization roles
+- Shopping cart, checkout, orders and stock reservations
+- Delivery, cancellation and reservation rollback
+- Payment status workflows, invoices and PDF documents
+- Email notifications and customer–manager chat
+- Client and staff REST APIs
+- Poetry dependency management and shared test helpers
+- Ruff quality checks
 - Docker Compose infrastructure
-- PostgreSQL and Redis containers
-- Celery Worker
-- Celery Beat
-- Flower
-- Technical documentation
-- 465 automated and regression tests
-- GitHub Actions CI
-- PostgreSQL and Redis services in CI
-- Migration consistency checks
-- pip dependency caching
-- Protected `main` branch with required `Django CI` status
+- GitHub Actions checks, Docker integration tests and GHCR publishing
+- PHASE 22: personal and legal financial accounts, atomic financial
+  services, transaction ledger and account status history
+- Read-only staff finance pages with search, filters and pagination
+- Paginated order and chat lists with preserved navigation
+- New orders linked to the owner's matching financial account
+- Full suite of 685 tests passed on 2026-10-13
 
 ### 🚧 Current Work
 
-- **PHASE 20 — Dependency Management Modernization**
-- Poetry migration
-- Dependency cleanup
-- Docker modernization
-- Documentation maintenance
-- Final diploma preparation
+**PHASE 23 — Order Funds & Full-Shipment Settlement**
 
-### 🗺️ Planned Development
+The first step is complete: new orders store their personal or legal
+financial account, and checkout rejects a missing account.
 
-After the diploma defense:
+Remaining work includes multiple payments per order, order editing before
+shipment, shipment records, debt creation, payment credits, explicit manual
+allocation, corrections, customer balance views and shipped-but-unpaid
+order lists.
 
-- global test-helper refactoring;
-- production deployment;
-- Redis caching;
-- full RU/EN internationalization;
-- WebSocket chat and notifications;
-- invoice revisions and reissue workflow;
-- external supplier synchronization;
-- 1C integration;
-- production CI/CD;
-- additional monitoring and observability.
+The financial core exists, but payment and shipment actions are not yet
+connected to account balance changes.
+
+### 🗺️ Next Milestones
+
+- PHASE 24: minimal 1C integration using an agreed exchange contract
+- PHASE 25: an internet-accessible test pilot without real sales or live payments
+
+Further capabilities remain in the [roadmap](docs/roadmap.md), including
+partial shipments, external payment providers, returns, caching,
+internationalization and WebSocket communication.
 
 ---
 
 ## 🛣️ Engineering Roadmap
 
 ```text
-CURRENT
-   │
-   ├── GitHub Actions CI ✅
-   ├── Protected main branch ✅
-   ├── Docker Build in CI 🚧
-   └── Diploma Readiness
-   │
-   ▼
-AFTER DIPLOMA
-   │
-   ├── Test Infrastructure Refactoring
-   ├── Production Deployment
-   ├── Redis Caching
-   ├── Internationalization
-   ├── WebSocket Communication
-   ├── Invoice Revisions
-   ├── 1C Integration
-   └── External Supplier Imports
+COMPLETED
+   ├── PHASE 20 — Poetry and dependency modernization
+   ├── PHASE 21 — Shared test helpers and Ruff
+   └── PHASE 22 — Customer financial core
+        │
+        ▼
+PHASE 23 — Order funds and full-shipment settlement 🚧
+        │
+        ▼
+PHASE 24 — Minimal 1C integration
+        │
+        ▼
+PHASE 25 — Controlled online test pilot
+           No real sales or live payments
+        │
+        ▼
+FURTHER DEVELOPMENT
+   Prioritized from pilot feedback and business needs
+   See docs/roadmap.md
 ```
 
 ---

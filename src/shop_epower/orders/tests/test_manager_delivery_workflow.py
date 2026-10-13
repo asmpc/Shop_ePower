@@ -12,6 +12,7 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import OrderStatus
 from shop_epower.orders.services import (
     create_order_from_cart,
@@ -28,6 +29,8 @@ class TestsManagerDeliveryWorkflow(TestCase):
     def setUp(self):
         self.manager = create_test_manager()
         self.client = create_test_user()
+
+        create_personal_customer_account(user=self.client)
 
         brand = create_test_brand(
             name="Manager Cancel Brand",

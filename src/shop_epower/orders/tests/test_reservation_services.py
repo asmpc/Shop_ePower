@@ -9,6 +9,7 @@ from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.services import create_order_from_cart
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
@@ -26,6 +27,8 @@ class TestsOrderReservationServices(TestCase):
             username="multistock",
             phone="+10000000006",
         )
+
+        create_personal_customer_account(user=user)
 
         product = create_test_product(
             name="Multi Stock Product",

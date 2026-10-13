@@ -41,6 +41,14 @@ class Order(models.Model):
         related_name="orders",
     )
 
+    customer_account = models.ForeignKey(
+        "finance.CustomerAccount",
+        on_delete=models.PROTECT,
+        related_name="orders",
+        null=True,
+        blank=True,
+    )
+
     status = models.CharField(
         max_length=20,
         choices=OrderStatus.choices,

@@ -13,6 +13,7 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
@@ -31,6 +32,8 @@ class TestsCheckoutAPI(TestCase):
             last_name="Doe",
             phone="+10000000007",
         )
+
+        create_personal_customer_account(user=self.user)
 
         self.brand = create_test_brand(
             name="API Brand",

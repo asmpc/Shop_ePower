@@ -12,6 +12,7 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
@@ -51,10 +52,12 @@ class TestsOrdersAPI(TestCase):
             phone="+10000000000",
         )
 
-    # Вспомогательный helper для создания полноценного заказа через API.
-    # Создаёт: - бренд - категорию - продукт - поставщика - supplier stock - корзину - checkout
-    # Возвращает: - созданный order - supplier_product (для проверки stock)
+    # Подготавливаем полноценный заказ через API:
+    # создаём личный счёт, товар с запасом и корзину, затем оформляем заказ.
+    # Возвращаем заказ и supplier_product для проверки остатков.
     def create_order_for_user(self, user, email_prefix="order"):
+        create_personal_customer_account(user=user)
+
         brand = create_test_brand(
             name=f"{email_prefix} Brand",
         )
