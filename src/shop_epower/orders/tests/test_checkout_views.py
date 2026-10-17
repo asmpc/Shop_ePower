@@ -11,8 +11,10 @@ from shop_epower.cart.tests.helpers import (
     create_test_cart_with_item,
 )
 from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order
 from shop_epower.payments.models import (
+    Invoice,
     Payment,
     PaymentMethod,
 )
@@ -56,6 +58,76 @@ class TestsCheckoutViews(TestCase):
             quantity=1,
             price_snapshot=Decimal("100.00"),
         )
+
+    # Проверяем оформление заказа на сайте:
+    # выбранный способ оплаты сохраняется в заказе,
+    # но Payment не создаётся, потому что деньги ещё не получены.
+    def test_checkout_saves_payment_choice_without_payment(self):
+        create_personal_customer_account(user=self.user)
+
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("orders:checkout"),
+            data={
+                "delivery_method": "pickup",
+                "payment_method": PaymentMethod.INVOICE,
+            },
+        )
+
+        order = Order.objects.get(user=self.user)
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:success",
+                kwargs={"order_id": order.pk},
+            ),
+            fetch_redirect_response=False,
+        )
+
+        self.assertEqual(
+            Payment.objects.count(),
+            0,
+        )
+        self.assertEqual(
+            order.payment_method,
+            PaymentMethod.INVOICE,
+        )
+
+    # Проверяем оформление с выбором оплаты в офисе:
+    # способ сохраняется в заказе, но деньги ещё не получены,
+    # поэтому платёж и счёт на оплату не создаются.
+    def test_checkout_with_office_payment_creates_no_payment(self):
+        create_personal_customer_account(user=self.user)
+
+        self.client.force_login(self.user)
+
+        response = self.client.post(
+            reverse("orders:checkout"),
+            data={
+                "delivery_method": "pickup",
+                "payment_method": PaymentMethod.ON_RECEIPT,
+            },
+        )
+
+        order = Order.objects.get(user=self.user)
+
+        self.assertRedirects(
+            response,
+            reverse(
+                "orders:success",
+                kwargs={"order_id": order.pk},
+            ),
+            fetch_redirect_response=False,
+        )
+
+        self.assertEqual(
+            order.payment_method,
+            PaymentMethod.ON_RECEIPT,
+        )
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
 
     # Проверяем временное ограничение online payment:
     # заказ и payment не должны создаваться,

@@ -128,37 +128,6 @@ class TestManagerPaymentActionsAPI(APITestCase):
         )
 
     # Проверяем, что менеджер может
-    # отметить ожидающий платеж как неуспешный.
-    def test_manager_can_mark_payment_failed(self):
-        self.client.force_authenticate(
-            user=self.manager,
-        )
-
-        url = reverse(
-            "api-payments:manager-payment-mark-failed",
-            kwargs={
-                "pk": self.payment.pk,
-            },
-        )
-
-        response = self.client.post(
-            url,
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_200_OK,
-        )
-
-        self.payment.refresh_from_db()
-
-        self.assertEqual(
-            self.payment.status,
-            PaymentStatus.FAILED,
-        )
-
-    # Проверяем, что менеджер может
     # отметить ожидающий платеж как отмененный.
     def test_manager_can_mark_payment_cancelled(self):
         self.client.force_authenticate(
@@ -187,80 +156,6 @@ class TestManagerPaymentActionsAPI(APITestCase):
         self.assertEqual(
             self.payment.status,
             PaymentStatus.CANCELLED,
-        )
-
-    # Проверяем, что менеджер получает 404
-    # при попытке отметить несуществующий платеж как неуспешный.
-    def test_manager_gets_404_for_missing_payment_when_marking_failed(
-            self,
-    ):
-        self.client.force_authenticate(
-            user=self.manager,
-        )
-
-        url = reverse(
-            "api-payments:manager-payment-mark-failed",
-            kwargs={
-                "pk": 999999,
-            },
-        )
-
-        response = self.client.post(
-            url,
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_404_NOT_FOUND,
-        )
-
-    # Проверяем, что неавторизованный пользователь
-    # не может отметить платеж как неуспешный.
-    def test_anonymous_cannot_mark_payment_failed(
-            self,
-    ):
-        url = reverse(
-            "api-payments:manager-payment-mark-failed",
-            kwargs={
-                "pk": self.payment.pk,
-            },
-        )
-
-        response = self.client.post(
-            url,
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_401_UNAUTHORIZED,
-        )
-
-    # Проверяем, что клиент не может
-    # отметить платеж как неуспешный.
-    def test_client_cannot_mark_payment_failed(
-            self,
-    ):
-        self.client.force_authenticate(
-            user=self.client_user,
-        )
-
-        url = reverse(
-            "api-payments:manager-payment-mark-failed",
-            kwargs={
-                "pk": self.payment.pk,
-            },
-        )
-
-        response = self.client.post(
-            url,
-            format="json",
-        )
-
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
         )
 
     # Проверяем, что менеджер получает 404

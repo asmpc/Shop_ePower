@@ -107,17 +107,47 @@ a shipment record so this action can create debt once, without treating
 the order status alone as a financial event. Managers and administrators
 need a bounded, paginated list of shipped orders with unpaid balances, with
 customer and shipment details. Partly paid orders remain visible until fully
-settled. Initially, payments occur only in the office or by bank transfer;
-choosing a method or completing an order does not confirm receipt of money.
-The existing `Mark as paid` action credits available funds once but never
-settles debt automatically. A manager or administrator explicitly allocates
-funds to a shipped order. Corrections undo dependent allocations before
-reversing the credit and resetting payment status. Customers see their own
-unallocated prepayment and debt, separately for personal and legal accounts.
+settled. Initially, payments occur only in the office or by bank transfer.
+Clarified on 2026-10-14: checkout records the customer's payment preference
+on the order but creates no `Payment`. An order awaiting payment is not a
+pending money receipt, and this distinction requires no new shipment status.
+An authorized employee records an actual receipt and its amount; the manual
+confirmation creates a `PAID` payment and one idempotent account credit
+atomically. An invoice is issued from the order independently of receipts.
+Selecting office payment at checkout creates no payment; confirming money
+actually received in the office creates one. These are separate test cases.
+Invoice issuance and allocation create no `Payment`; an invoice is optional.
+Receipt confirmation never marks an order paid or settles debt automatically.
+Clarified on 2026-10-15: a manager or administrator separately assigns
+available funds to an order, including before shipment. Assigning 100 from
+an available balance of 100 leaves zero freely available and zero debt before
+shipment. Resetting that order payment releases the 100 for reuse without
+voiding the actual receipt. A non-blank reason, actor, time, and append-only
+history are required. Fulfillment and order payment state remain independent;
+an unpaid shipped order remains `COMPLETED`. Shipment must account for
+previously assigned funds once, without deducting them a second time.
+Cancelled orders reject new payment assignments and release assigned funds
+to the customer's available balance; cancellation does not prove a payout.
+Manual actual refunds of office cash and bank-transfer receipts are required
+in PHASE 23. An authorized employee separately confirms the real money-out
+event, records its amount and reason, and decreases available funds atomically
+with its history. Funds retained on the balance remain reusable. Only
+provider-driven online withdrawals/refunds are deferred.
+Correcting a fictitious receipt is separate: undo its dependent assignments
+before reversing its credit. Do not use order-payment reset to reverse a
+real receipt. Remove active `FAILED` payment paths, controls, and API actions;
+use order cancellation to block payment, not a fictitious failure status.
+Preserve historical records and applied migrations. Customers see their own
+available funds, order-assigned prepayment, and debt without double counting,
+separately for personal and legal accounts.
 Each order is bound at creation to its owner's matching personal or legal
 account; later financial operations use that recorded account.
 One order may receive several confirmed payments while full shipment happens
-only once. PHASE 23 includes manager edits to order items before shipment,
+only once. An issued invoice records the full order total at issue time;
+partial receipts are separate payments and do not rewrite the invoice amount.
+Payments may reference the invoice they were made against, while office
+receipts may have no invoice. Historical links survive invoice replacement.
+PHASE 23 includes manager edits to order items before shipment,
 even after partial payment: confirmed receipts stay unchanged. An issued
 invoice must be explicitly cancelled before the edit and replaced afterward;
 the order total and stock reservations must remain consistent. Post-shipment
@@ -133,8 +163,35 @@ For reductions, the manager selects the exact order line/price batch;
 the system does not pick which price or reservations to remove.
 
 Design the shipment model so partial shipments can be added later, but do
-not build a partial-shipment UI in this phase. Keep the existing payment and
-invoice workflows working. The exit goal is a testable order-to-money flow
+not build a partial-shipment UI in this phase. Adapt receipt and invoice
+workflows incrementally while preserving historical data and audit records.
+Do not convert legacy pending payments into received money implicitly.
+Completed foundation and invoice block (2026-10-17): HTML and API checkout
+save `Order.payment_method` without creating a payment. Manual online-method
+confirmation is not enabled. The atomic `record_manual_order_payment` service
+records an actual office or bank receipt with one idempotent account credit;
+its website/API registration interface remains to be connected. `Payment.order`
+allows several payments, and the transitional `deposit_transaction` link
+prevents legacy reset-to-pending from undoing a credited receipt. Legacy
+records are not credited implicitly. Active `FAILED` paths have been removed.
+`Invoice.payment` is optional and `Invoice.order` allows document history,
+with a database constraint permitting only one issued invoice per order.
+Managers and administrators can issue and cancel invoices on the website and
+through the API. Cancellation requires a reason and preserves its actor,
+time, and document number; replacement creates a new document and number.
+Clients can read and download their own invoices without a payment. Staff
+order details show invoice history in pages of 20 with PDF links and preserved
+list-return context. These document actions create neither receipts nor debt.
+The user reports the full project test suite passing; Ruff checks and migration
+drift checks pass. Manual website invoice and history checks also pass.
+Next: define the order-assignment and shipment-settlement records, connect
+actual receipt registration to staff interfaces, implement assignment/reset
+and manual cash/bank refunds, and complete pre-shipment editing and customer
+balances. Existing debt allocation cannot be reused before an order has debt.
+The detailed phase plan and local Russian copy reflect this progress and
+the October 15 clarification.
+Application code, tests, and migrations remain user-edited and user-run.
+The exit goal is a testable order-to-money flow
 ready for a minimal 1C exchange, not every future finance feature.
 
 See [the PHASE 23 design draft](phase-23-deposits-and-order-settlement.md).
@@ -175,13 +232,16 @@ remain in PHASE 25 and are not deferred.
 -   stock recovery
 -   write-off workflow
 -   exchange workflow
--   refund processing
--   withdrawal requests
--   balance reservation
+-   broader refund processing connected to product returns; manual actual
+    office cash and bank-transfer refunds are already required in PHASE 23
+-   provider-driven online withdrawal/refund requests and automation
+-   advanced balance-reservation workflows; basic order prepayment
+    assignment and release are already required in PHASE 23
 -   approval workflow
 -   reconciliation
 -   partial-shipment UI and advanced allocation rules
--   mixed payments and external-provider integration
+-   complex mixed-payment checkout and external-provider integration;
+    separate office and bank receipts for one order remain in PHASE 23
 
 ## Engineering and Growth
 

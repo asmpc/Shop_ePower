@@ -4,12 +4,14 @@ from django.utils import timezone
 from shop_epower.payments.models import (
     Invoice,
     InvoiceStatus,
+    PaymentMethod,
 )
 from shop_epower.payments.selectors import (
     get_company_settings,
 )
 from shop_epower.payments.validators.invoice import (
     validate_manager_can_create_invoice,
+    validate_order_ready_for_invoice,
 )
 
 
@@ -27,6 +29,24 @@ def generate_invoice_number():
         f"{next_number:06d}"
     )
 
+def create_invoice_for_order(
+    *,
+    order,
+):
+    if order.payment_method != PaymentMethod.INVOICE:
+        raise ValidationError(
+            "Invoice can be created only for invoice payment method."
+        )
+
+    validate_order_ready_for_invoice(
+        order=order,
+    )
+
+    return _create_invoice_snapshot(
+        order=order,
+    )
+
+
 def create_invoice_for_payment(
     *,
     payment,
@@ -35,14 +55,30 @@ def create_invoice_for_payment(
         payment=payment,
     )
 
+    return _create_invoice_snapshot(
+        order=payment.order,
+        payment=payment,
+    )
+
+def _create_invoice_snapshot(
+    *,
+    order,
+    payment=None,
+):
+    if Invoice.objects.filter(
+        order=order,
+        status=InvoiceStatus.ISSUED,
+    ).exists():
+        raise ValidationError(
+            "An issued invoice already exists for this order."
+        )
+
     company_settings = get_company_settings()
 
     if company_settings is None:
         raise ValidationError(
             "Company settings are required to create invoice."
         )
-
-    order = payment.order
 
     if not order.customer_name:
         raise ValidationError(
@@ -112,8 +148,8 @@ def create_invoice_for_payment(
         buyer_bank_name=order.bank_name or "",
         buyer_bank_account=order.bank_account or "",
 
-        amount=payment.amount,
-        currency_snapshot=payment.currency_snapshot,
+        amount=order.total_price,
+        currency_snapshot=order.currency_snapshot,
     )
 
 def cancel_invoice(

@@ -12,7 +12,10 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
-from shop_epower.payments.tests.helpers import create_test_payment
+from shop_epower.payments.tests.helpers import (
+    create_test_invoice,
+    create_test_payment,
+)
 
 
 class TestsInvoiceModel(TestCase):
@@ -183,3 +186,29 @@ class TestsInvoiceModel(TestCase):
             self.invoice.cancelled_by,
         )
 
+    # Проверяем независимость счёта от получения денег:
+    # Invoice можно сохранить для заказа без Payment.
+    # Создание документа само по себе не создаёт платёж.
+    def test_invoice_can_exist_without_payment(self):
+        order = create_test_order(
+            user=self.user,
+            payment_method=PaymentMethod.INVOICE,
+        )
+
+        invoice = create_test_invoice(
+            order=order,
+            payment=None,
+            invoice_number="INV-2026-000002",
+            amount=order.total_price,
+        )
+
+        invoice.refresh_from_db()
+
+        self.assertEqual(invoice.order, order)
+        self.assertIsNone(invoice.payment_id)
+        self.assertEqual(invoice.amount, order.total_price)
+        self.assertEqual(
+            invoice.currency_snapshot,
+            order.currency_snapshot,
+        )
+        self.assertFalse(order.payments.exists())

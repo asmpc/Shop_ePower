@@ -5,7 +5,9 @@
 ### A modular B2B/B2C platform for electrical equipment
 
 A Django platform being developed for wholesale and retail workflows:
-**catalog → cart → checkout → stock reservation → manager workflow → payment → invoice → notifications → history**
+**catalog → cart → checkout → stock reservation → manager workflow → notifications → history**
+
+Confirmed money receipts and optional invoices are separate workflows.
 
 <br>
 
@@ -16,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-685-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-720-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -32,7 +34,7 @@ Rather than being a simple online store, Shop_ePower is evolving into a modular 
 
 The platform includes catalog and supplier inventory, stock reservation, order processing, payment status and invoice workflows, customer support chat, REST APIs, customer financial accounts, asynchronous notifications and Docker infrastructure.
 
-PHASE 22 established the financial core. PHASE 23 has started by linking new orders to the customer's matching personal or legal account. Connecting payment receipts, shipment debt and manual allocation is the next major step. The priority path is PHASE 23 → minimal 1C integration → a controlled online test pilot without real sales or live payments.
+PHASE 22 established the financial core. PHASE 23 now includes order-to-account linking, checkout without automatic payments, multiple receipts per order, an atomic receipt-credit service, and order-based invoices with cancellation and retained history. Staff receipt-registration interfaces, manual fund assignment, full-shipment settlement and actual cash/bank refunds remain in progress. The priority path is PHASE 23 → minimal 1C integration → a controlled online test pilot without real sales or live payments.
 
 ---
 
@@ -73,19 +75,23 @@ See the [development roadmap](docs/roadmap.md) for completed phases, current wor
               ▼                   ▼                   ▼
       STOCK RESERVATION     MANAGER WORKFLOW     CUSTOMER CHAT
               │                   │
-              ▼                   ▼
-       SUPPLIER STOCK       PAYMENT PROCESSING
-                                  │
-                         ┌────────┴────────┐
-                         ▼                 ▼
-                    INVOICE PDF       NOTIFICATIONS
-                         │                 │
-                         └────────┬────────┘
-                                  ▼
-                           ORDER HISTORY
+              ▼                   │
+       SUPPLIER STOCK             │
+                    ┌─────────────┼───────────────────┐
+                    ▼             ▼                   ▼
+            OPTIONAL INVOICE  RECEIPT SERVICE     NOTIFICATIONS
+                    │             │
+                    ▼             ▼
+             PDF + HISTORY   PAYMENT + ACCOUNT CREDIT
 ```
 
-This diagram summarizes the existing shopping, order, payment-status and support workflows. Checkout also records the customer's financial account. Payment status changes and order completion do not yet create account ledger entries; their integration is being developed in PHASE 23.
+Checkout records the customer's financial account and payment preference,
+but creates no payment or invoice. An invoice is an optional document issued
+from the order, not proof of payment. The implemented receipt service records
+actual office or bank funds as a confirmed payment and account credit in one
+atomic operation; its staff website/API interface remains to be connected.
+Assigning funds to an order and settlement at full shipment are separate
+PHASE 23 tasks, not automatic consequences of receipt or invoice creation.
 
 ---
 
@@ -137,6 +143,7 @@ This diagram summarizes the existing shopping, order, payment-status and support
 - Price snapshots
 - Checkout validation
 - Required existing personal or legal financial account
+- Payment preference stored on the order; no automatic payment or invoice
 - Pickup and shipping workflows
 - Delivery provider and address
 - Customer and delivery comments
@@ -170,17 +177,22 @@ This diagram summarizes the existing shopping, order, payment-status and support
 
 ### 💳 Payments & Invoices
 
-- Payment creation for orders
-- Invoice and on-receipt payment workflows
+- Multiple payment receipts per order
+- Service for confirmed office/bank receipts with atomic, idempotent account credits
+- Separate checkout preference, actual receipt and invoice workflows
 - Online method retained in the model; live provider integration deferred
-- Pending, paid, failed and cancelled statuses
+- Pending, paid and cancelled statuses; legacy pending/mock flows retained
 - Immutable payment history
 - Manager payment actions
-- Administrator-only reset actions
-- Invoice generation
+- Administrator-only legacy resets; credited receipts protected from reset
+- Invoice issuance from an order without a payment
+- One issued invoice per order, enforced by a database constraint
+- Cancellation and reissue with retained documents and distinct numbers
 - PDF generation with ReportLab
-- Client and manager invoice access
-- Controlled invoice cancellation
+- Owner-checked client invoice data/PDF access without a payment
+- Invoice issuance and cancellation by managers and administrators on the website and API
+- Required cancellation reason, actor and time
+- Staff invoice history: pages of 20, PDF links and preserved return context
 - Staff payment search by order, transaction ID or customer email
 - Paginated staff payment results loaded after a search or filter
 
@@ -235,6 +247,8 @@ This diagram summarizes the existing shopping, order, payment-status and support
 - Manager payment actions
 - Payment history endpoints
 - Invoice and PDF endpoints
+- Order-based invoice creation and role-checked cancellation
+- Client invoice data/PDF endpoints addressed by invoice ID, not payment ID
 
 </td>
 </tr>
@@ -254,9 +268,11 @@ This diagram summarizes the existing shopping, order, payment-status and support
 - Account search, transaction journal and paginated account history
 - Explicit account creation and legal-profile updates through services
 
-These domain services are implemented. Connecting them to order payments
-and full shipment, and displaying balances in the customer account area,
-remain PHASE 23 work.
+These domain services are implemented. Confirmed manual receipts can already
+credit the account through an atomic service. Staff receipt-registration
+interfaces, order fund assignment/release, full-shipment settlement, actual
+manual cash/bank refunds and customer-facing balances remain PHASE 23 work.
+The core refund service is not a real money-out payout workflow.
 
 </td>
 </tr>
@@ -277,7 +293,7 @@ Shop_ePower uses modular Django applications. Each application owns a specific b
 | `suppliers` | Suppliers, supplier products, warehouse and external inventory |
 | `cart` | Shopping cart, cart items and price snapshots |
 | `orders` | Checkout, orders, order items, stock reservation and delivery |
-| `payments` | Payments, statuses, history, invoices and PDF generation |
+| `payments` | Confirmed receipt services, legacy payment transitions, invoice lifecycle, history and PDF generation |
 | `finance` | Personal and legal financial accounts, transaction ledger, atomic balance services, status history and staff finance views |
 | `notifications` | Email services and asynchronous notification tasks |
 | `chat` | Rooms, messages, attachments, assignment and unread state |
@@ -328,6 +344,7 @@ flowchart TD
     Orders --> Notifications
     Orders --> Chat
     Payments --> Notifications
+    Payments --> Finance
 
     Accounts --> API
     Catalog --> API
@@ -605,7 +622,9 @@ The project exposes client, manager and administrator workflows through Django R
 - manager payment actions;
 - payment history;
 - invoice details;
-- PDF invoice downloads.
+- PDF invoice downloads;
+- invoice creation by order ID, and client document/PDF access by invoice ID;
+- invoice cancellation by managers and administrators with a required reason.
 
 Swagger / OpenAPI documentation is available at
 [`/api/schema/swagger-ui/`](http://127.0.0.1:8000/api/schema/swagger-ui/),
@@ -617,7 +636,7 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **685 tests on 2026-10-13**. Tests run
+The latest verified full run passed **720 tests on 2026-10-17**. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
@@ -646,8 +665,10 @@ Examples of protected regressions include:
 - secure redirect through the `next` parameter;
 - inventory quantity and supplier lead time in catalog cards;
 - payment state-transition validation;
-- administrator-only payment reset;
-- invoice generation and cancellation rules;
+- administrator-only legacy reset and protection of financially credited receipts;
+- checkout without an automatic payment, actual receipt registration and idempotent account credits;
+- order-based invoice issuance without payment, cancellation and reissue;
+- client invoice/PDF ownership checks and paginated staff invoice history;
 - order-to-account linking and rejection of checkout without the matching account;
 - list pagination, preserved filters and safe return navigation;
 - unread-message visibility and closed-room behavior by role.
@@ -753,22 +774,30 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Read-only staff finance pages with search, filters and pagination
 - Paginated order and chat lists with preserved navigation
 - New orders linked to the owner's matching financial account
-- Full suite of 685 tests passed on 2026-10-13
+- Website/API checkout stores a payment preference without creating a payment
+- Multiple receipts per order and an atomic manual receipt-credit service
+- Order-based invoice issuance, staff cancellation and reissue with retained history
+- Payment-independent client invoice data/PDF access and paginated staff history
+- Removal of active failed-payment paths; historical data preserved
+- Full suite of 720 tests passed on 2026-10-17
 
 ### 🚧 Current Work
 
 **PHASE 23 — Order Funds & Full-Shipment Settlement**
 
-The first step is complete: new orders store their personal or legal
-financial account, and checkout rejects a missing account.
+The account link, receipt-service foundation and website/API invoice block
+are complete. New orders require the matching financial account; invoices
+do not require a payment and do not themselves change funds or debt.
 
-Remaining work includes multiple payments per order, order editing before
-shipment, shipment records, debt creation, payment credits, explicit manual
-allocation, corrections, customer balance views and shipped-but-unpaid
-order lists.
+Remaining work includes staff interfaces for the implemented receipt service,
+fund assignment/removal before and after shipment, pre-shipment order editing,
+shipment records and settlement, receipt corrections, actual manual cash/bank
+refunds, customer balance views and shipped-but-unpaid order lists.
 
-The financial core exists, but payment and shipment actions are not yet
-connected to account balance changes.
+Receipt confirmation, assigning funds to an order, shipment settlement and
+real payout are separate actions. Existing debt allocation cannot substitute
+for pre-shipment assignment. Before order-item editing, preserve invoice-item
+snapshots so historical PDFs cannot change with the order.
 
 ### 🗺️ Next Milestones
 
@@ -776,7 +805,7 @@ connected to account balance changes.
 - PHASE 25: an internet-accessible test pilot without real sales or live payments
 
 Further capabilities remain in the [roadmap](docs/roadmap.md), including
-partial shipments, external payment providers, returns, caching,
+partial shipments, external payment providers, goods-return logistics, caching,
 internationalization and WebSocket communication.
 
 ---

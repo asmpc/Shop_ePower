@@ -1,7 +1,9 @@
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.http import HttpResponseForbidden
+from django.core.paginator import Paginator
+from django.db.models import Exists, OuterRef
+from django.http import Http404, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import DetailView, ListView
@@ -20,14 +22,18 @@ from shop_epower.orders.services import (
     update_order_status_by_manager,
 )
 from shop_epower.payments.models import (
+    Invoice,
+    InvoiceStatus,
+    Payment,
     PaymentMethod,
 )
 from shop_epower.payments.selectors import (
+    get_active_invoice_for_order,
     get_invoice_workflow_state,
+    get_invoices_for_order,
 )
 from shop_epower.payments.services import (
     mark_payment_cancelled,
-    mark_payment_failed,
     mark_payment_paid,
     reset_payment_to_pending,
 )
@@ -51,15 +57,19 @@ class ManagerOrderListView(
         if user.role not in ["manager", "admin"]:
             raise PermissionDenied("Manager or admin access required.")
 
+
+        issued_invoices = Invoice.objects.filter(
+            order_id=OuterRef("pk"),
+            status=InvoiceStatus.ISSUED,
+        )
+
         qs = (
             Order.objects
             .select_related(
                 "user",
-                "payment",
-                "payment__invoice",
             )
-            .prefetch_related(
-                "items",
+            .annotate(
+                has_active_invoice=Exists(issued_invoices),
             )
         )
 
@@ -87,15 +97,21 @@ class ManagerOrderListView(
 
         context["waiting_invoices_count"] = (
             Order.objects
-            .filter(
-                payment__method=PaymentMethod.INVOICE,
-                payment__invoice__isnull=True,
+            .annotate(
+                has_active_invoice=Exists(
+                    Invoice.objects.filter(
+                        order_id=OuterRef("pk"),
+                        status=InvoiceStatus.ISSUED,
+                    ),
+                ),
             )
-            .exclude(
+            .filter(
+                payment_method=PaymentMethod.INVOICE,
                 status__in=[
-                    OrderStatus.COMPLETED,
-                    OrderStatus.CANCELLED,
+                    OrderStatus.NEW,
+                    OrderStatus.PROCESSING,
                 ],
+                has_active_invoice=False,
             )
             .count()
         )
@@ -114,7 +130,6 @@ class ManagerOrderDetailView(
     context_object_name = "order"
 
     def get_queryset(self):
-
         user = self.request.user
 
         if user.role not in ["manager", "admin"]:
@@ -124,51 +139,55 @@ class ManagerOrderDetailView(
             Order.objects
             .select_related(
                 "user",
-                "payment",
-                "payment__invoice",
             )
-            .prefetch_related("items")
+            .prefetch_related(
+                "items",
+                "payments",
+            )
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
+        payments = self.object.payments.all()
+        invoice = get_active_invoice_for_order(
+            order=self.object,
+        )
+        invoice_required = (
+                self.object.payment_method == PaymentMethod.INVOICE
+        )
+
+        context["payments"] = payments
+        context["invoice"] = invoice
+        context["invoice_required"] = invoice_required
+
         context["chat_rooms"] = get_chat_rooms_for_order(
             self.object,
         )
 
-        try:
-            payment = self.object.payment
-        except Order.payment.RelatedObjectDoesNotExist:
-            payment = None
-
-        context["payment"] = payment
-
         context["back_url"] = get_safe_manager_order_return_url(
             self.request.GET.get("next"),
-            payment_id=payment.pk if payment is not None else None,
+            payment_ids=[payment.pk for payment in payments],
         )
-
-        try:
-            context["payment"] = self.object.payment
-        except Order.payment.RelatedObjectDoesNotExist:
-            context["payment"] = None
 
         context["invoice_workflow_state"] = None
 
-        if (
-                context["payment"]
-                and context["payment"].method == PaymentMethod.INVOICE
-                and not hasattr(
-            context["payment"],
-            "invoice",
-        )
-        ):
-            context["invoice_workflow_state"] = (
-                get_invoice_workflow_state(
-                    order=self.object,
-                )
+        if invoice_required and invoice is None:
+            context["invoice_workflow_state"] = get_invoice_workflow_state(
+                order=self.object,
             )
+
+        invoice_history = get_invoices_for_order(
+            order=self.object,
+        )
+        invoice_paginator = Paginator(
+            invoice_history,
+            20,
+        )
+
+        context["invoice_history"] = invoice_paginator.get_page(
+            self.request.GET.get("invoices_page"),
+        )
 
         return context
 
@@ -185,8 +204,24 @@ class ManagerPaymentActionMixin(
 
     def get_order(self):
         return get_object_or_404(
-            Order.objects.select_related("payment"),
+            Order,
             pk=self.kwargs["pk"],
+        )
+
+    def get_payment(self):
+        order = self.get_order()
+
+        try:
+            payment_id = int(
+                self.request.POST.get("payment_id"),
+            )
+        except (TypeError, ValueError) as error:
+            raise Http404("Invalid payment ID.") from error
+
+        return get_object_or_404(
+            Payment,
+            pk=payment_id,
+            order=order,
         )
 
     def get_success_response(
@@ -200,10 +235,9 @@ class ManagerPaymentActionMixin(
 
 
 class AdminPaymentActionMixin(
-    LoginRequiredMixin,
+    ManagerPaymentActionMixin,
 ):
     def dispatch(self, request, *args, **kwargs):
-
         if request.user.role != "admin":
             return HttpResponseForbidden()
 
@@ -213,32 +247,17 @@ class AdminPaymentActionMixin(
             **kwargs,
         )
 
-    def get_order(self):
-        return get_object_or_404(
-            Order.objects.select_related("payment"),
-            pk=self.kwargs["pk"],
-        )
-
-    def get_success_response(
-            self,
-            request,
-    ):
-        return redirect_to_manager_order_detail(
-            request=request,
-            order_id=self.kwargs["pk"],
-        )
-
 
 class AdminResetPaymentToPendingView(
     AdminPaymentActionMixin,
     View,
 ):
     def post(self, request, *args, **kwargs):
-        order = self.get_order()
+        payment = self.get_payment()
 
         try:
             reset_payment_to_pending(
-                payment=order.payment,
+                payment=payment,
                 comment=request.POST.get(
                     "manager_comment",
                     "",
@@ -267,29 +286,14 @@ class ManagerMarkPaymentPaidView(
     View,
 ):
     def post(self, request, *args, **kwargs):
-        order = self.get_order()
+        payment = self.get_payment()
 
         mark_payment_paid(
-            payment=order.payment,
-            manager_comment=request.POST.get("manager_comment", ""),
-            changed_by=request.user,
-        )
-
-        return self.get_success_response(
-            request,
-        )
-
-
-class ManagerMarkPaymentFailedView(
-    ManagerPaymentActionMixin,
-    View,
-):
-    def post(self, request, *args, **kwargs):
-        order = self.get_order()
-
-        mark_payment_failed(
-            payment=order.payment,
-            manager_comment=request.POST.get("manager_comment", ""),
+            payment=payment,
+            manager_comment=request.POST.get(
+                "manager_comment",
+                "",
+            ),
             changed_by=request.user,
         )
 
@@ -303,11 +307,14 @@ class ManagerMarkPaymentCancelledView(
     View,
 ):
     def post(self, request, *args, **kwargs):
-        order = self.get_order()
+        payment = self.get_payment()
 
         mark_payment_cancelled(
-            payment=order.payment,
-            manager_comment=request.POST.get("manager_comment", ""),
+            payment=payment,
+            manager_comment=request.POST.get(
+                "manager_comment",
+                "",
+            ),
             changed_by=request.user,
         )
 

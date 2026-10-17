@@ -272,6 +272,7 @@ class TestsManagerPaymentViews(TestCase):
                 args=[self.order.id],
             ),
             {
+                "payment_id": self.payment.pk,
                 "manager_comment": "Invoice received",
             },
         )

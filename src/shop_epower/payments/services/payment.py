@@ -96,45 +96,6 @@ def mark_payment_paid(
 
     return payment
 
-
-def mark_payment_failed(
-    *,
-    payment,
-    manager_comment="",
-    changed_by=None,
-):
-    """
-    Переводит payment в статус FAILED.
-
-    Используется для неуспешной оплаты.
-    """
-
-    _validate_payment_is_pending(payment)
-
-    old_status = payment.status
-
-    payment.status = PaymentStatus.FAILED
-    payment.manager_comment = manager_comment
-
-    payment.save(
-        update_fields=[
-            "status",
-            "manager_comment",
-            "updated_at",
-        ]
-    )
-
-    _create_payment_history(
-        payment=payment,
-        old_status=old_status,
-        new_status=PaymentStatus.FAILED,
-        comment=manager_comment,
-        changed_by=changed_by,
-    )
-
-    return payment
-
-
 def mark_payment_cancelled(
     *,
     payment,
@@ -178,6 +139,11 @@ def reset_payment_to_pending(
     comment="",
     changed_by=None,
 ):
+    if payment.deposit_transaction_id is not None:
+        raise ValidationError(
+            "A payment linked to a financial deposit cannot be reset to pending."
+        )
+
     if payment.status == PaymentStatus.PENDING:
         raise ValidationError(
             "Only non-pending payment can be reset to pending."

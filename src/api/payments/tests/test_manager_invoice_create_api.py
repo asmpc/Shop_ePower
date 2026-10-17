@@ -9,12 +9,15 @@ from shop_epower.accounts.models import Role
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
+from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import (
     DeliveryMethod,
     OrderStatus,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Invoice,
+    InvoiceStatus,
     PaymentMethod,
 )
 from shop_epower.payments.tests.helpers import (
@@ -50,6 +53,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         )
 
         order = payment.order
+        order.payment_method = PaymentMethod.INVOICE
 
         order.status = OrderStatus.PROCESSING
         order.delivery_method = DeliveryMethod.PICKUP
@@ -59,6 +63,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
                 "status",
                 "delivery_method",
                 "updated_at",
+                "payment_method",
             ],
         )
 
@@ -99,7 +104,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -114,12 +119,12 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertTrue(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
         invoice = Invoice.objects.get(
-            payment=payment,
+            order=payment.order,
         )
 
         self.assertEqual(
@@ -145,7 +150,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -160,7 +165,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -172,7 +177,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -185,7 +190,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -207,7 +212,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -220,13 +225,13 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertTrue(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
-    # Проверяем, что нельзя сформировать
-    # второй счёт для одного платежа.
-    def test_cannot_create_second_invoice_for_payment(self):
+    # Пока у заказа есть действующий Invoice,
+    # повторная выписка должна возвращать ошибку.
+    def test_cannot_create_second_issued_invoice_for_order(self):
         payment = self.create_invoice_payment()
 
         self.client.force_authenticate(
@@ -236,7 +241,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -260,25 +265,26 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertEqual(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).count(),
             1,
         )
 
         self.assertEqual(
             second_response.data["detail"],
-            "Invoice already exists for this payment.",
+            "An issued invoice already exists for this order.",
         )
 
-    # Проверяем, что нельзя сформировать
-    # счёт для другого способа оплаты.
-    def test_cannot_create_invoice_for_non_invoice_payment(self):
+    # Invoice нельзя выписать через этот сценарий,
+    # если в заказе выбран другой способ оплаты.
+    def test_cannot_create_invoice_for_non_invoice_order(self):
         payment = self.create_invoice_payment()
 
-        payment.method = PaymentMethod.ON_RECEIPT
-        payment.save(
+        order = payment.order
+        order.payment_method = PaymentMethod.ON_RECEIPT
+        order.save(
             update_fields=[
-                "method",
+                "payment_method",
             ],
         )
 
@@ -289,7 +295,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -309,7 +315,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -333,7 +339,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -353,7 +359,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -377,7 +383,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -397,7 +403,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -421,7 +427,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -441,7 +447,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
 
@@ -465,7 +471,7 @@ class TestsManagerInvoiceCreateAPI(TestCase):
         url = reverse(
             "api-payments:manager-invoice-create",
             kwargs={
-                "payment_id": payment.pk,
+                "order_id": payment.order_id,
             },
         )
 
@@ -485,6 +491,48 @@ class TestsManagerInvoiceCreateAPI(TestCase):
 
         self.assertFalse(
             Invoice.objects.filter(
-                payment=payment,
+                order=payment.order,
             ).exists(),
         )
+
+    # Менеджер выписывает Invoice по заказу без платежей через API.
+    # Документ не создаёт поступление денег и не меняет балансы.
+    def test_manager_can_create_invoice_without_payment(self):
+        account = create_personal_customer_account(
+            user=self.user,
+        )
+        order = create_test_order(
+            user=self.user,
+            customer_account=account,
+            status=OrderStatus.PROCESSING,
+            payment_method=PaymentMethod.INVOICE,
+            customer_phone="+375291112233",
+        )
+
+        self.client.force_authenticate(
+            user=self.manager,
+        )
+        response = self.client.post(
+            reverse(
+                "api-payments:manager-invoice-create",
+                kwargs={"order_id": order.pk},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 201)
+
+        invoice = Invoice.objects.get(order=order)
+        self.assertEqual(response.data["id"], invoice.pk)
+        self.assertEqual(
+            response.data["invoice_number"],
+            invoice.invoice_number,
+        )
+        self.assertEqual(invoice.status, InvoiceStatus.ISSUED)
+        self.assertEqual(invoice.amount, order.total_price)
+        self.assertIsNone(invoice.payment_id)
+        self.assertFalse(order.payments.exists())
+
+        account.refresh_from_db()
+        self.assertEqual(account.available_balance, Decimal("0.00"))
+        self.assertEqual(account.debt_balance, Decimal("0.00"))
+        self.assertFalse(account.transactions.exists())

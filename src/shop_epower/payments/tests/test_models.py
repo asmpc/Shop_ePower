@@ -31,6 +31,15 @@ class TestsPaymentModel(TestCase):
             currency_snapshot=get_base_currency(),
         )
 
+    # Проверяем допустимые статусы платежа:
+    # устаревший FAILED не должен присутствовать
+    # в действующем перечислении PaymentStatus.
+    def test_failed_is_not_available_payment_status(self):
+        self.assertNotIn(
+            "failed",
+            PaymentStatus.values,
+        )
+
     # Проверяем создание payment:
     # платеж создаётся для конкретного заказа,
     # способ оплаты, сумма и валюта сохраняются корректно.
@@ -97,18 +106,24 @@ class TestsPaymentModel(TestCase):
             32,
         )
 
-    # Проверяем связь заказа и платежа:
-    # у заказа должен быть доступ к платежу
-    # через related_name payment.
-    def test_order_has_payment_relation(self):
-        payment = create_test_payment(
+    # Проверяем несколько платежей одного заказа:
+    # отдельные частичные оплаты сохраняются независимо,
+    # а обратная связь payments возвращает оба платежа.
+    def test_order_can_have_multiple_payments(self):
+        first_payment = create_test_payment(
             order=self.order,
             method=PaymentMethod.INVOICE,
+            amount=Decimal("40.00"),
+        )
+        second_payment = create_test_payment(
+            order=self.order,
+            method=PaymentMethod.INVOICE,
+            amount=Decimal("60.00"),
         )
 
-        self.assertEqual(
-            self.order.payment,
-            payment,
+        self.assertCountEqual(
+            self.order.payments.all(),
+            [first_payment, second_payment],
         )
 
     # Проверяем строковое отображение payment:

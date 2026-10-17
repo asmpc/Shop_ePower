@@ -15,7 +15,6 @@ from shop_epower.payments.models import (
 from shop_epower.payments.services import (
     create_payment_for_order,
     mark_payment_cancelled,
-    mark_payment_failed,
     mark_payment_paid,
     reset_payment_to_pending,
 )
@@ -122,30 +121,6 @@ class TestsPaymentServices(TestCase):
             "Invoice paid.",
         )
 
-    # Проверяем неуспешную оплату:
-    # pending payment может быть переведен в FAILED.
-    def test_mark_payment_failed(self):
-        payment = create_test_payment(
-            order=self.order,
-        )
-
-        mark_payment_failed(
-            payment=payment,
-            manager_comment="Bank declined payment.",
-        )
-
-        payment.refresh_from_db()
-
-        self.assertEqual(
-            payment.status,
-            PaymentStatus.FAILED,
-        )
-
-        self.assertEqual(
-            payment.manager_comment,
-            "Bank declined payment.",
-        )
-
     # Проверяем отмену оплаты:
     # pending payment может быть переведен в CANCELLED.
     def test_mark_payment_cancelled(self):
@@ -170,9 +145,9 @@ class TestsPaymentServices(TestCase):
             "Payment cancelled by client.",
         )
 
-    # Проверяем защиту payment workflow:
-    # оплаченный платеж нельзя повторно перевести
-    # в другой статус.
+    # Проверяем защиту оплаченного платежа:
+    # обычная отмена ожидающего платежа неприменима
+    # к платежу, который уже оплачен.
     def test_cannot_update_non_pending_payment(self):
         payment = create_test_payment(
             order=self.order,
@@ -183,9 +158,16 @@ class TestsPaymentServices(TestCase):
         )
 
         with self.assertRaises(ValidationError):
-            mark_payment_failed(
+            mark_payment_cancelled(
                 payment=payment,
             )
+
+        payment.refresh_from_db()
+
+        self.assertEqual(
+            payment.status,
+            PaymentStatus.PAID,
+        )
 
     # Проверяем исправление ошибки оплаты:
     # оплаченный платеж можно вернуть в PENDING через service layer.
@@ -213,29 +195,6 @@ class TestsPaymentServices(TestCase):
         self.assertEqual(
             payment.manager_comment,
             "Payment was marked as paid by mistake.",
-        )
-
-    # Проверяем исправление неуспешной оплаты:
-    # failed payment можно вернуть в PENDING.
-    def test_reset_failed_payment_to_pending(self):
-        payment = create_test_payment(
-            order=self.order,
-        )
-
-        mark_payment_failed(
-            payment=payment,
-        )
-
-        reset_payment_to_pending(
-            payment=payment,
-            comment="Retry payment.",
-        )
-
-        payment.refresh_from_db()
-
-        self.assertEqual(
-            payment.status,
-            PaymentStatus.PENDING,
         )
 
     # Проверяем исправление отмененной оплаты:
@@ -302,43 +261,6 @@ class TestsPaymentServices(TestCase):
         self.assertEqual(
             history.comment,
             "Invoice paid.",
-        )
-
-        self.assertEqual(
-            history.changed_by,
-            self.user,
-        )
-
-    # Проверяем payment history:
-    # при неуспешной оплате должна создаваться запись истории.
-    def test_mark_payment_failed_creates_payment_history(self):
-        payment = create_test_payment(
-            order=self.order,
-        )
-
-        mark_payment_failed(
-            payment=payment,
-            manager_comment="Bank declined payment.",
-            changed_by=self.user,
-        )
-
-        history = PaymentHistory.objects.get(
-            payment=payment,
-        )
-
-        self.assertEqual(
-            history.old_status,
-            PaymentStatus.PENDING,
-        )
-
-        self.assertEqual(
-            history.new_status,
-            PaymentStatus.FAILED,
-        )
-
-        self.assertEqual(
-            history.comment,
-            "Bank declined payment.",
         )
 
         self.assertEqual(

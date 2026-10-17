@@ -33,7 +33,7 @@ class TestsOrderServices(TestCase):
 
     # Проверяем checkout для физлица:
     # заказ получает личный финансовый счёт владельца,
-    # копирует данные пользователя и корзины,
+    # сохраняет выбранный способ оплаты и данные корзины,
     # а после оформления корзина становится неактивной.
     def test_create_order_from_cart_for_client(self):
         user = create_test_user(
@@ -71,6 +71,7 @@ class TestsOrderServices(TestCase):
         order = create_order_from_cart(
             user=user,
             cart=cart,
+            payment_method="invoice",
         )
 
         cart.refresh_from_db()
@@ -80,6 +81,7 @@ class TestsOrderServices(TestCase):
         self.assertEqual(order.user, user)
         self.assertFalse(order.is_legal_entity)
         self.assertEqual(order.customer_account, account)
+        self.assertEqual(order.payment_method, "invoice")
         self.assertEqual(order.customer_email, "checkout@example.com")
         self.assertEqual(order.customer_phone, "+10000000004")
         # Проверяем, что по умолчанию используется самовывоз:

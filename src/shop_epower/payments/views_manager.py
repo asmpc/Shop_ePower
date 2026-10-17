@@ -1,5 +1,3 @@
-from urllib.parse import urlencode
-
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -7,11 +5,11 @@ from django.http import (
     HttpResponse,
     HttpResponseForbidden,
 )
-from django.shortcuts import get_object_or_404, redirect
-from django.urls import reverse
+from django.shortcuts import get_object_or_404
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from shop_epower.orders.models import Order
 from shop_epower.orders.navigation import (
     redirect_to_manager_order_detail,
 )
@@ -25,11 +23,8 @@ from shop_epower.payments.selectors import (
 )
 from shop_epower.payments.services import (
     cancel_invoice,
-    create_invoice_for_payment,
+    create_invoice_for_order,
     generate_invoice_pdf,
-)
-from shop_epower.payments.validators import (
-    validate_manager_can_create_invoice,
 )
 
 
@@ -206,20 +201,14 @@ class ManagerGenerateInvoiceView(
         )
 
     def post(self, request, *args, **kwargs):
-        payment = get_object_or_404(
-            Payment.objects.select_related(
-                "order",
-            ),
+        order = get_object_or_404(
+            Order,
             pk=self.kwargs["pk"],
         )
 
         try:
-            validate_manager_can_create_invoice(
-                payment=payment,
-            )
-
-            create_invoice_for_payment(
-                payment=payment,
+            create_invoice_for_order(
+                order=order,
             )
 
             messages.success(
@@ -235,16 +224,16 @@ class ManagerGenerateInvoiceView(
 
         return redirect_to_manager_order_detail(
             request=request,
-            order_id=payment.order_id,
+            order_id=order.pk,
         )
 
 
-class AdminCancelInvoiceView(
+class ManagerCancelInvoiceView(
     LoginRequiredMixin,
     View,
 ):
     def dispatch(self, request, *args, **kwargs):
-        if request.user.role != "admin":
+        if request.user.role not in ["manager", "admin"]:
             return HttpResponseForbidden()
 
         return super().dispatch(
@@ -255,10 +244,7 @@ class AdminCancelInvoiceView(
 
     def post(self, request, *args, **kwargs):
         invoice = get_object_or_404(
-            Invoice.objects.select_related(
-                "payment",
-                "order",
-            ),
+            Invoice,
             pk=self.kwargs["pk"],
         )
 
@@ -283,27 +269,9 @@ class AdminCancelInvoiceView(
                 error.message,
             )
 
-        payment_detail_url = reverse(
-            "payments:manager_payment_detail",
-            args=[invoice.payment_id],
-        )
-
-        next_url = request.POST.get(
-            "next",
-            reverse(
-                "orders:manager_order_detail",
-                args=[invoice.order_id],
-            ),
-        )
-
-        query_string = urlencode(
-            {
-                "next": next_url,
-            }
-        )
-
-        return redirect(
-            f"{payment_detail_url}?{query_string}",
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=invoice.order_id,
         )
 
 

@@ -17,6 +17,7 @@ from shop_epower.payments.models import (
     PaymentStatus,
 )
 from shop_epower.payments.services import (
+    create_invoice_for_order,
     create_invoice_for_payment,
 )
 from shop_epower.payments.tests.helpers import (
@@ -257,3 +258,34 @@ class TestsInvoicePdfViews(TestCase):
             response.status_code,
             403,
         )
+
+    # Клиент скачивает Invoice своего заказа до поступления денег.
+    # Отсутствие Payment не должно мешать формированию PDF.
+    def test_client_can_download_invoice_pdf_without_payment(self):
+        order = create_test_order(
+            user=self.client_user,
+            status=OrderStatus.PROCESSING,
+            payment_method=PaymentMethod.INVOICE,
+            customer_phone="+375291112233",
+        )
+        invoice = create_invoice_for_order(
+            order=order,
+        )
+
+        self.client.force_login(self.client_user)
+        response = self.client.get(
+            reverse(
+                "payments:client_invoice_pdf",
+                args=[invoice.pk],
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "application/pdf")
+        self.assertTrue(response.content.startswith(b"%PDF"))
+        self.assertIn(
+            invoice.invoice_number,
+            response["Content-Disposition"],
+        )
+        self.assertIsNone(invoice.payment_id)
+        self.assertFalse(order.payments.exists())

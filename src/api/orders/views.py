@@ -6,6 +6,12 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
+from api.orders.serializers import (
+    CheckoutSerializer,
+    OrderDetailSerializer,
+    OrderListSerializer,
+    OrderStatusUpdateSerializer,
+)
 from shop_epower.cart.models import Cart
 from shop_epower.orders.models import Order
 from shop_epower.orders.services import (
@@ -13,13 +19,7 @@ from shop_epower.orders.services import (
     create_order_from_cart,
     update_order_status_by_manager,
 )
-
-from .serializers import (
-    CheckoutSerializer,
-    OrderDetailSerializer,
-    OrderListSerializer,
-    OrderStatusUpdateSerializer,
-)
+from shop_epower.payments.services import validate_payment_method_for_delivery
 
 
 def is_manager_or_admin(user):
@@ -63,10 +63,21 @@ class CheckoutAPIView(APIView):
             "",
         )
 
+        payment_method = serializer.validated_data.get(
+            "payment_method",
+            "",
+        )
+
         try:
+            validate_payment_method_for_delivery(
+                delivery_method=delivery_method,
+                payment_method=payment_method,
+            )
+
             order = create_order_from_cart(
                 user=request.user,
                 cart=cart,
+                payment_method=payment_method,
                 delivery_method=delivery_method,
                 delivery_provider=delivery_provider,
                 delivery_address=delivery_address,

@@ -3,18 +3,12 @@ from django.utils.crypto import get_random_string
 
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import Order
-
-
-class PaymentMethod(models.TextChoices):
-    ON_RECEIPT = "on_receipt", "On receipt"
-    INVOICE = "invoice", "By invoice"
-    ONLINE = "online", "Online payment"
+from shop_epower.payments.choices import PaymentMethod
 
 
 class PaymentStatus(models.TextChoices):
     PENDING = "pending", "Pending"
     PAID = "paid", "Paid"
-    FAILED = "failed", "Failed"
     CANCELLED = "cancelled", "Cancelled"
 
 
@@ -24,10 +18,18 @@ class PaymentProvider(models.TextChoices):
 
 
 class Payment(models.Model):
-    order = models.OneToOneField(
+    order = models.ForeignKey(
         Order,
         on_delete=models.PROTECT,
-        related_name="payment",
+        related_name="payments",
+    )
+
+    deposit_transaction = models.OneToOneField(
+        "finance.AccountTransaction",
+        on_delete=models.PROTECT,
+        related_name="payment_receipt",
+        null=True,
+        blank=True,
     )
 
     method = models.CharField(
