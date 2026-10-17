@@ -6,6 +6,7 @@ from shop_epower.orders.models import (
 )
 from shop_epower.payments.models import (
     Invoice,
+    InvoiceStatus,
 )
 
 
@@ -42,21 +43,42 @@ def get_invoice_workflow_state(
 
     return InvoiceWorkflowState.READY
 
-
-def get_invoice_for_user(
+def get_active_invoice_for_order(
     *,
-    payment_id,
+    order,
+):
+    return Invoice.objects.filter(
+        order=order,
+        status=InvoiceStatus.ISSUED,
+    ).first()
+
+def get_invoice_by_id_for_user(
+    *,
+    invoice_id,
     user,
 ):
     return get_object_or_404(
-        Invoice.objects
-        .select_related(
-            "payment",
+        Invoice.objects.select_related(
             "order",
-        )
-        .prefetch_related(
-            "order__items",
         ),
-        payment_id=payment_id,
-        payment__order__user=user,
+        pk=invoice_id,
+        order__user=user,
+    )
+
+def get_invoices_for_order(
+    *,
+    order,
+):
+    return (
+        Invoice.objects
+        .filter(
+            order=order,
+        )
+        .select_related(
+            "cancelled_by",
+        )
+        .order_by(
+            "-created_at",
+            "-pk",
+        )
     )

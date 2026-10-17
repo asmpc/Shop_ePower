@@ -1,7 +1,52 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
-Status: design draft; implementation has started with order-to-account linking.
-Remaining business rules and model boundaries are being refined.
+Status: implementation in progress. The receipt-service foundation and
+order-based invoice block are complete; order fund assignment, shipment
+settlement, and manual money-out refunds remain to be implemented.
+Remaining financial model boundaries are being refined.
+
+## Completed Steps and Current Implementation Boundary
+
+As of 2026-10-17:
+
+- New orders record their owner's matching personal or legal customer
+  account. Missing accounts reject checkout without implicit account
+  creation. The nullable relation preserves old demonstration orders.
+- Website and API checkout save `Order.payment_method` without creating a
+  `Payment`, invoice, or ledger operation. Unsupported online checkout and
+  on-receipt payment for shipping are rejected.
+- `Payment.order` permits several payments per order. The atomic
+  `record_manual_order_payment` service creates a confirmed receipt and one
+  idempotent account credit through `Payment.deposit_transaction`. Receipt
+  retries, conflicting keys, rollback, and staff permissions have tests.
+  The staff website/API receipt-registration interface remains to be connected.
+- Legacy `reset_payment_to_pending()` rejects a payment linked to a financial
+  deposit. This protects the receipt; it does not implement removal of an
+  order fund assignment. Legacy records are not credited implicitly.
+- Active `FAILED` statuses, actions, controls, and API paths have been removed.
+  Historical records and applied migrations are not rewritten.
+- `create_invoice_for_order()` issues the full order amount without requiring
+  a payment; the current issue workflow requires `PaymentMethod.INVOICE`.
+  `Invoice.payment` is optional. `Invoice.order` permits document history,
+  with a conditional database uniqueness constraint allowing only one
+  `ISSUED` invoice per order.
+- Managers and administrators can issue and cancel invoices on the website
+  and through the API. Cancellation requires a reason and preserves its
+  actor and time. Reissue retains the cancelled document and number and
+  creates a new document with a new number. These document actions do not
+  create receipts or change account balances or debt.
+- Clients can read and download their own invoices by invoice ID without
+  a payment; foreign documents are inaccessible. Staff order details show
+  the current invoice and a history with cancellation details and PDF links.
+  History uses pages of 20 and preserves the list-return context.
+- The user reports the complete project test suite passing. Ruff and
+  migration-drift checks pass; manual website invoice and history checks
+  pass. No mass formatting was applied: intentional multiline layout is
+  retained, while `ruff check` remains required.
+
+Order fund assignment and release, full-shipment records and settlement,
+customer balances, pre-shipment item editing, and actual manual refunds
+remain open. Completion of this block does not complete PHASE 23.
 
 ## Goal and Boundaries
 
@@ -13,11 +58,87 @@ internet-facing test pilot in PHASE 25.
 
 Do not replace the existing `Payment` and invoice workflows in one step.
 The model may allow later partial shipments, but a partial-shipment action
-and UI are out of scope now. Mixed payments, automatic allocation,
-withdrawals, returns logistics, and a real payment provider are deferred.
+and UI are out of scope now. Complex mixed-payment checkout, automatic
+fund selection, goods-return logistics, and a real payment provider are
+deferred. Separate office and bank receipts for one order, pre-shipment
+fund assignment, and actual manual cash/bank refunds are in scope. Only
+provider-driven online withdrawals/refunds are deferred, not all refunds.
+This does not introduce a new post-shipment goods-return workflow.
+
+## Clarification of 2026-10-15: Order Payment and Manual Refunds
+
+- Receipt registration and assigning funds as payment for an order are
+  separate actions. `Payment` records a receipt; its `PAID` status alone
+  does not mean the order has been paid. Derive order settlement from active
+  fund assignments, not just the sum of related receipts.
+- Fulfillment and settlement remain independent. Removing payment from a
+  shipped order does not change `COMPLETED`. Preserve other assignments
+  and the remaining amount when one assignment is removed.
+- Both managers and administrators may explicitly assign available funds
+  before or after shipment. Before shipment, assigning 100 BYN from an
+  available 100 leaves freely available funds at zero and debt at zero.
+  Those funds cannot simultaneously be assigned to another order.
+- Removing an order payment assignment requires a non-blank comment and
+  preserves its reason, actor, time, amount, order link, and append-only
+  history. Before shipment, it restores the available 100 and leaves debt
+  at zero. The actual receipt and its account credit remain unchanged.
+- The removal action is the same whether the employee selected the wrong
+  order or later discovered a fictitious receipt. Correct the receipt
+  separately after undoing dependent assignments; never restore an entire
+  old balance snapshot or modify unrelated receipts.
+- Within existing cancellation permissions, cancelling an order releases
+  assigned funds for reuse and blocks new assignments. It does not prove
+  cash was paid out or a bank refund occurred.
+- PHASE 23 includes actual manual office-cash and bank-transfer refunds.
+  Staff separately confirm the real payout and record its amount, method,
+  reason, actor, time, and funding link. The money-out operation, available
+  balance decrease, and history are atomic and idempotent. Do not refund
+  more than the funds available for that refund or erase the original receipt.
+- Remove active `FAILED` paths rather than using failure as a cancellation
+  lock. Check the order's cancelled state to reject new payment assignments.
+  Preserve historical data and applied migrations; agree any demonstration
+  data cleanup separately.
+- Shipment accounts for assigned prepayment exactly once. Assigned 100 with
+  zero freely available, followed by shipment of 100, must not deduct 100
+  again or leave debt on a fully covered order. An obligation arises only
+  at shipment; do not create fictitious debt before it.
+- Existing `allocate_customer_funds()` decreases both available funds and
+  debt and cannot implement pre-shipment assignment. Existing
+  `record_customer_refund()` increases available funds and is not a real
+  payout. Define correct public financial operations instead of writing
+  balance fields directly.
 
 ## Confirmed Business Rules
 
+- Clarified on 2026-10-14: choosing a payment method at checkout is not
+  evidence that money has been received. Checkout stores that preference on
+  the order but creates no `Payment`, account credit, or customer debt.
+  An order awaiting payment does not require a pending receipt record or a
+  new fulfillment status.
+- An actual office payment creates `Payment` only when an authorized
+  manager or administrator records and confirms the received amount.
+  Verified bank receipts follow the same rule. In one atomic operation,
+  create `Payment` directly in `PAID`, record exactly one account-ledger
+  credit, and increase the customer's unallocated available balance.
+  Either all changes are saved or none are saved; a retry must not create
+  another payment or credit. Debt settlement remains a separate staff action.
+- Event boundaries are explicit:
+
+  | Event | Create `Payment`? |
+  |---|---|
+  | Customer places an order and selects office payment | No |
+  | Employee issues an `Invoice` | No: it is a document requesting payment |
+  | Employee confirms money actually received in the office | Yes |
+  | Employee confirms a verified bank receipt | Yes |
+  | Employee assigns already received funds to an order before or after shipment | No: this is a separate financial operation |
+
+  For a 100 BYN order, an actual office receipt of 40 BYN creates one
+  `Payment` for 40 BYN. A later bank receipt of 60 BYN creates a second
+  `Payment` for 60 BYN. Before the money arrives, there are no payments.
+- `CustomerAccount` stores the customer's available prepayment and debt;
+  `Invoice` is an optional document requesting payment; `Payment` records an
+  actual confirmed receipt. An invoice is not required for every order and
+  must be issued from the order without requiring a fictitious payment.
 - Order placement and invoicing do not create customer debt. Debt arises only
   after shipment is confirmed, for the shipped value.
 - In the current business workflow, `Complete order` means full shipment of
@@ -44,22 +165,24 @@ withdrawals, returns logistics, and a real payment provider are deferred.
 - Initially, actual payment is accepted only in the office or by bank
   transfer. Selecting a payment method, issuing an invoice, or marking an
   order `COMPLETED` does not prove that money was received. A confirmed
-  receipt funds the customer account; a later explicit staff allocation
-  settles the shipment debt.
-- The existing manager/administrator `Mark as paid` action is the manual
-  confirmation point after office payment or verified bank receipt. It
-  currently changes `Payment` to `PAID` and records payment history, but
-  does not credit the customer financial account. PHASE 23 must connect
-  this existing action to one idempotent account credit; do not add another
-  confirmation button. `Mark as cancelled` and `Mark as failed` do not
-  confirm receipt of money.
-- Confirming receipt credits available customer funds but does not settle
-  any order debt automatically. A manager or administrator explicitly
-  chooses an unpaid shipped order and the amount to allocate, bounded by
-  both available funds and that order's remaining debt.
+  receipt funds the customer account; a separate explicit staff assignment
+  pays the order before shipment or settles its debt afterward.
+- Manual receipt recording accepts the actual received amount, rather than
+  confirming a pending payment automatically prepared for the order total.
+  Do not carry over the old pending-payment buttons without reconsidering
+  their meaning. Office and bank receipts use one explicit registration
+  step that creates a confirmed receipt, not a `PENDING` draft followed by
+  a later transition to `PAID`. Legacy pending and mock records must never
+  be treated as received money implicitly.
+- Confirming receipt credits available customer funds but never assigns
+  them to an order automatically. A manager or administrator selects an
+  order and explicit amount, bounded by freely available funds and the
+  remaining amount to pay. After shipment, respect that order's remaining
+  debt as well. Before shipment, assignment must not create debt.
 - The customer must see their own personal and legal accounts separately
   in the website account area: currency, unallocated available funds
-  (prepayment), and outstanding debt. This read-only view must not expose
+  (prepayment), order-assigned prepayment, and outstanding debt without
+  double counting. This read-only view must not expose
   another customer's balances or create accounts implicitly.
 - Bind each order to one specific `CustomerAccount` when the order is created.
   A personal order uses its owner's personal account; a legal-entity order
@@ -116,38 +239,68 @@ withdrawals, returns logistics, and a real payment provider are deferred.
   and total, with a visible indication that the order was changed. The
   manager's reason and internal order-change history are available only to
   managers and administrators; never expose them in the customer UI or API.
+- An issued invoice records the full order total at issue time.
+  Partial receipts are separate Payment records and do not rewrite
+  the invoice amount.
+- Both managers and administrators may issue and cancel invoices. An issued
+  invoice blocks another issue for that order until explicitly cancelled.
+  Cancellation preserves the document, number, required reason, actor,
+  and time; a replacement has its own number. Keep at most one `ISSUED`
+  invoice per order, enforced by the database. Invoice creation and
+  cancellation do not record receipt or settle an order.
+- A payment may reference the invoice it was made against.
+  Office receipts may have no invoice. Existing payment-to-invoice
+  references survive invoice cancellation or replacement.
 
 ## Business Flow to Model
 
-1. After actual office payment or verified bank receipt, the authorized
-   employee uses the existing `Mark as paid` action. Its confirmed `Payment`
-   identifies the funding source and creates one idempotent account credit.
-   This increases available funds only; no debt is settled yet. It may
-   happen before or after shipment.
-2. The `Complete order` action records the full shipment and an obligation
-   for its value in the correct personal or legal customer account, then
-   moves the order to `COMPLETED`. This increases debt only; available
-   funds are not allocated automatically. A retry must not ship or charge
-   twice.
+1. After actual office payment or verified bank receipt, an authorized
+   employee enters the received amount and confirms receipt registration.
+   In one atomic operation, create `Payment` directly in `PAID` and one
+   idempotent account credit, updating the available balance. This increases
+   available funds only; no debt is settled yet. It may happen before or
+   after shipment. No pre-existing pending payment is required.
+2. A manager or administrator explicitly assigns funds to a selected order.
+   Before shipment, freely available funds decrease by the assigned amount,
+   but debt remains zero. Record the funding source, order, and amount to
+   prevent double use. After shipment, assignment settles that order's debt.
+   Do not use the existing debt-allocation operation before shipment.
+3. The `Complete order` action records the full shipment and its obligation
+   in the correct personal or legal customer account, then moves the order
+   to `COMPLETED`. Account for already assigned prepayment exactly once,
+   without deducting freely available funds again. The uncovered amount
+   becomes outstanding debt; without assignments, the full amount is owed.
+   Do not automatically select free funds for a new assignment. A retry
+   must not duplicate shipment, obligation, or application of prepayment.
    Before this action, a manager may revise the order items and total;
    previously received funds remain unchanged. An issued invoice must be
    cancelled before the edit and replaced afterward.
-3. A manager or administrator explicitly allocates a chosen amount of
-   available funds to a chosen shipped-order obligation. The allocation
-   records which confirmed funding it uses and reduces both available
-   funds and debt through PHASE 22 services. It cannot exceed either
-   available funds or that order's remaining debt. Outstanding debt
-   remains visible until settled.
+   Later explicit assignment of available funds settles the remaining
+   obligation, bounded by both available funds and that order's debt.
    Partially paid shipped orders remain in the staff unpaid-orders list
    with their remaining amount; fully settled orders leave that list.
-4. To reset an incorrectly confirmed `Payment` to `PENDING`, first undo
-   every allocation depending on that funding, then reverse its account
-   credit, then reset the payment status. Never reset the status while a
-   dependent allocation or credit remains. Preserve an auditable trail and
-   roll back a failed correction instead of leaving mismatched states.
+4. Removing an order payment assignment releases its funds and recalculates
+   settlement using the remaining assignments. After shipment, restore the
+   corresponding debt while keeping `COMPLETED`; before shipment, debt
+   stays zero. Preserve the real `Payment` and credit. A non-blank comment
+   and append-only audit history are required.
+5. To correct an incorrectly recorded receipt, first undo every assignment
+   depending on that funding, then reverse its account credit. Decide the
+   resulting receipt status and correction UI separately: the old return
+   to `PENDING` is not automatically appropriate for the new meaning of
+   `Payment`. Preserve an auditable trail and roll back a failed correction
+   instead of leaving mismatched states.
+6. Cancelling an order releases its assigned funds to the available balance,
+   blocks new assignments, and does not pay money out automatically.
+   Existing restrictions on post-shipment cancellation remain in force.
+7. An actual cash payout or bank refund is recorded separately by staff.
+   Decrease available funds by its amount and retain the real payout and
+   audit history without duplicates. This manual refund is required now;
+   provider-driven online withdrawal integration is deferred.
 
-Example: a confirmed payment of 100.00 adds 100.00 available funds; shipment
-of an 80.00 order adds 80.00 debt. Until a manager allocates funds, both
+Example without pre-shipment assignment: a confirmed receipt of 100.00 adds
+100.00 available funds; shipment of an 80.00 order adds 80.00 debt.
+Until a manager allocates funds, both
 balances remain visible. Allocating 50.00 leaves 50.00 available and 30.00
 debt. These are separate steps even when payment precedes shipment.
 
@@ -156,8 +309,19 @@ create two funding records. The manager may allocate 100.00 first, leaving
 20.00 order debt, and later allocate the remaining 20.00. The shipment is
 still recorded only once.
 
-An order initially totaling 100.00 may receive 60.00 before shipment. If
-the manager changes its items and total to 120.00 before shipment, the
+Pre-shipment assignment example: receipt of 100.00 creates available funds
+of 100.00. Assigning all 100.00 to the order leaves freely available funds
+at zero and debt at zero. Shipment of 100.00 accounts for that assignment
+once and leaves no unpaid debt; it must not deduct another 100.00.
+
+Manual refund example: after assigning the received 100.00 before shipment,
+cancelling the order restores available funds to 100.00 but does not pay the
+customer. A separately confirmed cash or bank refund of 100.00 then leaves
+available funds at zero, preserving both the original receipt and refund.
+
+An order initially totaling 100.00 may receive an unassigned 60.00 before
+shipment. If the manager changes its items and total to 120.00 before
+shipment, the
 confirmed 60.00 stays as available funds and debt stays zero. Full shipment
 then creates 120.00 debt; allocating 60.00 leaves 60.00 debt. No old payment
 amount or issued invoice is silently rewritten.
@@ -174,27 +338,36 @@ used for the new line before accepting the edit.
 The links explain *why* a balance changed. Account balances alone do not
 identify the source of funds or the order being settled.
 
-## Decisions to Confirm Before Schema Changes
+## Remaining Decisions Before Further Financial Migrations
 
-- Which stable key links a manager-confirmed `Payment` in `PAID` state to its
-  account credit without double crediting? Define what evidence of office
-  payment or bank receipt is recorded.
-- `Payment.order` is currently one-to-one, while `Invoice` also links to a
-  payment and existing views assume `order.payment`. Decide the smallest
-  migration to multiple payments per order, including invoice behavior and
-  preserving existing order/payment pages. A confirmed payment must carry
-  its actual received amount, not silently inherit a changed order total.
-- `Invoice.order` is also currently one-to-one. Define the smallest way to
-  preserve a cancelled invoice and issue its replacement for the same order,
-  with no more than one active invoice at a time.
-- Define how existing pre-PHASE-23 orders receive the correct account link
-  during migration. New checkouts reject a missing account; decide separately
-  how to handle old demonstration orders that have no account.
+- Receipt registration already uses a stable `operation_key` and linked
+  account credit. What additional evidence of office payment or bank
+  receipt should be stored when connecting the staff interface?
+- Which final status and permissions are required to correct a receipt after
+  safely reversing its credit? Preserve legacy `PENDING` and mock scenarios
+  without fictitious credits; do not assume a reset-to-`PENDING` workflow.
+- Define the smallest order-assignment record, freely available balance,
+  application of prepayment at shipment, and removal before/after shipment.
+  Verify 100 available -> assign 100 -> zero available/zero debt -> release
+  back to 100. Do not substitute debt allocation or receipt totals for this.
+- Define actual manual cash/bank refund records, funding links, permitted
+  methods, staff permissions, amount, mandatory reason, and retry key.
+  Choose a public money-out operation rather than the positive-delta
+  `record_customer_refund()` service.
+- Before order-item editing, define invoice-item snapshots: a historical
+  PDF must not start showing revised order lines. The current PDF reads
+  `Order.items`; preserving the document number and amount is insufficient.
+- Separately verify concurrent invoice issuance and number allocation.
+  The one-issued-invoice constraint does not solve all numbering races.
+- Decide how to prepare old demonstration orders without an account for
+  future financial scenarios and when to make the relation mandatory in
+  the database. They currently retain an empty transitional relation;
+  new checkouts reject a missing account without implicit assignment.
 - Which item, price, tax, and delivery snapshots form the full shipment
   amount? How will the model permit partial quantities later?
 - How are allocations linked to the specific funding they used, so all
-  dependent allocations can be found and undone before that payment is
-  reset? Define an auditable, safe correction flow and its atomic boundary.
+  dependent allocations can be found and undone before that receipt is
+  corrected? Define an auditable, safe correction flow and its atomic boundary.
 - What correction is allowed if full shipment was recorded in error?
 - Define the smallest append-only order-change history model and how to
   capture the manager's confirmed price and reservation changes. Implement
@@ -211,6 +384,18 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
+As of 2026-10-17, checkout without payments, the atomic receipt service,
+removal of active `FAILED`, website/API invoicing and cancellation, and
+invoice history are implemented and verified. Finish the documentation
+and commit this block without declaring the whole phase complete.
+Before further financial migrations, define order fund assignment and
+shipment settlement with numerical examples. Connect actual receipt
+registration to staff interfaces and implement the remaining flows by TDD.
+Assignment removal, fictitious-receipt correction, and actual payout remain
+different actions. Validate mandatory reasons in services, not only forms.
+Do not defer manual office/bank refunds together with online withdrawals.
+The user edits application code, tests, and migrations and runs all checks.
+
 1. Inspect the current `Order`, `Payment`, invoice, and finance service
    boundaries. Write numerical examples for payment before shipment,
    shipment before payment, multiple payments, retry, and correction;
@@ -218,10 +403,9 @@ before writing migrations.
 2. Define a shipment record and the links among order, customer account,
    shipment debt transaction, funding transaction, and allocation. Make
    order-item quantities representable for future partial shipments, but
-   implement only a full-shipment action now. Migrate the payment/order
-   relationship to allow multiple payment records without breaking invoices
-   or existing order and payment pages. Allow a cancelled invoice to be
-   replaced while preserving its history.
+   implement only a full-shipment action now. Multiple payments and invoice
+   replacement with retained history are already implemented; preserve
+   historical links while adding the remaining financial records.
 3. By TDD, add manager editing of order items before shipment. Recalculate
    the order total and adjust stock reservations atomically; keep confirmed
    payments and account balances unchanged. Require explicit cancellation
@@ -236,29 +420,72 @@ before writing migrations.
    after shipment.
 4. By TDD, make `Complete order` record one full shipment and its debt
    atomically and idempotently. Preserve the existing user-facing workflow.
-5. Connect the existing `Mark as paid` action to one account credit without
-   allocating it automatically. Add a separate, authorized manager/admin
-   action to allocate an explicit amount to one shipped order. Test both
-   payment-before-shipment and payment-after-shipment, partial allocation,
-   multiple receipts, amount limits, retries, and the absence of implicit
-   settlement.
+5. Connect staff interfaces to the implemented receipt service: atomic
+   `Payment` in `PAID` and one idempotent account credit, without automatic
+   assignment. Add a separate manager/admin action to assign an explicit
+   amount to an order before or after shipment. Implement removal with a
+   required reason, history, and released funds, preserving the actual
+   receipt. Test payment before/after shipment, partial assignment, multiple
+   receipts, amount limits, retries, and absence of implicit settlement.
 6. Add the customer-facing, read-only account balances and test account
-   ownership, separate personal/legal balances, available prepayment,
-   debt, and currency.
-7. Add the correction sequence: undo dependent allocations, reverse the
-   payment's account credit, then reset `Payment` to `PENDING`. Test
-   reversal guards, audit trail, rollback, and concurrency; integrate one
-   existing payment path at a time without a wholesale rewrite.
+   ownership, separate personal/legal balances, freely available and
+   order-assigned prepayment, debt, currency, and no double counting.
+7. After agreeing on the resulting receipt status, add the correction
+   sequence: undo dependent allocations, reverse the receipt's account
+   credit, and record the correction without losing history. Test reversal
+   guards, audit trail, rollback, and concurrency; integrate one existing
+   payment path at a time without a wholesale rewrite.
 8. Build the manager/administrator list of shipped orders with remaining
    debt. Show customer, order, shipment, and outstanding amount; paginate
    it and provide useful search or filters. Test unpaid, partly paid, and
    fully settled cases, including office and bank-transfer confirmation.
    Reconcile list amounts with account and shipment obligations.
-9. Run the complete regression and document the narrow 1C exchange facts
+9. By TDD, add actual manual office-cash and bank-transfer refunds: staff
+   confirmation, an outgoing ledger operation, available-balance decrease,
+   required reason, audit history, and protection against retries and
+   excess amounts. Do not substitute assignment removal or reversal of a
+   fictitious receipt for a real payout.
+10. Run the complete regression and document the narrow 1C exchange facts
    needed in PHASE 24. Do not begin internet deployment in this phase.
 
 ## Verification Gates
 
+- Before shipment, assigning an available 100 leaves freely available funds
+  at zero and debt at zero. Another order cannot use the same money.
+  Removing that assignment restores 100 without reversing the real receipt.
+- Shipment accounts for assigned prepayment once: a fully covered order has
+  neither a second deduction nor an outstanding unpaid debt.
+- Fulfillment and settlement remain independent. Removing payment from a
+  shipped order restores the corresponding debt but retains `COMPLETED`.
+  Other assignments remain intact.
+- Managers and administrators may remove an assignment only with a non-blank
+  reason and append-only history containing actor, time, amount, and order.
+- Order cancellation releases assigned funds for reuse and blocks new
+  assignments; it does not automatically refund cash or a bank receipt.
+- Real manual cash/bank refunds are atomic, idempotent money-out operations,
+  bounded by refundable available funds, with required reasons and history.
+  They are not the positive-delta `record_customer_refund()` operation.
+- Active `FAILED` paths are absent; historical records and applied
+  migrations remain preserved.
+- Checkout through the website or API saves the selected payment preference
+  but creates no `Payment`, receipt transaction, or account credit. An order
+  awaiting payment does not require a pending receipt record.
+- Office-payment selection and actual office receipt registration have
+  separate tests: the former creates no payment or invoice; the latter
+  creates `Payment` directly in `PAID` for the amount received, exactly one
+  ledger credit, and the corresponding available-balance increase.
+- Failed receipt registration rolls back the payment, credit, and balance;
+  retrying it duplicates none of them. Bank receipts follow the same rule.
+- An `Invoice` may be issued before any receipt without a fictitious payment.
+  Issuance and allocation do not create `Payment` records.
+- Both staff roles may issue and cancel Invoice through the website and API.
+  A required cancellation reason, actor, time, and original document number
+  survive reissue. A replacement has a distinct identity and number; the
+  database permits only one issued invoice per order.
+- Client invoice data/PDF access checks order ownership without requiring
+  a payment. Staff history is paginated and preserves list-return context.
+- Before enabling order-item edits, preserve historical invoice item
+  snapshots so re-downloading a cancelled document cannot rewrite its contents.
 - No view, admin action, signal, or unrelated service writes balances
   directly.
 - Idempotency, uniqueness, non-negative balances, and account ownership
@@ -288,14 +515,18 @@ before writing migrations.
 - Failed writes roll back ledger and linkage changes; concurrent requests
   cannot allocate the same available funds twice.
 - A reversal cannot silently invalidate a dependent allocation.
-- `Mark as paid` credits available funds once but never allocates them by
-  itself. Only an explicit staff action settles a selected order and amount.
-  A payment reset with dependent allocations is rejected until those
-  allocations and its credit are safely reversed in order.
-- Customers see only their own account balances: unallocated prepayment and
-  debt, separately for personal and legal accounts.
+- Recording an actual receipt credits available funds once but never
+  allocates them by itself. Only an explicit staff action settles a selected
+  order and amount. Correcting a receipt with dependent allocations is
+  rejected until those allocations and its credit are safely reversed in
+  order.
+- Customers see only their own account balances: freely available funds,
+  order-assigned prepayment, and debt without double counting, separately
+  for personal and legal accounts.
 - Completing an order confirms exactly one full shipment and creates debt
   exactly once. The order may be complete while its debt remains unpaid.
   The staff order-level debt list agrees with the unpaid shipment obligations,
   and a confirmed office or bank-transfer receipt is required to settle them.
-- Existing order, payment, invoice, and PHASE 22 tests remain green.
+- Agreed order, payment, invoice, and PHASE 22 scenarios remain covered by
+  green tests. Old expectations of an automatically created pending payment
+  at checkout are updated to the newly agreed business rule.

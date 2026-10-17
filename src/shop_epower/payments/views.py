@@ -12,7 +12,6 @@ from shop_epower.payments.models import (
 )
 from shop_epower.payments.services import (
     build_invoice_pdf_response,
-    mark_payment_failed,
     mark_payment_paid,
 )
 
@@ -47,28 +46,6 @@ def mock_payment_success_view(
     mark_payment_paid(
         payment=payment,
         manager_comment="Mock provider payment success.",
-    )
-
-    return redirect(
-        reverse(
-            "orders:detail",
-            args=[payment.order.id],
-        )
-    )
-
-
-def mock_payment_fail_view(
-    request,
-    transaction_id,
-):
-    payment = get_object_or_404(
-        Payment,
-        transaction_id=transaction_id,
-    )
-
-    mark_payment_failed(
-        payment=payment,
-        manager_comment="Mock provider payment failed.",
     )
 
     return redirect(

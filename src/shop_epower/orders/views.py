@@ -16,8 +16,8 @@ from shop_epower.chat.selectors import get_chat_rooms_for_order
 from shop_epower.orders.models import Order, OrderStatus
 from shop_epower.orders.services import cancel_new_order, create_order_from_cart
 from shop_epower.payments.models import PaymentMethod
+from shop_epower.payments.selectors import get_active_invoice_for_order
 from shop_epower.payments.services import (
-    create_payment_for_order,
     validate_payment_method_for_delivery,
 )
 
@@ -110,16 +110,12 @@ def checkout_view(request):
         order = create_order_from_cart(
             user=request.user,
             cart=cart,
+            payment_method=payment_method,
             delivery_method=delivery_method,
             delivery_provider=delivery_provider,
             delivery_address=delivery_address,
             delivery_comment=delivery_comment,
             order_comment=order_comment,
-        )
-
-        create_payment_for_order(
-            order=order,
-            method=payment_method,
         )
 
     except ValidationError as error:
@@ -174,26 +170,31 @@ def order_list_view(request):
 @login_required
 def order_detail_view(request, order_id):
     order = get_object_or_404(
-        Order.objects.select_related("payment"),
+        Order.objects.prefetch_related("payments"),
         id=order_id,
         user=request.user,
     )
 
     chat_rooms = get_chat_rooms_for_order(order)
 
-    try:
-        payment = order.payment
-    except Order.payment.RelatedObjectDoesNotExist:
-        payment = None
+    payments = order.payments.all()
+
+    invoice = get_active_invoice_for_order(
+        order=order,
+    )
+
+    invoice_required = order.payment_method == PaymentMethod.INVOICE
 
     return render(
         request,
         "orders/detail.html",
         {
             "order": order,
-            "payment": payment,
+            "payments": payments,
             "can_cancel": order.status == OrderStatus.NEW,
             "chat_rooms": chat_rooms,
+            "invoice": invoice,
+            "invoice_required": invoice_required,
         },
     )
 

@@ -50,21 +50,6 @@
                     Simulate successful payment
                 </button>
             </form>
-
-            <form
-                method="post"
-                action="{% url 'payments:mock_payment_fail' payment.transaction_id %}"
-            >
-                {% csrf_token %}
-
-                <button
-                    type="submit"
-                    class="btn btn-danger"
-                >
-                    Simulate failed payment
-                </button>
-            </form>
-
         </div>
 
     </div>

@@ -29,6 +29,7 @@ def create_order_from_cart(
     *,
     user,
     cart,
+    payment_method="",
     delivery_method="pickup",
     delivery_provider="",
     delivery_address="",
@@ -84,6 +85,7 @@ def create_order_from_cart(
     order = Order.objects.create(
         user=user,
         customer_account=customer_account,
+        payment_method=payment_method,
         is_legal_entity=is_legal_entity,
         customer_name=user.get_full_name() or user.username,
         customer_email=user.email,

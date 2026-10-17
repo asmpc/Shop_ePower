@@ -75,26 +75,3 @@ class TestsPaymentViews(TestCase):
             payment.status,
             PaymentStatus.PAID,
         )
-
-    # Проверяем неуспешную mock оплату.
-    def test_mock_payment_fail(self):
-        payment = create_payment_for_order(
-            order=self.order,
-            method=PaymentMethod.ONLINE,
-        )
-
-        response = self.client.post(
-            f"/payments/mock/{payment.transaction_id}/fail/"
-        )
-
-        self.assertEqual(
-            response.status_code,
-            302,
-        )
-
-        payment.refresh_from_db()
-
-        self.assertEqual(
-            payment.status,
-            PaymentStatus.FAILED,
-        )

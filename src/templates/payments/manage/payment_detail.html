@@ -143,16 +143,16 @@
                     {% endif %}
                 </div>
 
-            {% elif request.user.role == "admin" %}
+            {% elif request.user.role == "manager" or request.user.role == "admin" %}
                 <hr>
 
                 <h5 class="mb-3">
-                    Admin invoice cancellation
+                    Invoice cancellation
                 </h5>
 
                 <form
                     method="post"
-                    action="{% url 'payments:admin_cancel_invoice' invoice.id %}"
+                    action="{% url 'payments:manager_cancel_invoice' invoice.id %}"
                     class="mb-0"
                 >
                     {% csrf_token %}

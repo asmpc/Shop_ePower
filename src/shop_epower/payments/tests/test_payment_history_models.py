@@ -80,13 +80,13 @@ class TestsPaymentHistoryModel(TestCase):
         history = PaymentHistory.objects.create(
             payment=self.payment,
             old_status=PaymentStatus.PENDING,
-            new_status=PaymentStatus.FAILED,
-            comment="Bank declined payment.",
+            new_status=PaymentStatus.CANCELLED,
+            comment="Payment cancelled by manager.",
         )
 
         self.assertEqual(
             history.comment,
-            "Bank declined payment.",
+            "Payment cancelled by manager.",
         )
 
     # Проверяем сохранение пользователя:

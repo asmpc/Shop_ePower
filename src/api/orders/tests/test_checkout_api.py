@@ -13,8 +13,14 @@ from shop_epower.catalog.tests.helpers import (
     create_test_category,
     create_test_product,
 )
+from shop_epower.finance.models import AccountTransaction
 from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order
+from shop_epower.payments.models import (
+    Invoice,
+    Payment,
+    PaymentMethod,
+)
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
@@ -57,9 +63,10 @@ class TestsCheckoutAPI(TestCase):
 
         self.assertEqual(response.status_code, 401)
 
-    # Проверяем, что checkout API создаёт заказ:
-    # авторизованный пользователь с активной корзиной и доступным stock
-    # получает созданный заказ и статус HTTP 201.
+    # Проверяем оформление заказа через API:
+    # заказ создаётся, выбранный способ оплаты сохраняется.
+    # Payment, Invoice и финансовые операции не создаются,
+    # доступный баланс и долг остаются нулевыми.
     def test_checkout_api_creates_order(self):
 
         self.client.force_authenticate(user=self.user)
@@ -96,10 +103,32 @@ class TestsCheckoutAPI(TestCase):
 
         response = self.client.post(
             "/api/orders/checkout/",
-            {},
+            {
+                "delivery_method": "pickup",
+                "payment_method": PaymentMethod.INVOICE,
+            },
             format="json",
         )
 
+        order = Order.objects.get(
+            pk=response.data["order_id"],
+        )
+
+        self.assertEqual(
+            order.payment_method,
+            PaymentMethod.INVOICE,
+        )
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(AccountTransaction.objects.count(), 0)
+        self.assertEqual(
+            order.customer_account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            order.customer_account.debt_balance,
+            Decimal("0.00"),
+        )
         self.assertEqual(response.status_code, 201)
         self.assertIn("order_id", response.data)
         self.assertEqual(response.data["total_price"], "100.00")
@@ -265,3 +294,110 @@ class TestsCheckoutAPI(TestCase):
                 "Complete your profile before placing an order."
             ],
         )
+
+    # Проверяем временный запрет онлайн-оплаты:
+    # даже с полноценной корзиной API отклоняет этот способ.
+    # Заказ и финансовые записи не создаются,
+    # корзина остаётся активной.
+    def test_checkout_api_rejects_online_payment(self):
+        self.client.force_authenticate(user=self.user)
+
+        product = create_test_product(
+            name="API Online Product",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="API-ONLINE-001",
+            base_price=Decimal("50.00"),
+        )
+
+        supplier = create_test_supplier()
+
+        create_test_supplier_product(
+            supplier=supplier,
+            product=product,
+            stock_quantity=10,
+        )
+
+        cart = create_test_cart_with_item(
+            user=self.user,
+            product=product,
+            quantity=2,
+            price_snapshot=Decimal("50.00"),
+        )
+
+        response = self.client.post(
+            "/api/orders/checkout/",
+            {
+                "delivery_method": "pickup",
+                "payment_method": PaymentMethod.ONLINE,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("payment_method", response.data)
+
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(AccountTransaction.objects.count(), 0)
+
+        cart.refresh_from_db()
+
+        self.assertTrue(cart.is_active)
+
+    # Проверяем совместимость доставки и оплаты:
+    # оплату при получении нельзя выбрать для доставки.
+    # Отклонённый запрос не создаёт заказ и финансовые записи,
+    # а корзина остаётся активной.
+    def test_checkout_api_rejects_payment_on_receipt_with_shipping(self):
+        self.client.force_authenticate(user=self.user)
+
+        product = create_test_product(
+            name="API Shipping Product",
+            brand=self.brand,
+            category=self.category,
+            manufacturer_article="API-SHIPPING-001",
+            base_price=Decimal("50.00"),
+        )
+
+        supplier = create_test_supplier()
+
+        create_test_supplier_product(
+            supplier=supplier,
+            product=product,
+            stock_quantity=10,
+        )
+
+        cart = create_test_cart_with_item(
+            user=self.user,
+            product=product,
+            quantity=2,
+            price_snapshot=Decimal("50.00"),
+        )
+
+        response = self.client.post(
+            "/api/orders/checkout/",
+            {
+                "delivery_method": "shipping",
+                "delivery_provider": "post",
+                "delivery_address": "API address",
+                "payment_method": PaymentMethod.ON_RECEIPT,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertEqual(
+            response.data["detail"],
+            ["Payment on receipt is allowed only for pickup."],
+        )
+
+        self.assertEqual(Order.objects.count(), 0)
+        self.assertEqual(Payment.objects.count(), 0)
+        self.assertEqual(Invoice.objects.count(), 0)
+        self.assertEqual(AccountTransaction.objects.count(), 0)
+
+        cart.refresh_from_db()
+
+        self.assertTrue(cart.is_active)

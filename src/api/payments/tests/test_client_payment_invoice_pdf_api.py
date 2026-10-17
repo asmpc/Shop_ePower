@@ -10,12 +10,12 @@ from shop_epower.orders.models import OrderStatus
 from shop_epower.orders.tests.helpers import (
     create_test_order,
 )
+from shop_epower.payments.models import PaymentMethod
 from shop_epower.payments.services import (
-    create_invoice_for_payment,
+    create_invoice_for_order,
 )
 from shop_epower.payments.tests.helpers import (
     create_test_company_settings,
-    create_test_payment,
 )
 
 
@@ -39,20 +39,18 @@ class TestsClientPaymentInvoicePDFAPI(TestCase):
         self.order = create_test_order(
             user=self.user,
             status=OrderStatus.PROCESSING,
+            payment_method=PaymentMethod.INVOICE,
+            customer_phone="+375291112233",
         )
 
-        self.payment = create_test_payment(
+        self.invoice = create_invoice_for_order(
             order=self.order,
         )
 
-        self.invoice = create_invoice_for_payment(
-            payment=self.payment,
-        )
-
         self.url = reverse(
-            "api-payments:client-payment-invoice-pdf",
+            "api-payments:client-invoice-pdf",
             kwargs={
-                "payment_id": self.payment.id,
+                "invoice_id": self.invoice.pk,
             },
         )
 
@@ -91,6 +89,9 @@ class TestsClientPaymentInvoicePDFAPI(TestCase):
             )
         )
 
+        self.assertIsNone(self.invoice.payment_id)
+        self.assertFalse(self.order.payments.exists())
+
     # Проверяем, что клиент не может скачать
     # PDF Invoice чужого платежа.
     def test_client_cannot_download_foreign_invoice_pdf(self):
@@ -119,34 +120,19 @@ class TestsClientPaymentInvoicePDFAPI(TestCase):
             status.HTTP_401_UNAUTHORIZED,
         )
 
-    # Проверяем, что API возвращает 404,
-    # если у платежа отсутствует Invoice.
+    # API возвращает 404 при запросе несуществующего Invoice.
     def test_client_receives_404_when_invoice_does_not_exist(self):
-        order = create_test_order(
-            user=self.user,
-            status=OrderStatus.PROCESSING,
-        )
-
-        payment = create_test_payment(
-            order=order,
-        )
-
-        url = reverse(
-            "api-payments:client-payment-invoice-pdf",
-            kwargs={
-                "payment_id": payment.id,
-            },
-        )
-
         self.client.force_authenticate(
             user=self.user,
         )
 
         response = self.client.get(
-            url,
+            reverse(
+                "api-payments:client-invoice-pdf",
+                kwargs={
+                    "invoice_id": self.invoice.pk + 1,
+                },
+            ),
         )
 
-        self.assertEqual(
-            response.status_code,
-            status.HTTP_404_NOT_FOUND,
-        )
+        self.assertEqual(response.status_code, 404)

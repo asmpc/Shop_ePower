@@ -107,31 +107,41 @@ class TestsManagerInvoiceCancelAPI(TestCase):
             self.invoice.cancelled_at,
         )
 
-    # Проверяем, что менеджер
-    # не может отменить счёт.
-    def test_manager_cannot_cancel_invoice(self):
+    # Менеджер может аннулировать Invoice через API.
+    # Причина, автор и время отмены сохраняются в документе.
+    def test_manager_can_cancel_invoice(self):
         self.client.force_authenticate(
             user=self.manager,
         )
 
-        url = reverse(
-            "api-payments:manager-invoice-cancel",
-            kwargs={
-                "invoice_id": self.invoice.pk,
-            },
-        )
-
         response = self.client.post(
-            url,
+            reverse(
+                "api-payments:manager-invoice-cancel",
+                kwargs={
+                    "invoice_id": self.invoice.pk,
+                },
+            ),
             data={
-                "comment": "Cancel invoice",
+                "comment": "Invoice cancelled by manager.",
             },
         )
 
+        self.assertEqual(response.status_code, 200)
+
+        self.invoice.refresh_from_db()
         self.assertEqual(
-            response.status_code,
-            status.HTTP_403_FORBIDDEN,
+            self.invoice.status,
+            InvoiceStatus.CANCELLED,
         )
+        self.assertEqual(
+            self.invoice.cancel_comment,
+            "Invoice cancelled by manager.",
+        )
+        self.assertEqual(
+            self.invoice.cancelled_by,
+            self.manager,
+        )
+        self.assertIsNotNone(self.invoice.cancelled_at)
 
     # Проверяем, что клиент
     # не может отменить счёт.

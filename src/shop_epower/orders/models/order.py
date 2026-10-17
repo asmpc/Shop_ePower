@@ -2,6 +2,7 @@ from django.conf import settings
 from django.db import models
 
 from shop_epower.core.currency import get_base_currency
+from shop_epower.payments.choices import PaymentMethod
 
 
 class OrderStatus(models.TextChoices):
@@ -53,6 +54,13 @@ class Order(models.Model):
         max_length=20,
         choices=OrderStatus.choices,
         default=OrderStatus.NEW,
+    )
+
+    payment_method = models.CharField(
+        max_length=30,
+        choices=PaymentMethod.choices,
+        blank=True,
+        default="",
     )
 
     cancellation_reason = models.CharField(

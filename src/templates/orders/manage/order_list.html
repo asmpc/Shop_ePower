@@ -88,12 +88,12 @@
 
                 <div class="col-md-2 border-start">
                     <div class="text-muted">
-                        Payment
+                        Payment method
                     </div>
 
                     <div>
-                        {% if order.payment %}
-                            {{ order.payment.get_method_display }}
+                        {% if order.payment_method %}
+                            {{ order.get_payment_method_display }}
                         {% else %}
                             —
                         {% endif %}
@@ -106,22 +106,14 @@
                     </div>
 
                     <div>
-                        {% if order.payment and order.payment.method == "invoice" %}
-                            {% if order.payment.invoice %}
-                                {% if order.payment.invoice.status == "issued" %}
-                                    <span class="badge bg-success">
-                                        Generated
-                                    </span>
-                                {% elif order.payment.invoice.status == "cancelled" %}
-                                    <span class="badge bg-danger">
-                                        Cancelled
-                                    </span>
-                                {% endif %}
-                            {% else %}
-                                <span class="badge bg-warning text-dark">
-                                    Waiting
-                                </span>
-                            {% endif %}
+                        {% if order.has_active_invoice %}
+                            <span class="badge bg-success">
+                                Generated
+                            </span>
+                        {% elif order.payment_method == "invoice" %}
+                            <span class="badge bg-warning text-dark">
+                                Waiting
+                            </span>
                         {% else %}
                             —
                         {% endif %}

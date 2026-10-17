@@ -10,16 +10,18 @@ class InvoiceStatus(models.TextChoices):
     CANCELLED = "cancelled", "Cancelled"
 
 class Invoice(models.Model):
-    order = models.OneToOneField(
+    order = models.ForeignKey(
         Order,
         on_delete=models.PROTECT,
-        related_name="invoice",
+        related_name="invoices",
     )
 
     payment = models.OneToOneField(
         Payment,
         on_delete=models.PROTECT,
         related_name="invoice",
+        null=True,
+        blank=True,
     )
 
     invoice_number = models.CharField(
@@ -176,10 +178,18 @@ class Invoice(models.Model):
         ordering = [
             "-created_at",
         ]
+        constraints = [
+            models.UniqueConstraint(
+                fields=["order"],
+                condition=models.Q(
+                    status=InvoiceStatus.ISSUED,
+                ),
+                name="invoice_one_issued_per_order",
+            ),
+        ]
 
     def __str__(self):
         return (
             f"Invoice {self.invoice_number} "
             f"for Order #{self.order_id}"
         )
-

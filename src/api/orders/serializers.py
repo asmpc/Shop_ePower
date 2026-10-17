@@ -1,10 +1,22 @@
 from rest_framework import serializers
 
 from shop_epower.orders.models import Order, OrderItem, OrderStatus
+from shop_epower.payments.choices import PaymentMethod
 
 
 class CheckoutSerializer(serializers.Serializer):
-    pass
+    payment_method = serializers.ChoiceField(
+        choices=PaymentMethod.choices,
+        required=False,
+    )
+
+    def validate_payment_method(self, value):
+        if value == PaymentMethod.ONLINE:
+            raise serializers.ValidationError(
+                "Online payment integration is currently unavailable."
+            )
+
+        return value
 
 
 class OrderItemSerializer(serializers.ModelSerializer):

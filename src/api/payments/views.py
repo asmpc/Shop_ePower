@@ -20,9 +20,10 @@ from api.payments.serializers import (
     PaymentHistorySerializer,
     PaymentListSerializer,
 )
+from shop_epower.orders.models import Order
 from shop_epower.payments.models import Invoice, Payment
 from shop_epower.payments.selectors.invoice import (
-    get_invoice_for_user,
+    get_invoice_by_id_for_user,
 )
 from shop_epower.payments.selectors.payment import (
     get_payment_for_user,
@@ -34,9 +35,8 @@ from shop_epower.payments.selectors.payment import (
 from shop_epower.payments.services import (
     build_invoice_pdf_response,
     cancel_invoice,
-    create_invoice_for_payment,
+    create_invoice_for_order,
     mark_payment_cancelled,
-    mark_payment_failed,
     mark_payment_paid,
     reset_payment_to_pending,
 )
@@ -115,20 +115,14 @@ class ClientPaymentHistoryAPIView(APIView):
             serializer.data,
         )
 
-class ClientPaymentInvoiceAPIView(APIView):
-
+class ClientInvoiceDetailAPIView(APIView):
     permission_classes = [
         IsAuthenticated,
     ]
 
-    def get(
-        self,
-        request,
-        payment_id,
-    ):
-
-        invoice = get_invoice_for_user(
-            payment_id=payment_id,
+    def get(self, request, invoice_id):
+        invoice = get_invoice_by_id_for_user(
+            invoice_id=invoice_id,
             user=request.user,
         )
 
@@ -140,20 +134,14 @@ class ClientPaymentInvoiceAPIView(APIView):
             serializer.data,
         )
 
-class ClientPaymentInvoicePDFAPIView(APIView):
-
+class ClientInvoicePDFAPIView(APIView):
     permission_classes = [
         IsAuthenticated,
     ]
 
-    def get(
-        self,
-        request,
-        payment_id,
-    ):
-
-        invoice = get_invoice_for_user(
-            payment_id=payment_id,
+    def get(self, request, invoice_id):
+        invoice = get_invoice_by_id_for_user(
+            invoice_id=invoice_id,
             user=request.user,
         )
 
@@ -232,15 +220,6 @@ class ManagerPaymentMarkPaidAPIView(
 
     action_service = staticmethod(
         mark_payment_paid,
-    )
-
-
-class ManagerPaymentMarkFailedAPIView(
-    BaseManagerPaymentActionAPIView,
-):
-
-    action_service = staticmethod(
-        mark_payment_failed,
     )
 
 
@@ -329,56 +308,34 @@ class ManagerPaymentHistoryAPIView(
         )
 
 class ManagerInvoiceCreateAPIView(APIView):
-
     permission_classes = (
         IsManagerOrAdmin,
     )
 
-    def post(
-        self,
-        request,
-        payment_id,
-    ):
-
-        payment = get_object_or_404(
-            Payment.objects.select_related(
-                "order",
-                "order__user",
-            ),
-            pk=payment_id,
+    def post(self, request, order_id):
+        order = get_object_or_404(
+            Order,
+            pk=order_id,
         )
 
         try:
-            invoice = create_invoice_for_payment(
-                payment=payment,
+            invoice = create_invoice_for_order(
+                order=order,
             )
 
-
-
         except DjangoValidationError as exc:
-
             raise DRFValidationError(
-
                 {
-
                     "detail": exc.messages[0],
-
-                }
-
+                },
             ) from exc
 
         return Response(
-
             {
-
                 "id": invoice.pk,
-
                 "invoice_number": invoice.invoice_number,
-
             },
-
             status=status.HTTP_201_CREATED,
-
         )
 
 class ManagerInvoiceDetailAPIView(APIView):
@@ -431,7 +388,7 @@ class ManagerInvoicePdfAPIView(APIView):
 class ManagerInvoiceCancelAPIView(APIView):
 
     permission_classes = (
-        IsAdmin,
+        IsManagerOrAdmin,
     )
 
     def post(self, request, invoice_id):

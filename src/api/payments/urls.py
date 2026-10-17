@@ -1,10 +1,10 @@
 from django.urls import path
 
 from api.payments.views import (
+    ClientInvoiceDetailAPIView,
+    ClientInvoicePDFAPIView,
     ClientPaymentDetailAPIView,
     ClientPaymentHistoryAPIView,
-    ClientPaymentInvoiceAPIView,
-    ClientPaymentInvoicePDFAPIView,
     ClientPaymentListAPIView,
     ManagerInvoiceCancelAPIView,
     ManagerInvoiceCreateAPIView,
@@ -14,7 +14,6 @@ from api.payments.views import (
     ManagerPaymentHistoryAPIView,
     ManagerPaymentListAPIView,
     ManagerPaymentMarkCancelledAPIView,
-    ManagerPaymentMarkFailedAPIView,
     ManagerPaymentMarkPaidAPIView,
     ManagerPaymentResetToPendingAPIView,
 )
@@ -42,15 +41,15 @@ urlpatterns = [
     ),
 
     path(
-        "my/<int:payment_id>/invoice/",
-        ClientPaymentInvoiceAPIView.as_view(),
-        name="client-payment-invoice",
+        "my/invoices/<int:invoice_id>/",
+        ClientInvoiceDetailAPIView.as_view(),
+        name="client-invoice-detail",
     ),
 
     path(
-        "my/<int:payment_id>/invoice/pdf/",
-        ClientPaymentInvoicePDFAPIView.as_view(),
-        name="client-payment-invoice-pdf",
+        "my/invoices/<int:invoice_id>/pdf/",
+        ClientInvoicePDFAPIView.as_view(),
+        name="client-invoice-pdf",
     ),
 
     path(
@@ -72,12 +71,6 @@ urlpatterns = [
     ),
 
     path(
-        "manage/<int:pk>/mark-failed/",
-        ManagerPaymentMarkFailedAPIView.as_view(),
-        name="manager-payment-mark-failed",
-    ),
-
-    path(
         "manage/<int:pk>/mark-cancelled/",
         ManagerPaymentMarkCancelledAPIView.as_view(),
         name="manager-payment-mark-cancelled",
@@ -96,7 +89,7 @@ urlpatterns = [
     ),
 
     path(
-        "manage/<int:payment_id>/invoice/",
+        "manage/orders/<int:order_id>/invoice/",
         ManagerInvoiceCreateAPIView.as_view(),
         name="manager-invoice-create",
     ),
