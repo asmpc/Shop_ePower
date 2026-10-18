@@ -198,6 +198,27 @@ def allocate_customer_funds(
         comment=comment,
     )
 
+def record_customer_funds_assignment(
+    *,
+    account,
+    amount,
+    operation_key,
+    actor_type,
+    created_by=None,
+    comment="",
+):
+    _validate_positive_amount(amount)
+
+    return _apply_account_transaction(
+        account=account,
+        operation_type=AccountTransactionType.FUNDS_ASSIGNMENT,
+        available_delta=-amount,
+        debt_delta=Decimal("0.00"),
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )
 
 def record_customer_refund(
     *,

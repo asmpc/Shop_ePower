@@ -2,14 +2,22 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
+from django.db.models import Q, Sum
 
+from shop_epower.accounts.models import Role
 from shop_epower.accounts.services.profile import (
     is_profile_complete,
 )
 from shop_epower.core.currency import get_base_currency
 from shop_epower.finance.models import (
+    AccountTransactionActorType,
+    AccountTransactionType,
     CustomerAccount,
     CustomerAccountType,
+)
+from shop_epower.finance.services import (
+    record_customer_funds_assignment,
+    reverse_customer_transaction,
 )
 from shop_epower.notifications.tasks import (
     notify_managers_about_new_order,
@@ -17,6 +25,8 @@ from shop_epower.notifications.tasks import (
 )
 from shop_epower.orders.models import (
     Order,
+    OrderFundAssignment,
+    OrderFundAssignmentSource,
     OrderItem,
     OrderStatus,
     OrderStockReservation,
@@ -205,6 +215,18 @@ def reserve_stock_for_order_item(*, product, quantity):
 
 @transaction.atomic
 def cancel_new_order(*, order, user):
+    if (
+        getattr(user, "pk", None) is None
+        or not user.is_active
+    ):
+        raise ValidationError(
+            "Only active users can cancel orders."
+        )
+
+    order = Order.objects.select_for_update().get(
+        pk=order.pk,
+    )
+
     if order.user_id != user.id:
         raise ValidationError("Order does not belong to user.")
 
@@ -228,8 +250,29 @@ def cancel_new_order(*, order, user):
     order.status = OrderStatus.CANCELLED
     order.save(update_fields=["status"])
 
+    actor_type = {
+        Role.MANAGER: AccountTransactionActorType.MANAGER,
+        Role.ADMIN: AccountTransactionActorType.ADMIN,
+    }.get(user.role, AccountTransactionActorType.CUSTOMER)
+
+    active_assignments = order.fund_assignments.filter(
+        account_transaction__reversal__isnull=True,
+    ).order_by("pk")
+
+    for assignment in active_assignments:
+        _cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key=(
+                f"order:{order.pk}:cancel:assignment:{assignment.pk}"
+            ),
+            actor_type=actor_type,
+            created_by=user,
+            comment="Funds released after customer order cancellation.",
+        )
+
     return order
 
+@transaction.atomic
 def update_order_status_by_manager(
     *,
     order,
@@ -240,6 +283,10 @@ def update_order_status_by_manager(
 ):
     if user.role not in ("manager", "admin"):
         raise ValidationError("Only managers and admins can update order status.")
+
+    order = Order.objects.select_for_update().get(
+        pk=order.pk,
+    )
 
     allowed_transitions = {
         OrderStatus.NEW: [
@@ -285,6 +332,29 @@ def update_order_status_by_manager(
     order.save(
         update_fields=update_fields,
     )
+
+    if new_status == OrderStatus.CANCELLED:
+        release_comment = cancellation_comment
+
+        if (
+            not isinstance(release_comment, str)
+            or not release_comment.strip()
+        ):
+            release_comment = "Funds released after order cancellation."
+
+        active_assignments = order.fund_assignments.filter(
+            account_transaction__reversal__isnull=True,
+        ).order_by("pk")
+
+        for assignment in active_assignments:
+            cancel_order_fund_assignment(
+                assignment=assignment,
+                operation_key=(
+                    f"order:{order.pk}:cancel:assignment:{assignment.pk}"
+                ),
+                created_by=user,
+                comment=release_comment,
+            )
 
     return order
 
@@ -346,3 +416,264 @@ def update_order_delivery_by_manager(
     )
 
     return order
+
+@transaction.atomic
+def assign_order_funds(
+    *,
+    order,
+    amount,
+    operation_key,
+    created_by,
+    comment="",
+):
+    # Назначать средства может только активный сотрудник.
+    if (
+        getattr(created_by, "pk", None) is None
+        or not created_by.is_active
+        or created_by.role not in (Role.MANAGER, Role.ADMIN)
+    ):
+        raise ValidationError(
+            "Only managers and administrators can assign order funds."
+        )
+
+    if not isinstance(operation_key, str) or not operation_key.strip():
+        raise ValidationError("Operation key is required.")
+
+    if len(operation_key) > 255:
+        raise ValidationError("Operation key is too long.")
+
+    locked_order = Order.objects.select_for_update().get(
+        pk=order.pk,
+    )
+
+    if locked_order.status not in (
+        OrderStatus.NEW,
+        OrderStatus.PROCESSING,
+    ):
+        raise ValidationError(
+            "Funds can currently be assigned only before shipment."
+        )
+
+    account_type = (
+        CustomerAccountType.LEGAL
+        if locked_order.is_legal_entity
+        else CustomerAccountType.PERSONAL
+    )
+
+    account = (
+        CustomerAccount.objects.select_for_update()
+        .filter(
+            pk=locked_order.customer_account_id,
+            user_id=locked_order.user_id,
+            account_type=account_type,
+        )
+        .first()
+    )
+
+    if account is None:
+        raise ValidationError(
+            "Order must reference its owner's matching customer account."
+        )
+
+    if locked_order.currency_snapshot != account.currency:
+        raise ValidationError(
+            "Order currency must match account currency."
+        )
+
+    actor_type = (
+        AccountTransactionActorType.ADMIN
+        if created_by.role == Role.ADMIN
+        else AccountTransactionActorType.MANAGER
+    )
+
+    # Финансовое ядро проверяет сумму и доступный баланс.
+    # Последующая ошибка откатит и эту операцию.
+    account_transaction = record_customer_funds_assignment(
+        account=account,
+        amount=amount,
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )
+
+    existing_assignment = OrderFundAssignment.objects.filter(
+        account_transaction=account_transaction,
+    ).first()
+
+    if existing_assignment is not None:
+        if existing_assignment.order_id != locked_order.pk:
+            raise ValidationError(
+                "Operation key is already used for another order."
+            )
+
+        return existing_assignment
+
+    assigned_amount = (
+            locked_order.fund_assignments.filter(
+                account_transaction__reversal__isnull=True,
+            ).aggregate(
+                total=Sum("amount"),
+            )["total"]
+            or Decimal("0.00")
+    )
+
+    if amount > locked_order.total_price - assigned_amount:
+        raise ValidationError(
+            "Assignment exceeds the remaining order amount."
+        )
+
+    # Источники выбираем от старых поступлений к новым.
+    deposits = (
+        account.transactions.filter(
+            operation_type=AccountTransactionType.DEPOSIT,
+            currency_snapshot=account.currency,
+            reversal__isnull=True,
+        )
+        .annotate(
+            assigned_amount=Sum(
+                "order_fund_assignment_sources__amount",
+                filter=Q(
+                    order_fund_assignment_sources__assignment__account_transaction__reversal__isnull=True,
+                ),
+            ),
+        )
+        .order_by("created_at", "pk")
+    )
+
+    remaining_amount = amount
+    source_parts = []
+
+    for deposit in deposits.iterator(chunk_size=100):
+        used_amount = deposit.assigned_amount or Decimal("0.00")
+        available_amount = deposit.available_delta - used_amount
+
+        if available_amount <= Decimal("0.00"):
+            continue
+
+        part_amount = min(available_amount, remaining_amount)
+        source_parts.append((deposit, part_amount))
+        remaining_amount -= part_amount
+
+        if remaining_amount == Decimal("0.00"):
+            break
+
+    if remaining_amount > Decimal("0.00"):
+        raise ValidationError(
+            "Not enough unassigned deposit funds."
+        )
+
+    assignment = OrderFundAssignment.objects.create(
+        order=locked_order,
+        account_transaction=account_transaction,
+        amount=amount,
+    )
+
+    for deposit, part_amount in source_parts:
+        OrderFundAssignmentSource.objects.create(
+            assignment=assignment,
+            deposit_transaction=deposit,
+            amount=part_amount,
+        )
+
+    return assignment
+
+@transaction.atomic
+def _cancel_order_fund_assignment(
+    *,
+    assignment,
+    operation_key,
+    actor_type,
+    created_by,
+    comment,
+):
+    if not isinstance(comment, str) or not comment.strip():
+        raise ValidationError("Cancellation comment is required.")
+
+    if not isinstance(operation_key, str) or not operation_key.strip():
+        raise ValidationError("Operation key is required.")
+
+    if len(operation_key) > 255:
+        raise ValidationError("Operation key is too long.")
+
+    saved_assignment = OrderFundAssignment.objects.only(
+        "order_id",
+    ).get(pk=assignment.pk)
+
+    locked_order = Order.objects.select_for_update().get(
+        pk=saved_assignment.order_id,
+    )
+
+    if locked_order.status not in (
+        OrderStatus.NEW,
+        OrderStatus.PROCESSING,
+        OrderStatus.CANCELLED,
+    ):
+        raise ValidationError(
+            "Assignments can currently be cancelled only before shipment."
+        )
+
+    # Соблюдаем тот же порядок блокировок: сначала заказ, затем счёт.
+    account = CustomerAccount.objects.select_for_update().get(
+        pk=locked_order.customer_account_id,
+    )
+
+    locked_assignment = (
+        OrderFundAssignment.objects.select_for_update()
+        .select_related("account_transaction")
+        .get(
+            pk=saved_assignment.pk,
+            order=locked_order,
+        )
+    )
+    account_transaction = locked_assignment.account_transaction
+
+    # Отменять можно только соответствующее назначению списание.
+    if (
+        account_transaction.account_id != account.pk
+        or account_transaction.operation_type
+        != AccountTransactionType.FUNDS_ASSIGNMENT
+        or account_transaction.available_delta != -locked_assignment.amount
+        or account_transaction.debt_delta != Decimal("0.00")
+    ):
+        raise ValidationError(
+            "Assignment must reference a matching funds assignment transaction."
+        )
+
+    return reverse_customer_transaction(
+        original_transaction=account_transaction,
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )
+
+def cancel_order_fund_assignment(
+    *,
+    assignment,
+    operation_key,
+    created_by,
+    comment,
+):
+    if (
+        getattr(created_by, "pk", None) is None
+        or not created_by.is_active
+        or created_by.role not in (Role.MANAGER, Role.ADMIN)
+    ):
+        raise ValidationError(
+            "Only managers and administrators can cancel order fund assignments."
+        )
+
+    actor_type = (
+        AccountTransactionActorType.ADMIN
+        if created_by.role == Role.ADMIN
+        else AccountTransactionActorType.MANAGER
+    )
+
+    return _cancel_order_fund_assignment(
+        assignment=assignment,
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )

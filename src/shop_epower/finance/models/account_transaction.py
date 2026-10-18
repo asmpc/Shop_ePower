@@ -10,6 +10,7 @@ class AccountTransactionType(models.TextChoices):
     DEPOSIT = "deposit", "Deposit"
     DEBT_INCREASE = "debt_increase", "Debt increase"
     ALLOCATION = "allocation", "Allocation"
+    FUNDS_ASSIGNMENT = "funds_assignment", "Funds assignment"
     REFUND = "refund", "Refund"
     REVERSAL = "reversal", "Reversal"
 

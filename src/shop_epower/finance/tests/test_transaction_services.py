@@ -22,6 +22,7 @@ from shop_epower.finance.services import (
     create_personal_customer_account,
     record_customer_debt,
     record_customer_deposit,
+    record_customer_funds_assignment,
     record_customer_refund,
     reverse_customer_transaction,
 )
@@ -1152,3 +1153,129 @@ class TestsAccountTransactionServices(TestCase):
         self.assertEqual(self.account.available_balance, Decimal("0.00"))
         self.assertEqual(self.account.debt_balance, Decimal("0.00"))
         self.assertEqual(AccountTransaction.objects.count(), 3)
+
+    # Назначение средств уменьшает свободный остаток.
+    # Долг не возникает; изменение записывается в финансовый журнал.
+    def test_record_customer_funds_assignment_does_not_create_debt(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="assignment:deposit:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        manager = create_test_manager()
+
+        account_transaction = record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="assignment:test:001",
+            actor_type=AccountTransactionActorType.MANAGER,
+            created_by=manager,
+            comment="Customer funds assignment.",
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            account_transaction.operation_type,
+            AccountTransactionType.FUNDS_ASSIGNMENT,
+        )
+        self.assertEqual(
+            account_transaction.available_delta,
+            Decimal("-60.00"),
+        )
+        self.assertEqual(
+            account_transaction.debt_delta,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            account_transaction.available_balance_after,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            account_transaction.debt_balance_after,
+            Decimal("0.00"),
+        )
+        self.assertEqual(AccountTransaction.objects.count(), 2)
+
+    # Нельзя назначить сумму сверх доступного остатка.
+    # Отказ не меняет балансы и не добавляет операцию в журнал.
+    def test_record_customer_funds_assignment_rejects_insufficient_funds(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="assignment:limit:deposit:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        manager = create_test_manager()
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Resulting available balance cannot be negative.",
+        ):
+            record_customer_funds_assignment(
+                account=self.account,
+                amount=Decimal("110.00"),
+                operation_key="assignment:limit:001",
+                actor_type=AccountTransactionActorType.MANAGER,
+                created_by=manager,
+            )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(AccountTransaction.objects.count(), 1)
+
+    # Повтор назначения с тем же ключом возвращает исходную операцию.
+    # Доступный остаток повторно не уменьшается.
+    def test_record_customer_funds_assignment_is_idempotent(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="assignment:retry:deposit:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        manager = create_test_manager()
+
+        first_transaction = record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="assignment:retry:001",
+            actor_type=AccountTransactionActorType.MANAGER,
+            created_by=manager,
+        )
+        repeated_transaction = record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="assignment:retry:001",
+            actor_type=AccountTransactionActorType.MANAGER,
+            created_by=manager,
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(repeated_transaction.pk, first_transaction.pk)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(AccountTransaction.objects.count(), 2)
