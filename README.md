@@ -34,7 +34,15 @@ Rather than being a simple online store, Shop_ePower is evolving into a modular 
 
 The platform includes catalog and supplier inventory, stock reservation, order processing, payment status and invoice workflows, customer support chat, REST APIs, customer financial accounts, asynchronous notifications and Docker infrastructure.
 
-PHASE 22 established the financial core. PHASE 23 now includes order-to-account linking, checkout without automatic payments, multiple receipts per order, an atomic receipt-credit service, and order-based invoices with cancellation and retained history. Staff receipt-registration interfaces, manual fund assignment, full-shipment settlement and actual cash/bank refunds remain in progress. The priority path is PHASE 23 → minimal 1C integration → a controlled online test pilot without real sales or live payments.
+PHASE 22 established the financial core. PHASE 23 now includes order-to-account
+linking, checkout without automatic payments, multiple receipts per order,
+an atomic receipt-credit service, and order-based invoices with cancellation
+and retained history. Pre-shipment fund-assignment services use FIFO deposit
+sources and support whole-assignment release and automatic release on
+authorized order cancellation. Staff money-operation interfaces,
+full-shipment settlement, post-shipment assignment/removal and actual
+cash/bank refunds remain in progress. The priority path is PHASE 23 → minimal
+1C integration → a controlled online test pilot without real sales or live payments.
 
 ---
 
@@ -90,8 +98,13 @@ but creates no payment or invoice. An invoice is an optional document issued
 from the order, not proof of payment. The implemented receipt service records
 actual office or bank funds as a confirmed payment and account credit in one
 atomic operation; its staff website/API interface remains to be connected.
-Assigning funds to an order and settlement at full shipment are separate
-PHASE 23 tasks, not automatic consequences of receipt or invoice creation.
+The implemented pre-shipment assignment service separately reserves an
+explicit amount for an order from eligible FIFO deposit portions, without
+creating debt. Whole-assignment release and authorized order cancellation
+restore available funds while preserving history. These services are not
+yet connected to dedicated staff money-operation forms or API actions.
+Settlement at full shipment remains planned; receipt or invoice creation
+does not automatically assign funds or settle debt.
 
 ---
 
@@ -165,6 +178,8 @@ PHASE 23 tasks, not automatic consequences of receipt or invoice creation.
 - Delivery updates
 - Controlled cancellation workflow
 - Reservation rollback after cancellation
+- Pre-shipment fund-assignment services with traceable FIFO deposit portions
+- Whole-assignment release and automatic fund release on authorized cancellation
 - Customer and manager order views
 - Paginated lists with preserved filters and return links
 - New and processing orders shown by default; history through explicit filters
@@ -262,17 +277,22 @@ PHASE 23 tasks, not automatic consequences of receipt or invoice creation.
 - Account status lifecycle with audit history
 - Atomic ledger creation and balance updates with account locking
 - Idempotent operation keys and conflicting-retry validation
-- Core services for deposits, debt, allocations, refunds and reversals
+- Core services for deposits, debt, fund assignment, allocations, refunds and reversals
+- Order-assignment and deposit-source records with positive-amount/uniqueness constraints
+- Pre-shipment assignment and reversal-based release without creating debt
 - Validation of amounts, actor information and resulting balances
 - Read-only Django admin and staff website finance pages
 - Account search, transaction journal and paginated account history
 - Explicit account creation and legal-profile updates through services
 
-These domain services are implemented. Confirmed manual receipts can already
-credit the account through an atomic service. Staff receipt-registration
-interfaces, order fund assignment/release, full-shipment settlement, actual
-manual cash/bank refunds and customer-facing balances remain PHASE 23 work.
-The core refund service is not a real money-out payout workflow.
+Confirmed manual receipts can credit the account through an atomic service.
+Pre-shipment assignment and whole-release services retain source portions
+and append-only reversal history; staff and customer order cancellation
+release active assignments under their existing order permissions.
+Dedicated staff receipt/assignment interfaces, full-shipment settlement,
+post-shipment assignment/removal, actual manual cash/bank refunds and
+customer-facing balances remain PHASE 23 work. The core refund service is
+not a real money-out payout workflow.
 
 </td>
 </tr>
@@ -292,7 +312,7 @@ Shop_ePower uses modular Django applications. Each application owns a specific b
 | `catalog` | Products, categories, brands, images, variants and public catalog |
 | `suppliers` | Suppliers, supplier products, warehouse and external inventory |
 | `cart` | Shopping cart, cart items and price snapshots |
-| `orders` | Checkout, orders, order items, stock reservation and delivery |
+| `orders` | Checkout, orders, stock reservation, delivery, fund-assignment sources and release on cancellation |
 | `payments` | Confirmed receipt services, legacy payment transitions, invoice lifecycle, history and PDF generation |
 | `finance` | Personal and legal financial accounts, transaction ledger, atomic balance services, status history and staff finance views |
 | `notifications` | Email services and asynchronous notification tasks |
@@ -641,6 +661,11 @@ against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
 
+Scoped checks for the new pre-shipment assignment/release services and
+existing order-cancellation workflows, together with Ruff, passed on
+2026-10-18. A fresh full-project regression for this block is pending;
+the full-run count above is unchanged.
+
 The test suite covers:
 
 - Django models;
@@ -670,6 +695,9 @@ Examples of protected regressions include:
 - order-based invoice issuance without payment, cancellation and reissue;
 - client invoice/PDF ownership checks and paginated staff invoice history;
 - order-to-account linking and rejection of checkout without the matching account;
+- FIFO funding portions, active-use limits and idempotent pre-shipment assignment;
+- whole-assignment release, retained history and reuse of released funds;
+- automatic release on authorized staff/customer order cancellation and rollback on failure;
 - list pagination, preserved filters and safe return navigation;
 - unread-message visibility and closed-room behavior by role.
 
@@ -776,6 +804,8 @@ roadmap and current phase plan identify the remaining integration tasks.
 - New orders linked to the owner's matching financial account
 - Website/API checkout stores a payment preference without creating a payment
 - Multiple receipts per order and an atomic manual receipt-credit service
+- Pre-shipment assignment/release services with FIFO sources and retained history
+- Automatic fund release during authorized customer and staff order cancellation
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
@@ -785,14 +815,17 @@ roadmap and current phase plan identify the remaining integration tasks.
 
 **PHASE 23 — Order Funds & Full-Shipment Settlement**
 
-The account link, receipt-service foundation and website/API invoice block
-are complete. New orders require the matching financial account; invoices
-do not require a payment and do not themselves change funds or debt.
+The account link, receipt-service foundation, website/API invoice block,
+and pre-shipment assignment/release services are implemented. New orders
+require the matching financial account; invoices do not require a payment
+and do not themselves change funds or debt. Existing authorized order
+cancellation now releases active assignments atomically.
 
-Remaining work includes staff interfaces for the implemented receipt service,
-fund assignment/removal before and after shipment, pre-shipment order editing,
-shipment records and settlement, receipt corrections, actual manual cash/bank
-refunds, customer balance views and shipped-but-unpaid order lists.
+Remaining work includes staff interfaces for receipt registration and
+assignment/removal, post-shipment assignment and debt restoration,
+pre-shipment order editing, shipment records and settlement, safe receipt
+corrections, concurrent-workflow verification, actual manual cash/bank refunds,
+customer balance views and shipped-but-unpaid order lists.
 
 Receipt confirmation, assigning funds to an order, shipment settlement and
 real payout are separate actions. Existing debt allocation cannot substitute

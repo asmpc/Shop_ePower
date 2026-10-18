@@ -1,9 +1,10 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
-Status: implementation in progress. The receipt-service foundation and
-order-based invoice block are complete; order fund assignment, shipment
-settlement, and manual money-out refunds remain to be implemented.
-Remaining financial model boundaries are being refined.
+Status: implementation in progress. The receipt-service foundation,
+order-based invoice block, and pre-shipment fund-assignment and release
+services are implemented. Staff money-operation interfaces, full-shipment
+settlement, post-shipment assignment/removal, and manual money-out refunds
+remain open. PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -44,9 +45,43 @@ As of 2026-10-17:
   pass. No mass formatting was applied: intentional multiline layout is
   retained, while `ruff check` remains required.
 
-Order fund assignment and release, full-shipment records and settlement,
-customer balances, pre-shipment item editing, and actual manual refunds
-remain open. Completion of this block does not complete PHASE 23.
+As of 2026-10-18, the pre-shipment assignment milestone is implemented:
+
+- `FUNDS_ASSIGNMENT` and `record_customer_funds_assignment()` decrease
+  available funds without creating debt. `OrderFundAssignment` links the
+  order, amount, and unique financial debit; `OrderFundAssignmentSource`
+  records each deposit portion used. Database constraints require positive
+  amounts and one source row per assignment/deposit pair.
+- `assign_order_funds()` lets an active manager or administrator select an
+  order and amount. It locks the order and account, validates account owner,
+  type and currency, enforces available-funds and remaining-order limits,
+  and atomically records the debit, assignment, and sources. Eligible deposit
+  portions are selected FIFO by `created_at`, then `pk`; already used portions
+  and reversed deposits are excluded. No debt is created before shipment.
+- `cancel_order_fund_assignment()` releases one whole selected assignment
+  with a required non-blank comment. An additional ledger `REVERSAL` records
+  its reason, actor and time; the original assignment and source rows remain.
+  Order/source-capacity calculations exclude reversed assignments, so released
+  money can be assigned again without changing the receipt or other
+  assignments. Identical retries return the original result; conflicting
+  keys and a new-key second cancellation are rejected.
+- Manager order cancellation and customer cancellation of their own `NEW`
+  order release active assignments within the same transaction as status and
+  stock changes. Failure rolls back the cancellation. Customer-triggered
+  release uses the private internal helper after order permissions are
+  checked; customers still cannot manually cancel an individual assignment.
+  The financial history retains the initiating user and actor type.
+- The user reports 31 assignment-service tests, the existing cancellation
+  and manager-workflow modules, and scoped Ruff checks passing. Model tests
+  and migration-drift checks also passed during this milestone. The last
+  reported full-project run remains 720 tests on 2026-10-17; a fresh complete
+  regression for this block has not yet been reported. Checks are user-run.
+
+These are service-layer capabilities, not new staff receipt/assignment forms
+or API actions. New migration files must be applied separately to the running
+database before using the new records there. Full-shipment records and debt,
+post-shipment assignment/removal, customer balances, pre-shipment item
+editing, safe receipt correction, and actual manual refunds remain open.
 
 ## Goal and Boundaries
 
@@ -59,8 +94,8 @@ internet-facing test pilot in PHASE 25.
 Do not replace the existing `Payment` and invoice workflows in one step.
 The model may allow later partial shipments, but a partial-shipment action
 and UI are out of scope now. Complex mixed-payment checkout, automatic
-fund selection, goods-return logistics, and a real payment provider are
-deferred. Separate office and bank receipts for one order, pre-shipment
+selection of orders/amounts to pay, goods-return logistics, and a real payment
+provider are deferred. Separate office and bank receipts for one order, pre-shipment
 fund assignment, and actual manual cash/bank refunds are in scope. Only
 provider-driven online withdrawals/refunds are deferred, not all refunds.
 This does not introduce a new post-shipment goods-return workflow.
@@ -179,6 +214,24 @@ This does not introduce a new post-shipment goods-return workflow.
   order and explicit amount, bounded by freely available funds and the
   remaining amount to pay. After shipment, respect that order's remaining
   debt as well. Before shipment, assignment must not create debt.
+- After staff explicitly select the order and amount, choose its funding
+  sources automatically FIFO within that same account and currency. Use
+  only unused portions of non-reversed deposits, including usage by other
+  orders. Deposits of 40 and 60 funding an assignment of 70 contribute 40
+  and 30; the second deposit retains 30. This source selection is not
+  automatic order assignment or automatic debt settlement.
+- Cancel only a whole selected assignment in this phase. To correct an
+  assignment of 70 to 50, cancel the 70 and create a new assignment of 50.
+  Do not edit or delete the original assignment or its source rows. A
+  separate linked reversal is the cancellation history; no additional
+  cancellation table is required for the pre-shipment service.
+- Only assignments whose financial debit has no reversal consume the
+  remaining order amount or a deposit's unused portion. Historical sources
+  remain traceable but must not keep released money unavailable.
+- Customers cannot manually assign or remove order funds. Cancelling their
+  own `NEW` order may automatically release its active assignments after
+  checking ownership, active user, and current order status. This permission
+  does not expose the private release helper through a view or API action.
 - The customer must see their own personal and legal accounts separately
   in the website account area: currency, unallocated available funds
   (prepayment), order-assigned prepayment, and outstanding debt without
@@ -346,10 +399,11 @@ identify the source of funds or the order being settled.
 - Which final status and permissions are required to correct a receipt after
   safely reversing its credit? Preserve legacy `PENDING` and mock scenarios
   without fictitious credits; do not assume a reset-to-`PENDING` workflow.
-- Define the smallest order-assignment record, freely available balance,
-  application of prepayment at shipment, and removal before/after shipment.
-  Verify 100 available -> assign 100 -> zero available/zero debt -> release
-  back to 100. Do not substitute debt allocation or receipt totals for this.
+- Extend the implemented assignment/source records to application of
+  prepayment at shipment and removal after shipment. Preserve the verified
+  pre-shipment behavior: available 100 -> assign 100 -> zero available/zero
+  debt -> release back to 100. Do not substitute debt allocation or receipt
+  totals for assignments or deduct prepayment twice.
 - Define actual manual cash/bank refund records, funding links, permitted
   methods, staff permissions, amount, mandatory reason, and retry key.
   Choose a public money-out operation rather than the positive-delta
@@ -365,9 +419,13 @@ identify the source of funds or the order being settled.
   new checkouts reject a missing account without implicit assignment.
 - Which item, price, tax, and delivery snapshots form the full shipment
   amount? How will the model permit partial quantities later?
-- How are allocations linked to the specific funding they used, so all
-  dependent allocations can be found and undone before that receipt is
-  corrected? Define an auditable, safe correction flow and its atomic boundary.
+- Use `OrderFundAssignmentSource` to find active assignments dependent on a
+  receipt before correcting it. Define the correction's atomic boundary,
+  receipt status, and dependency guards, including post-shipment effects.
+  Source traceability alone does not implement safe receipt correction.
+- Add independent concurrency coverage for assignment, release, and order
+  cancellation on a shared account. Account locks and sequential service
+  tests are not a substitute for verifying concurrent financial workflows.
 - What correction is allowed if full shipment was recorded in error?
 - Define the smallest append-only order-change history model and how to
   capture the manager's confirmed price and reservation changes. Implement
@@ -384,22 +442,29 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-As of 2026-10-17, checkout without payments, the atomic receipt service,
-removal of active `FAILED`, website/API invoicing and cancellation, and
-invoice history are implemented and verified. Finish the documentation
-and commit this block without declaring the whole phase complete.
-Before further financial migrations, define order fund assignment and
-shipment settlement with numerical examples. Connect actual receipt
-registration to staff interfaces and implement the remaining flows by TDD.
+As of 2026-10-18, checkout without payments, the atomic receipt service,
+removal of active `FAILED`, website/API invoicing and history, pre-shipment
+assignment with FIFO sources, whole-assignment release, and release on
+authorized order cancellation are implemented. Document and commit this
+service-layer milestone without declaring the whole phase complete.
+Before further financial migrations, define shipment settlement and use of
+existing assignments with numerical examples. Connect the implemented
+receipt and assignment services to staff interfaces and implement the
+remaining flows by TDD.
 Assignment removal, fictitious-receipt correction, and actual payout remain
 different actions. Validate mandatory reasons in services, not only forms.
 Do not defer manual office/bank refunds together with online withdrawals.
 The user edits application code, tests, and migrations and runs all checks.
+Run only the new test during each small TDD step; run the relevant module at
+a completed behavior milestone. If a change crosses permission boundaries,
+explain why a small additional regression set is needed. Put shared test
+preconditions in `setUp()` and keep scenario-specific data in each test.
 
 1. Inspect the current `Order`, `Payment`, invoice, and finance service
    boundaries. Write numerical examples for payment before shipment,
    shipment before payment, multiple payments, retry, and correction;
-   resolve the questions above before writing migrations.
+   resolve the remaining shipment/correction questions before new migrations.
+   Preserve the implemented assignment and source records.
 2. Define a shipment record and the links among order, customer account,
    shipment debt transaction, funding transaction, and allocation. Make
    order-item quantities representable for future partial shipments, but
@@ -422,11 +487,13 @@ The user edits application code, tests, and migrations and runs all checks.
    atomically and idempotently. Preserve the existing user-facing workflow.
 5. Connect staff interfaces to the implemented receipt service: atomic
    `Payment` in `PAID` and one idempotent account credit, without automatic
-   assignment. Add a separate manager/admin action to assign an explicit
-   amount to an order before or after shipment. Implement removal with a
-   required reason, history, and released funds, preserving the actual
-   receipt. Test payment before/after shipment, partial assignment, multiple
-   receipts, amount limits, retries, and absence of implicit settlement.
+   assignment. Connect a separate manager/admin action to the implemented
+   pre-shipment assignment and whole-release services. Extend domain logic
+   for assignment/removal after shipment with debt reconciliation, a required
+   reason and history, preserving the actual receipt. Test payment
+   before/after shipment, partial assignment, multiple receipts, amount
+   limits, retries, and absence of implicit settlement. Preserve automatic
+   release within authorized order cancellation.
 6. Add the customer-facing, read-only account balances and test account
    ownership, separate personal/legal balances, freely available and
    order-assigned prepayment, debt, currency, and no double counting.
@@ -453,6 +520,12 @@ The user edits application code, tests, and migrations and runs all checks.
 - Before shipment, assigning an available 100 leaves freely available funds
   at zero and debt at zero. Another order cannot use the same money.
   Removing that assignment restores 100 without reversing the real receipt.
+- FIFO source portions are bounded by their active use across all orders
+  of the same account. Reversed deposits are excluded; reversed assignments
+  no longer consume order/deposit capacity, but their history is retained.
+- Whole-assignment cancellation is idempotent for the same request and key;
+  a different-key second cancellation is rejected without another credit.
+  Correcting an amount requires cancellation followed by a new assignment.
 - Shipment accounts for assigned prepayment once: a fully covered order has
   neither a second deduction nor an outstanding unpaid debt.
 - Fulfillment and settlement remain independent. Removing payment from a
@@ -462,6 +535,10 @@ The user edits application code, tests, and migrations and runs all checks.
   reason and append-only history containing actor, time, amount, and order.
 - Order cancellation releases assigned funds for reuse and blocks new
   assignments; it does not automatically refund cash or a bank receipt.
+- Customer order cancellation keeps its owner/`NEW` checks and records the
+  initiating user in financial history without allowing manual assignment
+  cancellation. A release failure rolls back order cancellation and related
+  transactional changes for both customer and staff paths.
 - Real manual cash/bank refunds are atomic, idempotent money-out operations,
   bounded by refundable available funds, with required reasons and history.
   They are not the positive-delta `record_customer_refund()` operation.

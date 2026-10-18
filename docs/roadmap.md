@@ -41,6 +41,11 @@ growing.
 New functionality is accompanied by automated tests. Regression
 protection is considered part of every feature.
 
+During learning, the user edits application code and runs checks. Run only
+the new test at each small TDD step, then the relevant module when a related
+behavior is complete. Explain any additional targeted regression checks.
+Keep shared test preconditions in `setUp()` to avoid duplicating fixtures.
+
 ## Clean Architecture
 
 Business logic belongs in services and domain layers rather than views
@@ -184,12 +189,29 @@ order details show invoice history in pages of 20 with PDF links and preserved
 list-return context. These document actions create neither receipts nor debt.
 The user reports the full project test suite passing; Ruff checks and migration
 drift checks pass. Manual website invoice and history checks also pass.
-Next: define the order-assignment and shipment-settlement records, connect
-actual receipt registration to staff interfaces, implement assignment/reset
-and manual cash/bank refunds, and complete pre-shipment editing and customer
-balances. Existing debt allocation cannot be reused before an order has debt.
-The detailed phase plan and local Russian copy reflect this progress and
-the October 15 clarification.
+Pre-shipment assignment milestone (2026-10-18): `OrderFundAssignment` and
+`OrderFundAssignmentSource` retain the order/debit link and each deposit
+portion used. Active staff explicitly choose the order and amount; the
+service selects eligible unused deposit portions FIFO within the same
+account and currency. Available funds decrease without creating debt.
+Whole selected assignments can be released with a required comment and a
+linked ledger reversal; original assignments/sources remain in history and
+released funds are reusable. Historical reversed assignments do not consume
+the order amount or deposit capacity. A same-key retry is idempotent, while
+conflicts and a different-key second cancellation are rejected.
+Authorized manager order cancellation and customer cancellation of their own
+new order automatically release active assignments atomically with status
+and stock changes. Customers still cannot manually cancel assignments.
+The user reports the assignment-service and existing cancellation/workflow
+modules and scoped Ruff checks passing; a new full-suite run is pending.
+Staff receipt/assignment interfaces, post-shipment assignment/removal,
+shipment obligations, receipt correction and manual payout remain open.
+Next: define shipment-settlement records using existing assignments, verify
+concurrent workflows, connect staff money-operation interfaces, and complete
+manual cash/bank refunds, pre-shipment editing and customer balances.
+Existing debt allocation cannot be reused before an order has debt. Funding
+source traceability does not yet implement dependency-safe receipt correction.
+The detailed phase plan and local Russian copy record the current boundary.
 Application code, tests, and migrations remain user-edited and user-run.
 The exit goal is a testable order-to-money flow
 ready for a minimal 1C exchange, not every future finance feature.
