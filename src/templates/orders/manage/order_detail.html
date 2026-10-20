@@ -397,7 +397,8 @@
         <div class="card-body">
             <form method="post"
                   action="{% url 'orders:manager_order_status_update' order.id %}"
-                  class="mb-2">
+                  class="mb-2"
+                  onsubmit="return confirm('Confirm full shipment of order #{{ order.pk }}? Once confirmed, shipment cannot be cancelled and order items cannot be edited on the website.');">
                 {% csrf_token %}
 
                 <input

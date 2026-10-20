@@ -203,12 +203,40 @@ Authorized manager order cancellation and customer cancellation of their own
 new order automatically release active assignments atomically with status
 and stock changes. Customers still cannot manually cancel assignments.
 The user reports the assignment-service and existing cancellation/workflow
-modules and scoped Ruff checks passing; a new full-suite run is pending.
+modules and scoped Ruff checks passing. The subsequent full run passed
+760 tests on 2026-10-19, before the new shipment-foundation changes.
 Staff receipt/assignment interfaces, post-shipment assignment/removal,
 shipment obligations, receipt correction and manual payout remain open.
-Next: define shipment-settlement records using existing assignments, verify
-concurrent workflows, connect staff money-operation interfaces, and complete
-manual cash/bank refunds, pre-shipment editing and customer balances.
+Shipment foundation (2026-10-19): `OrderShipment`, `OrderShipmentItem` and the
+debt-only `FUNDS_APPLICATION` finance primitive are implemented; the user reports
+their module tests and scoped Ruff checks passing. The separate
+`OrderFundApplication` is implemented; its three model tests and scoped Ruff
+checks pass. At that checkpoint, completion was not yet connected to the
+financial workflow. The implemented service and its connection were verified
+on 2026-10-20 below.
+Scope decision (2026-10-19): preserve one shipment per order and add explicit
+confirmation before `Complete order`. No shipment correction/reopening,
+replacement shipment or shipment-reversal interface is included in PHASE 23.
+Server permissions, validation, atomicity and retry safety remain required.
+Goods returns remain deferred; agreed money correction/refund actions are
+separate and do not reopen shipment.
+Full-shipment milestone (2026-10-20): `complete_order_shipment()` atomically
+creates the shipment, item snapshots, full debt and application of active
+prepayment, then completes the order. Authorized retries return the existing
+result. The existing website/API status actions delegate to it; the website
+asks for confirmation and unauthorized completion POSTs receive 403.
+The user reports 19 service tests, related modules, scoped Ruff, migration-drift
+checks and a full **796-test** run passing. Runtime migrations were applied;
+manual unpaid-order completion created the full debt with unchanged available
+funds. Independent concurrent-workflow coverage remains open.
+Next: extend assignment/removal after shipment with debt reconciliation while
+keeping `COMPLETED`; then connect receipt/assignment forms, customer balances
+and the shipped-unpaid order list. Follow with safe receipt correction/manual
+cash-bank refunds, invoice snapshots and pre-shipment editing, then concurrency,
+full regression and the minimal 1C exchange contract. These are the six execution
+milestones in the phase plan; PHASE 23 is not yet complete.
+See the [model diagrams and settlement example](phase-23-deposits-and-order-settlement.md#order-funds-models)
+and the [README model map](../README.md#order-funds-models).
 Existing debt allocation cannot be reused before an order has debt. Funding
 source traceability does not yet implement dependency-safe receipt correction.
 The detailed phase plan and local Russian copy record the current boundary.

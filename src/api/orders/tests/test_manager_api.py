@@ -7,7 +7,9 @@ from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
 )
-from shop_epower.orders.models import OrderStatus
+from shop_epower.catalog.tests.helpers import create_test_product
+from shop_epower.finance.services import create_personal_customer_account
+from shop_epower.orders.models import OrderItem, OrderStatus
 from shop_epower.orders.tests.helpers import create_test_order
 
 
@@ -28,14 +30,30 @@ class TestsManagerOrdersAPI(TestCase):
             password="testpass123",
         )
 
+        self.account = create_personal_customer_account(
+            user=self.client_user,
+        )
+
         self.order = create_test_order(
             user=self.client_user,
+            customer_account=self.account,
             status=OrderStatus.NEW,
             is_legal_entity=False,
             customer_name="Client API",
             customer_email="client-api@example.com",
             customer_phone="+10000000020",
             total_price=Decimal("100.00"),
+        )
+
+        self.product = create_test_product()
+        OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_name=self.product.name,
+            unit_price=Decimal("100.00"),
+            quantity=1,
+            total_price=Decimal("100.00"),
+            currency_snapshot=self.order.currency_snapshot,
         )
 
     # Проверяем manager orders list API:
@@ -85,12 +103,14 @@ class TestsManagerOrdersAPI(TestCase):
             OrderStatus.PROCESSING,
         )
 
-    # Проверяем manager workflow API:
-    # менеджер может перевести заказ
-    # из статуса PROCESSING в статус COMPLETED.
+    # Завершение через API выполняет полную отгрузку:
+    # создаёт её позиции и начисляет обязательство,
+    # а не только меняет статус заказа.
     def test_manager_can_move_order_from_processing_to_completed(self):
         self.order.status = OrderStatus.PROCESSING
-        self.order.save(update_fields=["status"])
+        self.order.save(
+            update_fields=["status"],
+        )
 
         self.client.force_authenticate(user=self.manager)
 
@@ -105,11 +125,30 @@ class TestsManagerOrdersAPI(TestCase):
         self.assertEqual(response.status_code, 200)
 
         self.order.refresh_from_db()
+        self.account.refresh_from_db()
 
         self.assertEqual(
             self.order.status,
             OrderStatus.COMPLETED,
         )
+        self.assertEqual(self.order.shipments.count(), 1)
+
+        shipment = self.order.shipments.get()
+
+        self.assertEqual(shipment.items.count(), 1)
+        self.assertEqual(
+            shipment.total_amount,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
 
     # Проверяем ограничения manager workflow API:
     # заказ нельзя перевести напрямую

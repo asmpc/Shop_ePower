@@ -1,10 +1,11 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
-Status: implementation in progress. The receipt-service foundation,
-order-based invoice block, and pre-shipment fund-assignment and release
-services are implemented. Staff money-operation interfaces, full-shipment
-settlement, post-shipment assignment/removal, and manual money-out refunds
-remain open. PHASE 23 is not complete.
+Status: implementation in progress. Receipt-service and invoice foundations,
+pre-shipment assignment/release, and full shipment with prepayment application
+are implemented. Full shipment is connected to existing website/API completion.
+Staff money-operation interfaces, post-shipment assignment/removal, customer
+balance/debt views, receipt correction, manual payouts and pre-shipment item
+editing remain open. PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -74,14 +75,204 @@ As of 2026-10-18, the pre-shipment assignment milestone is implemented:
 - The user reports 31 assignment-service tests, the existing cancellation
   and manager-workflow modules, and scoped Ruff checks passing. Model tests
   and migration-drift checks also passed during this milestone. The last
-  reported full-project run remains 720 tests on 2026-10-17; a fresh complete
-  regression for this block has not yet been reported. Checks are user-run.
+  reported full-project run at that milestone was 720 tests on 2026-10-17.
+  The subsequent full run and shipment foundation are recorded below.
+  Checks are user-run.
 
-These are service-layer capabilities, not new staff receipt/assignment forms
-or API actions. New migration files must be applied separately to the running
-database before using the new records there. Full-shipment records and debt,
-post-shipment assignment/removal, customer balances, pre-shipment item
-editing, safe receipt correction, and actual manual refunds remain open.
+As of 2026-10-19, the shipment foundation is implemented:
+
+- Before these new changes, the user ran the full suite: 760 tests passed.
+- `FUNDS_APPLICATION` and `record_customer_funds_application()` reduce only
+  debt, without debiting available funds again. Tests verify balance deltas,
+  rejection above current debt and idempotent retry; the financial-service
+  module and scoped Ruff checks pass.
+- `OrderShipment` links the order/account, full obligation transaction, amount,
+  currency, actor and date. Constraints require a positive amount, one shipment
+  per order for this phase and unique use of the debt transaction.
+- `OrderShipmentItem` stores its source order line and independent snapshots.
+  Constraints require positive quantity and a unique shipment/order-line pair.
+  Model-module tests and scoped Ruff checks pass, including snapshot independence.
+- `OrderFundApplication` is implemented with positive-amount and unique
+  financial-entry constraints. Its three model tests and scoped Ruff checks pass.
+  The low-level application primitive does not itself validate order assignments.
+  At that checkpoint, completion still only changed status; connection of the
+  shipment service was verified on 2026-10-20 below. Model tests alone are not
+  proof of full orchestration, historical-edit protection or concurrent safety.
+
+As of 2026-10-20, full shipment is connected and verified:
+
+- `complete_order_shipment()` locks and reloads the order/account, checks staff
+  rights, current status, matching account owner/type/currency, non-empty items,
+  the saved total including shop-paid delivery, and the active-assignment limit.
+- One atomic operation creates `OrderShipment`, item snapshots, the full
+  `DEBT_INCREASE`, and `FUNDS_APPLICATION` entries/links for active prepayment,
+  then sets `COMPLETED`. Already assigned funds are not debited again.
+  Cancelled assignments remain historical and are not applied.
+- An authorized retry returns the existing shipment. Failure to create an
+  application rolls back shipment, snapshots, obligation and application while
+  preserving earlier receipts/assignments.
+- Existing `update_order_status_by_manager()`, website and API completion now
+  delegate to this service. The website form uses browser confirmation;
+  customer completion POSTs receive 403 before order lookup. Other status
+  changes retain their existing workflow.
+- The user reports 19 shipment-service tests and related workflow, staff-page
+  and API modules passing, together with Ruff and `makemigrations --check --dry-run`.
+  The full project run passed **796 tests in 709.375 seconds on 2026-10-20**.
+- The user applied runtime migrations `finance.0002–0003` and
+  `orders.0012–0022`, then manually confirmed that completing an unpaid order
+  records the full debt with unchanged available funds in the staff read-only
+  account page. Prepayment scenarios are service-tested, not a claim that
+  receipt/assignment forms exist. Manual cancellation of the browser dialog
+  has not been separately reported.
+
+The immediate next milestone is assignment/removal after shipment, reconciling
+that shipment's debt while keeping `COMPLETED`. Receipt/assignment forms,
+customer-facing balances, the shipped-unpaid order list, receipt correction,
+actual cash/bank refunds and pre-shipment item editing are not complete.
+Existing staff `Finances` account search/detail pages already display balances
+and history read-only; they are not the missing money-operation forms.
+No shipment correction/reopening or replacement-shipment flow is added.
+Independent concurrency coverage for the new financial workflows remains open.
+
+<a id="order-funds-models"></a>
+
+## Order Funds and Shipment Model Map
+
+Model relationships and full-shipment implementation status as of 2026-10-20.
+Keep this section synchronized with the main README and local Russian copies.
+
+### Receipts and assignment — implemented
+
+Arrows point from the model holding a reference to the referenced model.
+They are database links, not automatic money movements.
+
+```mermaid
+flowchart TB
+    P["Payment<br/>Confirmed receipt workflow"]
+    O["Order<br/>Customer order"]
+    A["OrderFundAssignment<br/>Amount assigned to an order"]
+    S["OrderFundAssignmentSource<br/>Deposit portion funding an assignment"]
+    T["AccountTransaction<br/>Financial ledger entry"]
+    C["CustomerAccount<br/>Available funds and debt"]
+
+    P -->|"order"| O
+    P -->|"deposit_transaction · 1:1, optional"| T
+    A -->|"order"| O
+    A -->|"account_transaction · 1:1"| T
+    S -->|"assignment"| A
+    S -->|"deposit_transaction"| T
+    O -->|"customer_account"| C
+    T -->|"account"| C
+```
+
+- `Payment` records a confirmed receipt in the new manual receipt workflow.
+  Its deposit link is optional in the schema for legacy records; legacy
+  pending payments are not proof that money was received.
+- `OrderFundAssignment` records which amount was explicitly assigned to an
+  order. `Payment.order` alone does not assign money or settle that order.
+- `OrderFundAssignmentSource` records the deposit portions used. For deposits
+  of 40 and 60, an assignment of 70 has two FIFO source rows: 40 and 30.
+  Available funds become 30; debt remains zero before shipment.
+- `AccountTransaction` is the ledger; `CustomerAccount` stores its current
+  available/debt projections. Reversals append history rather than deleting
+  assignments or their source records.
+
+### Shipment and application — full-shipment workflow implemented
+
+`OrderShipment`, `OrderShipmentItem` and `OrderFundApplication` exist.
+The diagrams show implemented model links. Full-shipment orchestration is
+connected to the existing website and API completion actions as of 2026-10-20.
+
+```mermaid
+flowchart TB
+    F["OrderFundApplication<br/>Application of assigned funds"]
+    A["OrderFundAssignment<br/>Assigned funds"]
+    H["OrderShipment<br/>Shipment and full obligation"]
+    T["AccountTransaction<br/>Financial ledger entry"]
+    C["CustomerAccount<br/>Customer financial account"]
+    O["Order<br/>Customer order"]
+    I["OrderShipmentItem<br/>Shipped item snapshots"]
+    OI["OrderItem<br/>Original order line"]
+
+    F -->|"assignment"| A
+    F -->|"shipment"| H
+    F -->|"account_transaction · 1:1"| T
+    H -->|"order"| O
+    H -->|"customer_account"| C
+    H -->|"debt_transaction · 1:1"| T
+    I -->|"shipment"| H
+    I -->|"order_item"| OI
+    OI -->|"order"| O
+
+```
+
+`OrderShipment` retains the order, account, obligation transaction, full amount,
+currency, actor and time. Currently a database constraint permits only one
+shipment per order; the underlying foreign key leaves room for future partial
+shipments. One debt transaction cannot be reused for multiple shipments.
+
+`OrderShipmentItem` retains the original order-line link and independent name,
+unit-price, quantity, total and currency snapshots. Quantity must be positive;
+an order line cannot repeat within one shipment. Independent snapshot storage
+is implemented, and the shipment service automatically copies the order lines.
+It validates a non-empty order and the saved total against items and shop-paid
+delivery. Snapshot storage alone does not prevent direct historical edits;
+broader edit protection and independent concurrent-workflow coverage remain open.
+
+`OrderFundApplication` stores `assignment`, `shipment`, `account_transaction`,
+`amount` and `created_at`. Its three model tests and scoped Ruff checks pass;
+amount must be positive and the financial entry cannot be reused.
+Assignment and shipment use
+foreign keys for future partial shipments; the financial entry is one-to-one.
+The service must validate matching order, account and currency, active
+assignment capacity and the shipment's outstanding obligation.
+
+### Implemented full-shipment settlement example
+
+For a 100 order, a receipt of 100 and an explicit assignment of 60:
+
+| Action | AccountTransaction type | Available | Debt |
+|---|---|---:|---:|
+| Confirm receipt | `DEPOSIT` | 100 | 0 |
+| Assign 60 to the order | `FUNDS_ASSIGNMENT` | 40 | 0 |
+| Record full shipment of 100 | `DEBT_INCREASE` | 40 | 100 |
+| Apply the assigned 60 | `FUNDS_APPLICATION` | 40 | 40 |
+
+These are four entry types of the same `AccountTransaction` model.
+The shipment obligation uses the saved `Order.total_price`: delivery paid to
+the shop is included; delivery paid separately to the carrier is excluded.
+The last two steps must commit atomically, so the intermediate debt of 100
+is not exposed as a committed state. Already assigned money is not deducted
+from available funds again. Existing `allocate_customer_funds()` decreases
+both balances and is unsuitable for this application step.
+
+`record_customer_funds_application()` is implemented: available delta is zero,
+debt delta is minus the positive amount. The order/shipment service must prove
+the matching assignment; the low-level finance function alone does not.
+`Complete order` now uses `complete_order_shipment()`: the shipment, item
+snapshots, full obligation, application of active pre-shipment assignments and
+`COMPLETED` status commit atomically. A permitted retry returns the existing
+shipment without repeating money movements. Cancelled assignments are excluded;
+shipment-level limits prevent using unrelated account debt as capacity.
+Post-shipment assignment and assignment removal are not implemented yet.
+
+### Full-shipment confirmation — agreed scope
+
+The website completion form now requests explicit browser confirmation: "Confirm full shipment of order #...? Once confirmed, shipment
+cannot be cancelled and order items cannot be edited on the website."
+Cancelling the dialog sends no completion request and changes nothing.
+
+PHASE 23 does not implement correction/reopening of a confirmed shipment:
+no correction action, shipment-reversal service, corrected-shipment state or
+replacement-shipment flow. Keep the existing one-shipment-per-order constraint,
+not a conditional "one active shipment" constraint. A real goods return remains
+a separate deferred workflow. An accidentally confirmed shipment cannot be
+corrected through the standard website workflow in this scope.
+
+The dialog reduces accidental clicks, not deliberate abuse. Server-side
+authorization, status/consistency checks, locking, atomicity and idempotent retry
+remain mandatory. Assignment removal, receipt correction and actual cash/bank
+refunds remain separate agreed money workflows; they do not reopen shipment.
 
 ## Goal and Boundaries
 
@@ -177,9 +368,9 @@ This does not introduce a new post-shipment goods-return workflow.
 - Order placement and invoicing do not create customer debt. Debt arises only
   after shipment is confirmed, for the shipped value.
 - In the current business workflow, `Complete order` means full shipment of
-  the order. Today the button only changes status; PHASE 23 must make the
-  action record that shipment and its debt exactly once, atomically with the
-  transition to `COMPLETED`. An unpaid order may still be `COMPLETED`.
+  the order. Since 2026-10-20, website/API completion records the shipment,
+  full debt and application of existing prepayment atomically and idempotently
+  with `COMPLETED`. An unpaid order may still be `COMPLETED`.
 - `OrderStatus.SHIPPED` is declared but currently unused. It is reserved for
   a future delivery flow where goods have been dispatched but not received.
   Receiving that delivery must not create debt a second time.
@@ -426,7 +617,9 @@ identify the source of funds or the order being settled.
 - Add independent concurrency coverage for assignment, release, and order
   cancellation on a shared account. Account locks and sequential service
   tests are not a substitute for verifying concurrent financial workflows.
-- What correction is allowed if full shipment was recorded in error?
+- Resolved on 2026-10-19: no shipment correction/reopening in PHASE 23.
+  Add explicit confirmation before `Complete order`; preserve one shipment
+  per order. Money corrections and future goods returns are distinct workflows.
 - Define the smallest append-only order-change history model and how to
   capture the manager's confirmed price and reservation changes. Implement
   reverse reservation release within the selected line, including
@@ -442,78 +635,62 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-As of 2026-10-18, checkout without payments, the atomic receipt service,
-removal of active `FAILED`, website/API invoicing and history, pre-shipment
-assignment with FIFO sources, whole-assignment release, and release on
-authorized order cancellation are implemented. Document and commit this
-service-layer milestone without declaring the whole phase complete.
-Before further financial migrations, define shipment settlement and use of
-existing assignments with numerical examples. Connect the implemented
-receipt and assignment services to staff interfaces and implement the
-remaining flows by TDD.
-Assignment removal, fictitious-receipt correction, and actual payout remain
-different actions. Validate mandatory reasons in services, not only forms.
-Do not defer manual office/bank refunds together with online withdrawals.
-The user edits application code, tests, and migrations and runs all checks.
-Run only the new test during each small TDD step; run the relevant module at
-a completed behavior milestone. If a change crosses permission boundaries,
-explain why a small additional regression set is needed. Put shared test
-preconditions in `setUp()` and keep scenario-specific data in each test.
+Execution order agreed on 2026-10-20. The full-shipment milestone is implemented,
+not the whole phase. Each completed step must have a visible acceptance result.
+The user edits application code, tests and migrations and runs all checks.
+Run only the new test in a small TDD step; run related modules at a behavior
+milestone and the full suite at a meaningful checkpoint. Explain targeted
+permission regressions. Shared test data belongs in `setUp()`; scenario-specific
+preparation stays in its test. Required reasons are validated in services,
+not only forms. Do not defer office/bank refunds with online withdrawals.
 
-1. Inspect the current `Order`, `Payment`, invoice, and finance service
-   boundaries. Write numerical examples for payment before shipment,
-   shipment before payment, multiple payments, retry, and correction;
-   resolve the remaining shipment/correction questions before new migrations.
-   Preserve the implemented assignment and source records.
-2. Define a shipment record and the links among order, customer account,
-   shipment debt transaction, funding transaction, and allocation. Make
-   order-item quantities representable for future partial shipments, but
-   implement only a full-shipment action now. Multiple payments and invoice
-   replacement with retained history are already implemented; preserve
-   historical links while adding the remaining financial records.
-3. By TDD, add manager editing of order items before shipment. Recalculate
-   the order total and adjust stock reservations atomically; keep confirmed
-   payments and account balances unchanged. Require explicit cancellation
-   of an issued invoice before editing, then permit a replacement invoice.
-   Add later quantities as new price-snapshot lines with separate
-   reservations, even for the same product. Recalculate and display the
-   current selling price before adding, and require confirmation of that
-   exact price. Require the manager to select a specific line for quantity
-   reduction and enter a reason for every edit. Record the actor, time,
-   reason, selected line, before/after values, and order total in an
-   append-only history entry within the same atomic operation. Reject edits
-   after shipment.
-4. By TDD, make `Complete order` record one full shipment and its debt
-   atomically and idempotently. Preserve the existing user-facing workflow.
-5. Connect staff interfaces to the implemented receipt service: atomic
-   `Payment` in `PAID` and one idempotent account credit, without automatic
-   assignment. Connect a separate manager/admin action to the implemented
-   pre-shipment assignment and whole-release services. Extend domain logic
-   for assignment/removal after shipment with debt reconciliation, a required
-   reason and history, preserving the actual receipt. Test payment
-   before/after shipment, partial assignment, multiple receipts, amount
-   limits, retries, and absence of implicit settlement. Preserve automatic
-   release within authorized order cancellation.
-6. Add the customer-facing, read-only account balances and test account
-   ownership, separate personal/legal balances, freely available and
-   order-assigned prepayment, debt, currency, and no double counting.
-7. After agreeing on the resulting receipt status, add the correction
-   sequence: undo dependent allocations, reverse the receipt's account
-   credit, and record the correction without losing history. Test reversal
-   guards, audit trail, rollback, and concurrency; integrate one existing
-   payment path at a time without a wholesale rewrite.
-8. Build the manager/administrator list of shipped orders with remaining
-   debt. Show customer, order, shipment, and outstanding amount; paginate
-   it and provide useful search or filters. Test unpaid, partly paid, and
-   fully settled cases, including office and bank-transfer confirmation.
-   Reconcile list amounts with account and shipment obligations.
-9. By TDD, add actual manual office-cash and bank-transfer refunds: staff
-   confirmation, an outgoing ledger operation, available-balance decrease,
-   required reason, audit history, and protection against retries and
-   excess amounts. Do not substitute assignment removal or reversal of a
-   fictitious receipt for a real payout.
-10. Run the complete regression and document the narrow 1C exchange facts
-   needed in PHASE 24. Do not begin internet deployment in this phase.
+1. **Full shipment — implemented and verified.** Models, snapshots, obligation
+   and prepayment application are connected to existing website/API completion.
+   Website confirmation and staff-only POST are in place. The 19 service tests,
+   related modules, full 796-test run, Ruff, migration drift and manual unpaid
+   shipment check passed. Runtime migrations were applied. Confirm the browser
+   cancellation branch manually if it has not yet been checked. Independent
+   concurrent-request tests remain open. No shipment undo/reopening is planned.
+2. **Assign/remove funds after shipment — next.** Extend the current assignment,
+   source and application records. Explicit assignment reduces available funds
+   and settles only the selected shipment's remaining obligation. Whole selected
+   assignment removal requires a reason, restores its funds and corresponding
+   debt, keeps `COMPLETED` and preserves the actual receipt and all audit records.
+   Cover before/after shipment, partial amounts, multiple receipts/assignments,
+   limits, retries, rollback and no implicit settlement.
+3. **Working money pages and balances.** Connect staff website/API actions to
+   actual receipt registration (a `PAID` Payment and one account credit) and
+   separate assignment/removal. Do not reuse legacy pending-payment actions as
+   if they implemented this flow. Add customer-only read views for available
+   funds, assigned prepayment and debt, separate personal/legal accounts/currency
+   without double counting. Add the staff shipped-unpaid order list with customer,
+   order, shipment and remaining debt; search/filter, paginate and reconcile it.
+   Do not load settled history by default. Existing staff account pages remain
+   read-only until the corresponding money actions are explicitly connected.
+4. **Receipt correction and real cash/bank refunds.** Agree on corrected receipt
+   status and permissions. Undo dependent assignments, reverse the credited
+   receipt and retain audit history, with dependency guards, retries, rollback
+   and concurrency tests. Actual payout is a separate confirmed outgoing operation
+   decreasing available funds, with reason, funding links, authorization and
+   excess/retry protection. Assignment removal is not a payout; correcting a
+   fictitious receipt is not a real refund. None reopens shipment.
+5. **Order-item edits before shipment.** First add invoice-item snapshots so old
+   PDFs do not read revised `Order.items`. Require explicit cancellation of an
+   issued invoice before editing, then permit replacement. Recalculate totals
+   and reservations atomically without changing confirmed receipts/balances.
+   New quantities use a new price-batch line even for the same product; display
+   and confirm the current selling price before adding. Quantity reduction must
+   select the exact line and release that line's reservations in the agreed
+   reverse order. Every successful edit needs a staff-only reason and append-only
+   history of actor, date, selected line, before/after values and order total,
+   in the same transaction. No edits after shipment and no in-app customer
+   approval workflow.
+6. **Close PHASE 23.** Verify independent concurrent financial flows and invoice
+   numbering, reconcile order/shipment/account totals, run the complete regression
+   and manual end-to-end scenario, and synchronize documentation. Define the
+   narrow order, shipment and money facts for minimal 1C exchange in PHASE 24.
+   Only after that move to PHASE 25's controlled internet test pilot, with no
+   real sales or live payments.
 
 ## Verification Gates
 

@@ -12,11 +12,16 @@ from shop_epower.cart.tests.helpers import (
 )
 from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.finance.services import create_personal_customer_account
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import (
+    Order,
+    OrderItem,
+    OrderStatus,
+)
 from shop_epower.orders.services import (
     create_order_from_cart,
     update_order_status_by_manager,
 )
+from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.suppliers.tests.helpers import (
     create_test_supplier,
     create_test_supplier_product,
@@ -57,19 +62,28 @@ class TestsManagerOrderWorkflow(TestCase):
             OrderStatus.PROCESSING,
         )
 
-    # Проверяем следующий шаг manager workflow:
-    # пользователь с ролью manager может перевести заказ
-    # из статуса PROCESSING в статус COMPLETED.
+    # Завершение заказа менеджером выполняет полную отгрузку:
+    # сохраняет её позиции, начисляет обязательство
+    # и возвращает заказ в статусе COMPLETED.
     def test_manager_can_move_order_from_processing_to_completed(self):
-
-        order = Order.objects.create(
+        account = create_personal_customer_account(
             user=self.client,
+        )
+        order = create_test_order(
+            user=self.client,
+            customer_account=account,
             status=OrderStatus.PROCESSING,
-            is_legal_entity=False,
-            customer_name="Client Complete",
-            customer_email="client-complete@example.com",
-            customer_phone="+10000000010",
             total_price=Decimal("150.00"),
+        )
+        product = create_test_product()
+        OrderItem.objects.create(
+            order=order,
+            product=product,
+            product_name=product.name,
+            unit_price=Decimal("75.00"),
+            quantity=2,
+            total_price=Decimal("150.00"),
+            currency_snapshot=order.currency_snapshot,
         )
 
         updated_order = update_order_status_by_manager(
@@ -79,11 +93,34 @@ class TestsManagerOrderWorkflow(TestCase):
         )
 
         updated_order.refresh_from_db()
+        account.refresh_from_db()
 
         self.assertEqual(
             updated_order.status,
             OrderStatus.COMPLETED,
         )
+        self.assertEqual(updated_order.shipments.count(), 1)
+
+        shipment = updated_order.shipments.get()
+
+        self.assertEqual(
+            shipment.customer_account_id,
+            account.pk,
+        )
+        self.assertEqual(
+            shipment.total_amount,
+            Decimal("150.00"),
+        )
+        self.assertEqual(shipment.items.count(), 1)
+        self.assertEqual(
+            account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            account.debt_balance,
+            Decimal("150.00"),
+        )
+        self.assertEqual(account.transactions.count(), 1)
 
     # Проверяем permissions manager workflow:
     # обычный клиент не может изменять статус заказа.

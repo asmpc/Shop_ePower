@@ -16,6 +16,8 @@ from shop_epower.finance.models import (
     CustomerAccountType,
 )
 from shop_epower.finance.services import (
+    record_customer_debt,
+    record_customer_funds_application,
     record_customer_funds_assignment,
     reverse_customer_transaction,
 )
@@ -25,9 +27,12 @@ from shop_epower.notifications.tasks import (
 )
 from shop_epower.orders.models import (
     Order,
+    OrderFundApplication,
     OrderFundAssignment,
     OrderFundAssignmentSource,
     OrderItem,
+    OrderShipment,
+    OrderShipmentItem,
     OrderStatus,
     OrderStockReservation,
 )
@@ -284,6 +289,13 @@ def update_order_status_by_manager(
     if user.role not in ("manager", "admin"):
         raise ValidationError("Only managers and admins can update order status.")
 
+    if new_status == OrderStatus.COMPLETED:
+        shipment = complete_order_shipment(
+            order=order,
+            created_by=user,
+        )
+        return shipment.order
+
     order = Order.objects.select_for_update().get(
         pk=order.pk,
     )
@@ -294,8 +306,7 @@ def update_order_status_by_manager(
             OrderStatus.CANCELLED,
         ],
         OrderStatus.PROCESSING: [
-            OrderStatus.COMPLETED,
-            OrderStatus.CANCELLED,
+             OrderStatus.CANCELLED,
         ],
     }
 
@@ -677,3 +688,165 @@ def cancel_order_fund_assignment(
         created_by=created_by,
         comment=comment,
     )
+
+@transaction.atomic
+def complete_order_shipment(
+    *,
+    order,
+    created_by,
+):
+    if (
+        getattr(created_by, "pk", None) is None
+        or not created_by.is_active
+        or created_by.role not in (Role.MANAGER, Role.ADMIN)
+    ):
+        raise ValidationError(
+            "Only managers and administrators can complete order shipment."
+        )
+
+    locked_order = Order.objects.select_for_update().get(
+        pk=order.pk,
+    )
+
+    if locked_order.status == OrderStatus.COMPLETED:
+        existing_shipment = locked_order.shipments.first()
+
+        if existing_shipment is not None:
+            return existing_shipment
+
+    if locked_order.status != OrderStatus.PROCESSING:
+        raise ValidationError(
+            "Only processing orders can be shipped."
+        )
+
+    order_items = list(
+        locked_order.items.order_by("pk")
+    )
+
+    if not order_items:
+        raise ValidationError(
+            "Cannot ship an order without items."
+        )
+
+    items_total = sum(
+        (order_item.total_price for order_item in order_items),
+        Decimal("0.00"),
+    )
+
+    delivery_amount = (
+        locked_order.delivery_cost
+        or Decimal("0.00")
+    )
+
+    if locked_order.delivery_paid_by_customer_on_receipt:
+        delivery_amount = Decimal("0.00")
+
+    if locked_order.total_price != items_total + delivery_amount:
+        raise ValidationError(
+            "Order total does not match items and delivery."
+        )
+
+    account_type = (
+        CustomerAccountType.LEGAL
+        if locked_order.is_legal_entity
+        else CustomerAccountType.PERSONAL
+    )
+
+    account = (
+        CustomerAccount.objects.select_for_update()
+        .filter(
+            pk=locked_order.customer_account_id,
+            user_id=locked_order.user_id,
+            account_type=account_type,
+        )
+        .first()
+    )
+
+    if account is None:
+        raise ValidationError(
+            "Order must reference its owner's matching customer account."
+        )
+
+    if locked_order.currency_snapshot != account.currency:
+        raise ValidationError(
+            "Order currency must match account currency."
+        )
+
+    actor_type = (
+        AccountTransactionActorType.ADMIN
+        if created_by.role == Role.ADMIN
+        else AccountTransactionActorType.MANAGER
+    )
+
+    debt_transaction = record_customer_debt(
+        account=account,
+        amount=locked_order.total_price,
+        operation_key=f"order:{locked_order.pk}:shipment:debt",
+        actor_type=actor_type,
+        created_by=created_by,
+    )
+
+    shipment = OrderShipment.objects.create(
+        order=locked_order,
+        customer_account=account,
+        debt_transaction=debt_transaction,
+        total_amount=locked_order.total_price,
+        currency_snapshot=locked_order.currency_snapshot,
+        created_by=created_by,
+    )
+
+    for order_item in order_items:
+        OrderShipmentItem.objects.create(
+            shipment=shipment,
+            order_item=order_item,
+            product_name=order_item.product_name,
+            unit_price=order_item.unit_price,
+            quantity=order_item.quantity,
+            total_price=order_item.total_price,
+            currency_snapshot=order_item.currency_snapshot,
+        )
+
+    active_assignments = list(
+        locked_order.fund_assignments.filter(
+            account_transaction__reversal__isnull=True,
+        ).order_by("pk")
+    )
+
+    assigned_amount = sum(
+        (assignment.amount for assignment in active_assignments),
+        Decimal("0.00"),
+    )
+
+    if assigned_amount > shipment.total_amount:
+        raise ValidationError(
+            "Assigned funds exceed the shipment amount."
+        )
+
+    for assignment in active_assignments:
+        application_transaction = record_customer_funds_application(
+            account=account,
+            amount=assignment.amount,
+            operation_key=(
+                f"order:{locked_order.pk}:shipment:"
+                f"assignment:{assignment.pk}:application"
+            ),
+            actor_type=actor_type,
+            created_by=created_by,
+        )
+
+        OrderFundApplication.objects.create(
+            assignment=assignment,
+            shipment=shipment,
+            account_transaction=application_transaction,
+            amount=assignment.amount,
+        )
+
+    locked_order.status = OrderStatus.COMPLETED
+    locked_order.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ],
+    )
+
+    return shipment

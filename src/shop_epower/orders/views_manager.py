@@ -330,6 +330,11 @@ class ManagerOrderStatusUpdateView(
 
     def post(self, request, pk):
 
+        if request.user.role not in ["manager", "admin"]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
         order = get_object_or_404(
             Order,
             pk=pk,
