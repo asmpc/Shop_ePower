@@ -22,6 +22,7 @@ from shop_epower.finance.services import (
     create_personal_customer_account,
     record_customer_debt,
     record_customer_deposit,
+    record_customer_funds_application,
     record_customer_funds_assignment,
     record_customer_refund,
     reverse_customer_transaction,
@@ -1279,3 +1280,176 @@ class TestsAccountTransactionServices(TestCase):
             Decimal("0.00"),
         )
         self.assertEqual(AccountTransaction.objects.count(), 2)
+
+    # Проверяем применение ранее назначенных средств к долгу:
+    # после пополнения на 100 и назначения 60 доступно 40.
+    # Начисляем долг 100 и применяем назначенные 60:
+    # долг становится 40, доступный баланс повторно не уменьшается.
+    def test_funds_application_reduces_only_debt(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="application:deposit:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:assignment:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_debt(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="application:debt:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        account_transaction = record_customer_funds_application(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:test:001",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            account_transaction.account,
+            self.account,
+        )
+        self.assertEqual(
+            account_transaction.operation_type,
+            AccountTransactionType.FUNDS_APPLICATION,
+        )
+        self.assertEqual(
+            account_transaction.available_delta,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            account_transaction.debt_delta,
+            Decimal("-60.00"),
+        )
+        self.assertEqual(
+            account_transaction.available_balance_after,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            account_transaction.debt_balance_after,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.transactions.count(),
+            4,
+        )
+
+    # Проверяем запрет применения средств сверх текущего долга:
+    # сервис выдаёт ошибку и не изменяет балансы или историю.
+    def test_funds_application_rejects_amount_above_debt(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="application:debt-limit:deposit",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:debt-limit:assignment",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_debt(
+            account=self.account,
+            amount=Decimal("50.00"),
+            operation_key="application:debt-limit:debt",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Resulting debt balance cannot be negative.",
+        ):
+            record_customer_funds_application(
+                account=self.account,
+                amount=Decimal("60.00"),
+                operation_key="application:debt-limit:test",
+                actor_type=AccountTransactionActorType.SYSTEM,
+            )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("50.00"),
+        )
+        self.assertEqual(
+            self.account.transactions.count(),
+            3,
+        )
+
+    # Проверяем идемпотентность применения назначенных средств:
+    # повтор с тем же ключом возвращает существующую операцию
+    # и не уменьшает долг второй раз.
+    def test_funds_application_is_idempotent(self):
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="application:idempotent:deposit",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_funds_assignment(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:idempotent:assignment",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_debt(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="application:idempotent:debt",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        first_transaction = record_customer_funds_application(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:idempotent:test",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        repeated_transaction = record_customer_funds_application(
+            account=self.account,
+            amount=Decimal("60.00"),
+            operation_key="application:idempotent:test",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            repeated_transaction.pk,
+            first_transaction.pk,
+        )
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.transactions.count(),
+            4,
+        )

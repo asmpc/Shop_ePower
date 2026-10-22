@@ -291,3 +291,25 @@ def reverse_customer_transaction(
         comment=comment,
         reversal_of=locked_original_transaction,
     )
+
+def record_customer_funds_application(
+    *,
+    account,
+    amount,
+    operation_key,
+    actor_type,
+    created_by=None,
+    comment="",
+):
+    _validate_positive_amount(amount)
+
+    return _apply_account_transaction(
+        account=account,
+        operation_type=AccountTransactionType.FUNDS_APPLICATION,
+        available_delta=Decimal("0.00"),
+        debt_delta=-amount,
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )

@@ -8,6 +8,7 @@ from shop_epower.finance.services.transactions import (
     allocate_customer_funds,
     record_customer_debt,
     record_customer_deposit,
+    record_customer_funds_application,
     record_customer_funds_assignment,
     record_customer_refund,
     reverse_customer_transaction,

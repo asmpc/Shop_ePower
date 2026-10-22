@@ -51,8 +51,13 @@ class TestsManagerOrderViews(TestCase):
             role="client",
         )
 
+        self.account = create_personal_customer_account(
+            user=self.client_user,
+        )
+
         self.order = Order.objects.create(
             user=self.client_user,
+            customer_account=self.account,
             status=OrderStatus.PROCESSING,
             payment_method=PaymentMethod.INVOICE,
             is_legal_entity=False,
@@ -865,3 +870,117 @@ class TestsManagerOrderViews(TestCase):
         self.assertContains(response, PaymentMethod.INVOICE.label)
         self.assertContains(response, "Waiting")
         self.assertFalse(order.payments.exists())
+
+    # Форма завершения заказа запрашивает подтверждение полной отгрузки
+    # и предупреждает, что отменить её на сайте будет нельзя.
+    def test_manager_detail_requires_shipment_confirmation(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            )
+        )
+
+        confirmation_message = (
+            f"Confirm full shipment of order #{self.order.pk}? "
+            "Once confirmed, shipment cannot be cancelled "
+            "and order items cannot be edited on the website."
+        )
+        expected_handler = (
+            f"return confirm('{confirmation_message}');"
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'onsubmit="{expected_handler}"',
+        )
+
+    # Подтверждение завершения через сайт создаёт полную отгрузку
+    # и обязательство, затем возвращает менеджера в карточку заказа
+    # с сохранением ссылки на исходный список.
+    def test_manager_completes_order_with_shipment_from_frontend(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_order_status_update",
+                kwargs={"pk": self.order.pk},
+            ),
+            {
+                "status": OrderStatus.COMPLETED,
+                "next": self.get_manager_order_list_url(),
+            },
+        )
+
+        self.assertRedirects(
+            response,
+            self.get_expected_manager_order_detail_url(),
+        )
+
+        self.order.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            OrderStatus.COMPLETED,
+        )
+        self.assertEqual(self.order.shipments.count(), 1)
+
+        shipment = self.order.shipments.get()
+
+        self.assertEqual(
+            shipment.total_amount,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            shipment.created_by_id,
+            self.manager.pk,
+        )
+        self.assertEqual(shipment.items.count(), 1)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
+
+    # Клиент не может подтвердить отгрузку прямым POST-запросом.
+    # Сервер возвращает 403 и не меняет заказ или финансовые данные.
+    def test_customer_cannot_complete_order_from_frontend(self):
+        self.client.force_login(self.client_user)
+
+        response = self.client.post(
+            reverse(
+                "orders:manager_order_status_update",
+                kwargs={"pk": self.order.pk},
+            ),
+            {
+                "status": OrderStatus.COMPLETED,
+            },
+        )
+
+        self.assertEqual(response.status_code, 403)
+
+        self.order.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.order.status,
+            OrderStatus.PROCESSING,
+        )
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertFalse(self.order.shipments.exists())
+        self.assertFalse(self.account.transactions.exists())
