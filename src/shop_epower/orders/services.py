@@ -458,12 +458,26 @@ def assign_order_funds(
     )
 
     if locked_order.status not in (
-        OrderStatus.NEW,
-        OrderStatus.PROCESSING,
+            OrderStatus.NEW,
+            OrderStatus.PROCESSING,
+            OrderStatus.COMPLETED,
     ):
         raise ValidationError(
-            "Funds can currently be assigned only before shipment."
+            "Funds cannot be assigned to an order in this status."
         )
+
+    shipment = None
+
+    if locked_order.status == OrderStatus.COMPLETED:
+        shipment = locked_order.shipments.filter(
+            customer_account_id=locked_order.customer_account_id,
+            currency_snapshot=locked_order.currency_snapshot,
+        ).first()
+
+        if shipment is None:
+            raise ValidationError(
+                "Completed order must have a matching shipment."
+            )
 
     account_type = (
         CustomerAccountType.LEGAL
@@ -587,6 +601,27 @@ def assign_order_funds(
             amount=part_amount,
         )
 
+    # После отгрузки назначенные деньги сразу погашают её долг.
+    if shipment is not None:
+        application_transaction = record_customer_funds_application(
+            account=account,
+            amount=assignment.amount,
+            operation_key=(
+                f"order:{locked_order.pk}:shipment:"
+                f"assignment:{assignment.pk}:application"
+            ),
+            actor_type=actor_type,
+            created_by=created_by,
+            comment=comment,
+        )
+
+        OrderFundApplication.objects.create(
+            assignment=assignment,
+            shipment=shipment,
+            account_transaction=application_transaction,
+            amount=assignment.amount,
+        )
+
     return assignment
 
 @transaction.atomic
@@ -616,12 +651,13 @@ def _cancel_order_fund_assignment(
     )
 
     if locked_order.status not in (
-        OrderStatus.NEW,
-        OrderStatus.PROCESSING,
-        OrderStatus.CANCELLED,
+            OrderStatus.NEW,
+            OrderStatus.PROCESSING,
+            OrderStatus.CANCELLED,
+            OrderStatus.COMPLETED,
     ):
         raise ValidationError(
-            "Assignments can currently be cancelled only before shipment."
+            "Assignment cannot be cancelled in this order status."
         )
 
     # Соблюдаем тот же порядок блокировок: сначала заказ, затем счёт.
@@ -649,6 +685,24 @@ def _cancel_order_fund_assignment(
     ):
         raise ValidationError(
             "Assignment must reference a matching funds assignment transaction."
+        )
+
+    # Сначала восстанавливаем долг, погашенный этим назначением.
+    applications = (
+        locked_assignment.applications
+        .select_related("account_transaction")
+        .order_by("pk")
+    )
+
+    for application in applications:
+        reverse_customer_transaction(
+            original_transaction=application.account_transaction,
+            operation_key=(
+                f"order-fund-application:{application.pk}:cancel"
+            ),
+            actor_type=actor_type,
+            created_by=created_by,
+            comment=comment,
         )
 
     return reverse_customer_transaction(

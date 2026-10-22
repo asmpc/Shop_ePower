@@ -9,24 +9,28 @@ from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
 )
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.finance.models import (
     AccountTransactionActorType,
     AccountTransactionType,
 )
 from shop_epower.finance.services import (
     create_personal_customer_account,
+    record_customer_debt,
     record_customer_deposit,
     reverse_customer_transaction,
 )
 from shop_epower.orders.models import (
     Order,
     OrderCancellationReason,
+    OrderItem,
     OrderStatus,
 )
 from shop_epower.orders.services import (
     assign_order_funds,
     cancel_new_order,
     cancel_order_fund_assignment,
+    complete_order_shipment,
     update_order_status_by_manager,
 )
 from shop_epower.orders.tests.helpers import create_test_order
@@ -50,6 +54,23 @@ class TestsOrderFundAssignmentServices(TestCase):
             amount=Decimal("100.00"),
             operation_key="assignment:service:deposit:001",
             actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+    def _ship_order(self):
+        product = create_test_product()
+        OrderItem.objects.create(
+            order=self.order,
+            product=product,
+            product_name=product.name,
+            unit_price=Decimal("100.00"),
+            quantity=1,
+            total_price=Decimal("100.00"),
+            currency_snapshot=self.order.currency_snapshot,
+        )
+
+        return complete_order_shipment(
+            order=self.order,
+            created_by=self.manager,
         )
 
     # До отгрузки назначение уменьшает доступные средства,
@@ -103,6 +124,228 @@ class TestsOrderFundAssignmentServices(TestCase):
         )
         self.assertEqual(self.account.transactions.count(), 2)
         self.assertEqual(self.order.status, OrderStatus.PROCESSING)
+
+    # После отгрузки назначенные деньги погашают долг по этой отгрузке.
+    # Доступный баланс и долг уменьшаются на сумму назначения,
+    # а заказ остаётся завершённым.
+    def test_assign_funds_after_shipment(self):
+        shipment = self._ship_order()
+
+        assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:001",
+            created_by=self.manager,
+        )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(assignment.amount, Decimal("60.00"))
+
+        application = assignment.applications.get()
+        self.assertEqual(application.shipment_id, shipment.pk)
+        self.assertEqual(application.amount, Decimal("60.00"))
+        self.assertEqual(
+            application.account_transaction.operation_type,
+            AccountTransactionType.FUNDS_APPLICATION,
+        )
+
+        source = assignment.sources.get()
+        self.assertEqual(
+            source.deposit_transaction_id,
+            self.deposit_transaction.pk,
+        )
+        self.assertEqual(source.amount, Decimal("60.00"))
+        self.assertEqual(self.account.transactions.count(), 4)
+
+    # Повтор назначения после отгрузки возвращает прежнюю запись.
+    # Деньги повторно не списываются, долг повторно не погашается,
+    # источники и применение назначения не дублируются.
+    def test_assignment_after_shipment_is_idempotent(self):
+        shipment = self._ship_order()
+
+        first_assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:repeat:001",
+            created_by=self.manager,
+        )
+        repeated_assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:repeat:001",
+            created_by=self.manager,
+        )
+
+        self.assertEqual(
+            repeated_assignment.pk,
+            first_assignment.pk,
+        )
+        self.assertEqual(self.order.fund_assignments.count(), 1)
+        self.assertEqual(first_assignment.sources.count(), 1)
+        self.assertEqual(first_assignment.applications.count(), 1)
+        self.assertEqual(shipment.fund_applications.count(), 1)
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 4)
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+
+    # После отгрузки нельзя назначить больше остатка по заказу,
+    # даже если доступных денег и общего долга счёта достаточно.
+    # Отказ не изменяет ранее созданное назначение и балансы.
+    def test_assignment_after_shipment_rejects_amount_above_remaining_total(self):
+        shipment = self._ship_order()
+
+        record_customer_deposit(
+            account=self.account,
+            amount=Decimal("50.00"),
+            operation_key="assignment:service:remaining:extra-deposit",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+        record_customer_debt(
+            account=self.account,
+            amount=Decimal("100.00"),
+            operation_key="assignment:service:remaining:other-debt",
+            actor_type=AccountTransactionActorType.SYSTEM,
+        )
+
+        first_assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:first",
+            created_by=self.manager,
+        )
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Assignment exceeds the remaining order amount.",
+        ):
+            assign_order_funds(
+                order=self.order,
+                amount=Decimal("50.00"),
+                operation_key="assignment:service:after-shipment:excess",
+                created_by=self.manager,
+            )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("90.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("140.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.fund_assignments.count(), 1)
+        self.assertEqual(first_assignment.sources.count(), 1)
+        self.assertEqual(
+            first_assignment.sources.get().amount,
+            Decimal("60.00"),
+        )
+        self.assertEqual(shipment.fund_applications.count(), 1)
+        self.assertEqual(self.account.transactions.count(), 6)
+
+    # Ошибка сохранения применения откатывает всё новое назначение:
+    # списание денег, погашение долга, назначение и его источники.
+    # Ранее выполненная отгрузка остаётся без изменений.
+    def test_assignment_after_shipment_rolls_back_when_application_creation_fails(self):
+        shipment = self._ship_order()
+
+        with self.assertRaisesMessage(
+            RuntimeError,
+            "Application creation failed.",
+        ):
+            with patch(
+                "shop_epower.orders.services.OrderFundApplication.objects.create",
+                side_effect=RuntimeError("Application creation failed."),
+            ):
+                assign_order_funds(
+                    order=self.order,
+                    amount=Decimal("60.00"),
+                    operation_key="assignment:service:after-shipment:rollback",
+                    created_by=self.manager,
+                )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.shipments.get().pk, shipment.pk)
+        self.assertFalse(self.order.fund_assignments.exists())
+        self.assertFalse(shipment.fund_applications.exists())
+        self.assertFalse(
+            self.deposit_transaction
+            .order_fund_assignment_sources.exists()
+        )
+        self.assertEqual(self.account.transactions.count(), 2)
+
+    # Завершённому заказу без записи отгрузки нельзя назначать деньги.
+    # Отказ не создаёт назначение и не изменяет финансовый счёт.
+    def test_assignment_rejects_completed_order_without_shipment(self):
+        self.order.status = OrderStatus.COMPLETED
+        self.order.save(update_fields=["status"])
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Completed order must have a matching shipment.",
+        ):
+            assign_order_funds(
+                order=self.order,
+                amount=Decimal("60.00"),
+                operation_key="assignment:service:missing-shipment",
+                created_by=self.manager,
+            )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertFalse(self.order.shipments.exists())
+        self.assertFalse(self.order.fund_assignments.exists())
+        self.assertFalse(
+            self.deposit_transaction
+            .order_fund_assignment_sources.exists()
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
 
     # Повтор запроса возвращает прежнее назначение.
     # Баланс, назначение и его источники не дублируются.
@@ -538,7 +781,7 @@ class TestsOrderFundAssignmentServices(TestCase):
 
         with self.assertRaisesMessage(
             ValidationError,
-            "Funds can currently be assigned only before shipment.",
+            "Funds cannot be assigned to an order in this status.",
         ):
             assign_order_funds(
                 order=self.order,
@@ -769,6 +1012,263 @@ class TestsOrderFundAssignmentServices(TestCase):
                 reversal_of=self.deposit_transaction,
             ).exists()
         )
+
+    # Отмена назначения после отгрузки возвращает доступные деньги
+    # и восстанавливает долг. Отгрузка, поступление денег
+    # и история назначения сохраняются.
+    def test_cancel_assignment_after_shipment(self):
+        shipment = self._ship_order()
+        assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:before-cancel",
+            created_by=self.manager,
+        )
+        application = assignment.applications.get()
+        source = assignment.sources.get()
+        comment = "Funds were assigned to the wrong order."
+
+        reversal = cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key="assignment:service:after-shipment:cancel",
+            created_by=self.manager,
+            comment=comment,
+        )
+
+        self.assertEqual(
+            reversal.reversal_of_id,
+            assignment.account_transaction_id,
+        )
+        self.assertEqual(reversal.available_delta, Decimal("60.00"))
+        self.assertEqual(reversal.debt_delta, Decimal("0.00"))
+        self.assertEqual(reversal.comment, comment)
+
+        application_reversal = self.account.transactions.get(
+            reversal_of_id=application.account_transaction_id,
+        )
+        self.assertEqual(
+            application_reversal.operation_type,
+            AccountTransactionType.REVERSAL,
+        )
+        self.assertEqual(
+            application_reversal.available_delta,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            application_reversal.debt_delta,
+            Decimal("60.00"),
+        )
+        self.assertEqual(application_reversal.comment, comment)
+        self.assertEqual(
+            application_reversal.created_by_id,
+            self.manager.pk,
+        )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.shipments.get().pk, shipment.pk)
+        self.assertEqual(self.order.fund_assignments.count(), 1)
+        self.assertEqual(assignment.sources.get().pk, source.pk)
+        self.assertEqual(assignment.applications.get().pk, application.pk)
+        self.assertEqual(self.account.transactions.count(), 6)
+        self.assertFalse(
+            self.account.transactions.filter(
+                reversal_of_id__in=[
+                    self.deposit_transaction.pk,
+                    shipment.debt_transaction_id,
+                ],
+            ).exists()
+        )
+
+    # Повтор отмены после отгрузки возвращает прежнюю обратную операцию.
+    # Доступные деньги и долг восстанавливаются только один раз.
+    def test_cancel_assignment_after_shipment_is_idempotent(self):
+        shipment = self._ship_order()
+        assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:cancel-repeat:assign",
+            created_by=self.manager,
+        )
+        application = assignment.applications.get()
+        comment = "Funds were assigned to the wrong order."
+
+        first_reversal = cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key="assignment:service:cancel-repeat:cancel",
+            created_by=self.manager,
+            comment=comment,
+        )
+        repeated_reversal = cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key="assignment:service:cancel-repeat:cancel",
+            created_by=self.manager,
+            comment=comment,
+        )
+
+        self.assertEqual(repeated_reversal.pk, first_reversal.pk)
+        self.assertEqual(
+            self.account.transactions.filter(
+                reversal_of_id=application.account_transaction_id,
+            ).count(),
+            1,
+        )
+        self.assertEqual(
+            self.account.transactions.filter(
+                reversal_of_id=assignment.account_transaction_id,
+            ).count(),
+            1,
+        )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 6)
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.shipments.get().pk, shipment.pk)
+
+    # Если отмена назначения завершается ошибкой,
+    # предшествующая отмена применения тоже откатывается.
+    # Балансы и история остаются в состоянии до попытки отмены.
+    def test_cancel_assignment_after_shipment_rolls_back_on_failure(self):
+        shipment = self._ship_order()
+        assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:cancel-rollback:assign",
+            created_by=self.manager,
+        )
+
+        def reverse_application_then_fail(
+            *,
+            original_transaction,
+            **kwargs,
+        ):
+            if original_transaction.pk == assignment.account_transaction_id:
+                raise RuntimeError("Assignment reversal failed.")
+
+            return reverse_customer_transaction(
+                original_transaction=original_transaction,
+                **kwargs,
+            )
+
+        with self.assertRaisesMessage(
+            RuntimeError,
+            "Assignment reversal failed.",
+        ):
+            with patch(
+                "shop_epower.orders.services.reverse_customer_transaction",
+                side_effect=reverse_application_then_fail,
+            ):
+                cancel_order_fund_assignment(
+                    assignment=assignment,
+                    operation_key="assignment:service:cancel-rollback:cancel",
+                    created_by=self.manager,
+                    comment="Funds were assigned to the wrong order.",
+                )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 4)
+        self.assertFalse(
+            self.account.transactions.filter(
+                operation_type=AccountTransactionType.REVERSAL,
+            ).exists()
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.shipments.get().pk, shipment.pk)
+        self.assertEqual(self.order.fund_assignments.get().pk, assignment.pk)
+        self.assertEqual(assignment.sources.count(), 1)
+        self.assertEqual(assignment.applications.count(), 1)
+
+    # После отмены назначения деньги можно использовать заново.
+    # Исторические записи сохраняются, но не уменьшают доступную
+    # для нового назначения сумму заказа и поступления.
+    def test_cancelled_assignment_after_shipment_can_be_assigned_again(self):
+        shipment = self._ship_order()
+        first_assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="assignment:service:after-shipment:reuse:first",
+            created_by=self.manager,
+        )
+        cancel_order_fund_assignment(
+            assignment=first_assignment,
+            operation_key="assignment:service:after-shipment:reuse:cancel",
+            created_by=self.manager,
+            comment="Incorrect assignment amount.",
+        )
+
+        new_assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("100.00"),
+            operation_key="assignment:service:after-shipment:reuse:new",
+            created_by=self.manager,
+        )
+
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertNotEqual(new_assignment.pk, first_assignment.pk)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.fund_assignments.count(), 2)
+        self.assertEqual(
+            self.order.fund_assignments.filter(
+                account_transaction__reversal__isnull=True,
+            ).count(),
+            1,
+        )
+        self.assertEqual(shipment.fund_applications.count(), 2)
+        self.assertEqual(
+            shipment.fund_applications.filter(
+                account_transaction__reversal__isnull=True,
+            ).count(),
+            1,
+        )
+
+        source = new_assignment.sources.get()
+        self.assertEqual(
+            source.deposit_transaction_id,
+            self.deposit_transaction.pk,
+        )
+        self.assertEqual(source.amount, Decimal("100.00"))
+        self.assertEqual(self.account.transactions.count(), 8)
+
     # После отмены средства можно назначить заново.
     # Историческое назначение не занимает сумму заказа и поступления.
     def test_cancelled_assignment_funds_can_be_assigned_again(self):

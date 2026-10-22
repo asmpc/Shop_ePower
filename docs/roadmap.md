@@ -205,8 +205,9 @@ and stock changes. Customers still cannot manually cancel assignments.
 The user reports the assignment-service and existing cancellation/workflow
 modules and scoped Ruff checks passing. The subsequent full run passed
 760 tests on 2026-10-19, before the new shipment-foundation changes.
-Staff receipt/assignment interfaces, post-shipment assignment/removal,
-shipment obligations, receipt correction and manual payout remain open.
+At that checkpoint, staff receipt/assignment interfaces, post-shipment
+assignment/removal, shipment obligations, receipt correction and manual payout
+remained open; subsequent service milestones are recorded below.
 Shipment foundation (2026-10-19): `OrderShipment`, `OrderShipmentItem` and the
 debt-only `FUNDS_APPLICATION` finance primitive are implemented; the user reports
 their module tests and scoped Ruff checks passing. The separate
@@ -229,14 +230,29 @@ The user reports 19 service tests, related modules, scoped Ruff, migration-drift
 checks and a full **796-test** run passing. Runtime migrations were applied;
 manual unpaid-order completion created the full debt with unchanged available
 funds. Independent concurrent-workflow coverage remains open.
-Next: extend assignment/removal after shipment with debt reconciliation while
-keeping `COMPLETED`; then connect receipt/assignment forms, customer balances
-and the shipped-unpaid order list. Follow with safe receipt correction/manual
-cash-bank refunds, invoice snapshots and pre-shipment editing, then concurrency,
-full regression and the minimal 1C exchange contract. These are the six execution
-milestones in the phase plan; PHASE 23 is not yet complete.
+Post-shipment assignment/removal milestone (2026-10-22): a completed order
+requires a matching recorded shipment. Explicit assignment atomically records
+the available-funds debit, FIFO sources and debt application within the order's
+remaining amount. Whole selected removal requires a reason, reverses application
+and assignment together and preserves `COMPLETED`, the receipt and history.
+The user reports the assignment-service module and scoped Ruff passing:
+same-key retries, limits with unrelated debt, missing shipment, rollback and
+reuse after cancellation are covered. The latest full-suite result remains
+796 tests on 2026-10-20; no website money-action verification is claimed.
+Staff website receipt milestone (2026-10-22): managers/admins register office
+or bank funds from the order page through the atomic receipt service; no
+automatic assignment, debt settlement or invoice is created. The form retains
+its operation key on validation/service errors. Tests cover role denial,
+same-key retries/conflicts and filtered/paginated list-return context.
+The user reports receipt-view/service and manager-order-view modules plus scoped
+Ruff passing. Manual website checks confirmed form opening, return and receipt
+registration: available funds increase by the received amount; debt is unchanged.
+Next: assignment/removal forms and receipt/assignment API, then customer balances
+and the shipped-unpaid list. Follow with safe receipt correction/manual refunds,
+invoice snapshots and pre-shipment editing, independent concurrency, full
+regression and the minimal 1C contract. PHASE 23 is not complete.
 See the [model diagrams and settlement example](phase-23-deposits-and-order-settlement.md#order-funds-models)
-and the [README model map](../README.md#order-funds-models).
+and the [English README model map](README.en.md#order-funds-models).
 Existing debt allocation cannot be reused before an order has debt. Funding
 source traceability does not yet implement dependency-safe receipt correction.
 The detailed phase plan and local Russian copy record the current boundary.

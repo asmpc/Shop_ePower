@@ -11,6 +11,7 @@ from shop_epower.payments.views_manager import (
     ManagerInvoicePdfView,
     ManagerPaymentDetailView,
     ManagerPaymentListView,
+    ManagerRecordReceiptView,
 )
 
 app_name = "payments"
@@ -45,6 +46,12 @@ urlpatterns = [
         "manage/<int:pk>/",
         ManagerPaymentDetailView.as_view(),
         name="manager_payment_detail",
+    ),
+
+    path(
+        "manage/orders/<int:pk>/receipts/new/",
+        ManagerRecordReceiptView.as_view(),
+        name="manager_record_receipt",
     ),
 
     path(

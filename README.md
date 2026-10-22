@@ -2,12 +2,15 @@
 
 # ⚡ Shop_ePower
 
-### A modular B2B/B2C platform for electrical equipment
+### Модульная B2B/B2C-платформа для электротехнической продукции
 
-A Django platform being developed for wholesale and retail workflows:
-**catalog → cart → checkout → stock reservation → manager workflow → notifications → history**
+**Русский | [English](docs/README.en.md)**
 
-Confirmed money receipts and optional invoices are separate workflows.
+Django-платформа для оптовых и розничных сценариев:
+
+**каталог → корзина → оформление → резерв товара → работа менеджера → уведомления → история**
+
+Подтверждённое поступление денег и необязательный счёт на оплату — разные процессы.
 
 <br>
 
@@ -21,309 +24,238 @@ Confirmed money receipts and optional invoices are separate workflows.
 ![Tests](https://img.shields.io/badge/Automated_Tests-796-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
-
 </div>
 
 ---
 
-## 🚀 Project Overview
+Последний полный прогон: **796 тестов прошли 2026-10-20**.
+Последующие изменения регистрации поступлений проверены адресными модулями,
+Ruff и вручную; состояние проекта обновлено 2026-10-22.
 
-**Shop_ePower** is a Django platform for wholesale and retail electrical equipment sales, developed through small, tested changes.
+## Обзор проекта
 
-Rather than being a simple online store, Shop_ePower is evolving into a modular business platform. Independent business domains cooperate through well-defined services, allowing the system to grow without large-scale rewrites.
+Shop_ePower — Django-платформа для продажи электротехнической продукции,
+которую мы развиваем небольшими проверяемыми изменениями. Отдельные
+бизнес-модули взаимодействуют через сервисы, позволяя постепенно
+расширять систему.
 
-The platform includes catalog and supplier inventory, stock reservation, order processing, payment status and invoice workflows, customer support chat, REST APIs, customer financial accounts, asynchronous notifications and Docker infrastructure.
+Уже есть каталог и остатки поставщиков, резервирование, обработка заказов,
+статусы оплат и счета, чат поддержки, REST API, финансовые счета клиентов,
+асинхронные уведомления и Docker-инфраструктура.
 
-PHASE 22 established the financial core. PHASE 23 now includes order-to-account
-linking, checkout without automatic payments, multiple receipts per order,
-an atomic receipt-credit service, and order-based invoices with cancellation
-and retained history. Pre-shipment fund-assignment services use FIFO deposit
-sources and support whole-assignment release and automatic release on
-authorized order cancellation. Atomic full-shipment settlement is now connected
-to website/API completion. Staff money-operation interfaces, post-shipment
-assignment/removal and actual cash/bank refunds remain in progress. The priority path is PHASE 23 → minimal
-1C integration → a controlled online test pilot without real sales or live payments.
+Фаза 22 создала финансовое ядро. В фазе 23 уже есть привязка заказов к
+соответствующим счетам клиента, оформление без автоматического платежа,
+несколько поступлений одного заказа, атомарный сервис поступления и
+пополнения, выписка Invoice по заказу, аннулирование и сохранение истории.
+Сервисы назначения средств до отгрузки уже используют FIFO-источники,
+поддерживают полную отмену назначения и освобождение денег при разрешённой
+отмене заказа. Атомарный расчёт при полной отгрузке подключён к завершению
+через сайт/API. Сервисы назначения и снятия оплаты после отгрузки тоже
+реализованы. Регистрация поступления на сайте подключена; формы назначения/
+снятия, API поступлений и реальные возвраты наличных/безнала ещё впереди.
+Приоритетный путь: фаза 23 → минимальный обмен с 1С →
+контролируемый тестовый запуск в интернете без реальных продаж и оплат.
 
----
+## Долгосрочная цель
 
-## 🎯 Project Vision
+Платформа должна объединить электронную торговлю, управление запасами,
+финансовые счета клиентов, возвратную логистику, ERP-интеграции,
+общение в реальном времени и масштабируемую архитектуру.
 
-The long-term vision is to evolve Shop_ePower into a complete business platform combining:
+Согласованные приоритеты и отложенные возможности перечислены в
+[плане развития проекта](docs/roadmap.md).
 
-- e-commerce;
-- inventory management;
-- customer financial accounts;
-- reverse logistics;
-- ERP integrations;
-- real-time communication;
-- scalable cloud-ready architecture.
-
-See the [development roadmap](docs/roadmap.md) for completed phases, current work and deferred capabilities.
-
----
-
-## 🔥 Business Workflow
+## Бизнес-процесс
 
 ```text
-                              CUSTOMER
-                                  │
-                                  ▼
-                         PRODUCT CATALOG
-                                  │
-                                  ▼
-                          SHOPPING CART
-                                  │
-                                  ▼
-                              CHECKOUT
-                                  │
-                                  ▼
-                          ORDER CREATION
-                                  │
-              ┌───────────────────┼───────────────────┐
-              ▼                   ▼                   ▼
-      STOCK RESERVATION     MANAGER WORKFLOW     CUSTOMER CHAT
-              │                   │
-              ▼                   │
-       SUPPLIER STOCK             │
-                    ┌─────────────┼───────────────────┐
-                    ▼             ▼                   ▼
-            OPTIONAL INVOICE  RECEIPT SERVICE     NOTIFICATIONS
-                    │             │
-                    ▼             ▼
-             PDF + HISTORY   PAYMENT + ACCOUNT CREDIT
+                              КЛИЕНТ
+                                 │
+                                 ▼
+                              КАТАЛОГ
+                                 │
+                                 ▼
+                              КОРЗИНА
+                                 │
+                                 ▼
+                            ОФОРМЛЕНИЕ
+                                 │
+                                 ▼
+                              ЗАКАЗ
+                                 │
+              ┌──────────────────┼───────────────────┐
+              ▼                  ▼                   ▼
+         РЕЗЕРВ ТОВАРА      РАБОТА МЕНЕДЖЕРА      ЧАТ КЛИЕНТА
+              │                  │
+              ▼                  │
+       ОСТАТКИ ПОСТАВЩИКА        │
+                   ┌─────────────┼───────────────────┐
+                   ▼             ▼                   ▼
+             СЧЁТ НА ОПЛАТУ  СЕРВИС ПОСТУПЛЕНИЯ    УВЕДОМЛЕНИЯ
+             (НЕОБЯЗАТЕЛЕН)      │
+                   │             ▼
+                   ▼        ПЛАТЁЖ + ПОПОЛНЕНИЕ БАЛАНСА
+             PDF + ИСТОРИЯ
 ```
 
-Checkout records the customer's financial account and payment preference,
-but creates no payment or invoice. An invoice is an optional document issued
-from the order, not proof of payment. The implemented receipt service records
-actual office or bank funds as a confirmed payment and account credit in one
-atomic operation; its staff website/API interface remains to be connected.
-The implemented pre-shipment assignment service separately reserves an
-explicit amount for an order from eligible FIFO deposit portions, without
-creating debt. Whole-assignment release and authorized order cancellation
-restore available funds while preserving history. These services are not
-yet connected to dedicated staff money-operation forms or API actions.
-Full shipment creates its obligation and applies only previously assigned funds;
-receipt or invoice creation does not automatically assign funds or settle debt.
+Оформление сохраняет финансовый счёт клиента и выбранный способ оплаты,
+но не создаёт платёж или Invoice. Invoice — необязательный документ по
+заказу, а не доказательство оплаты. Реализованный сервис поступления
+атомарно сохраняет фактические деньги офиса/безнала как подтверждённый
+платёж и пополнение баланса; регистрация на сайте сотрудника подключена,
+а API ещё впереди. Сервис назначения до отгрузки отдельно закрепляет
+явную сумму за заказом из свободных FIFO-частей поступлений без создания
+долга. Полная отмена назначения и разрешённая отмена заказа возвращают
+доступные средства, сохраняя историю. Формы назначения/снятия и действия
+API поступлений/назначений ещё не подключены. Полная отгрузка начисляет обязательство
+и применяет только ранее назначенные средства; поступление или Invoice сами
+не назначают деньги и не погашают долг.
 
----
+## Основные возможности
 
-## ✨ Key Features
+### Каталог
 
-<table>
-<tr>
-<td width="50%" valign="top">
+- Категории и бренды, галереи изображений, варианты товаров.
+- Поиск, фильтры, сортировка и пагинация с сохранением фильтров.
+- Динамическое ценообразование и отображение BYN, RUB, USD.
+- Публичная информация об остатках.
+- Разделение собственного склада и запасов поставщиков.
+- Отображение срока поставки.
 
-### 🛍️ Product Catalog
+### Пользователи и профили
 
-- Categories and brands
-- Product image gallery
-- Product variants
-- Search, filtering and sorting
-- Pagination with preserved filters
-- Dynamic pricing
-- BYN, RUB and USD display
-- Public inventory information
-- Own-stock and supplier-stock separation
-- Supplier lead-time display
+- Вход по email и роли клиента, менеджера, администратора.
+- Редактирование профиля и поддержка юридических лиц.
+- Создание личного финансового счёта в сервисе регистрации.
+- Создание юридического счёта и проверка снимка УНП/ИНН.
+- Проверка заполненности профиля.
+- Безопасное возвращение в исходный сценарий после заполнения профиля.
+- JWT-аутентификация для REST API.
 
-</td>
-<td width="50%" valign="top">
+### Корзина и оформление
 
-### 👤 Customer Accounts
+- Постоянная корзина и объединение корзин после входа.
+- Снимки цен и проверки оформления.
+- Требование существующего личного или юридического счёта.
+- Сохранение способа оплаты в заказе без автоматического платежа или Invoice.
+- Самовывоз, доставка, поставщик доставки и адрес.
+- Комментарии клиента к заказу и доставке.
+- Сценарий регистрации/входа перед оформлением для гостя.
+- Временное ограничение онлайн-оплаты.
 
-- Email-based authentication
-- Customer, manager and administrator roles
-- Customer profile management
-- Individual customer support
-- Legal entity profile support
-- Explicit personal account creation during registration
-- Legal account creation and tax-ID snapshot validation
-- Profile completeness validation
-- Secure redirect back to the original workflow
-- JWT authentication for REST API
+### Заказы
 
-</td>
-</tr>
+- Управление статусами заказа.
+- Сохранённая связь со счётом владельца.
+- Снимки пользовательских и юридических данных.
+- Автоматические резервы и защита от продажи сверх остатка.
+- Обработка менеджером и изменение данных доставки.
+- Контролируемая отмена с возвратом резервов.
+- Сервисы назначения средств до отгрузки с прослеживаемыми FIFO-источниками.
+- Полная отмена назначения и освобождение средств при разрешённой отмене заказа.
+- Клиентские и менеджерские страницы.
+- Пагинация, сохранение фильтров и обратных ссылок.
+- По умолчанию новые и обрабатываемые заказы; история — через явные фильтры.
 
-<tr>
-<td width="50%" valign="top">
+### Оплаты и счета
 
-### 🛒 Shopping & Checkout
+- Несколько поступлений одного заказа.
+- Сервис подтверждённых поступлений офиса/безнала с атомарным идемпотентным
+  пополнением финансового счёта.
+- Разделение выбора способа оплаты, фактического поступления и Invoice.
+- Онлайн-метод сохранён в модели; подключение реального провайдера отложено.
+- Статусы: ожидает, оплачено, отменено; старые pending/mock-сценарии сохранены.
+- Неизменяемая история статусов.
+- Действия менеджера; старый сброс статуса только администратором и защита
+  зачисленных поступлений от такого сброса.
+- Выписка Invoice по заказу без платежа; только один действующий документ
+  на заказ, что защищено ограничением БД.
+- Аннулирование и перевыпуск с сохранением старых документов и номеров.
+- PDF через ReportLab; получение клиентом своего документа и PDF без платежа.
+- Менеджер и администратор выписывают и аннулируют Invoice через сайт и API.
+- Обязательная причина отмены, автор и время.
+- История Invoice для сотрудников: по 20 записей, ссылки PDF и сохранение
+  контекста возврата к списку заказов.
+- Поиск сотрудником по заказу, ID операции или email клиента.
+- Пагинация результатов; список загружается после поиска или выбора фильтра.
 
-- Persistent shopping cart
-- Cart merge after authentication
-- Price snapshots
-- Checkout validation
-- Required existing personal or legal financial account
-- Payment preference stored on the order; no automatic payment or invoice
-- Pickup and shipping workflows
-- Delivery provider and address
-- Customer and delivery comments
-- Guest checkout onboarding flow
-- Temporary online-payment restriction
+### Общение и уведомления
 
-</td>
-<td width="50%" valign="top">
+- Письма о созданном заказе через Celery.
+- Повторные попытки отправки с увеличением интервала.
+- Чаты клиента и менеджера, свободные комнаты и назначение менеджера.
+- Вложения, счётчики непрочитанного и закрытие комнаты клиентом.
+- Пагинация с сохранением фильтров и обратных ссылок.
+- Закрытая комната с непрочитанным сообщением остаётся видна получателю.
 
-### 📦 Order Management
+### Поставщики и остатки
 
-- Order status workflow
-- Persistent link to the owner's financial account
-- Customer data snapshots
-- Legal entity snapshots
-- Automatic stock reservation
-- Oversell protection
-- Manager order processing
-- Delivery updates
-- Controlled cancellation workflow
-- Reservation rollback after cancellation
-- Pre-shipment fund-assignment services with traceable FIFO deposit portions
-- Whole-assignment release and automatic fund release on authorized cancellation
-- Customer and manager order views
-- Paginated lists with preserved filters and return links
-- New and processing orders shown by default; history through explicit filters
+- Собственный склад и внешние поставщики.
+- Товары поставщиков, цены и валюты.
+- Активные и неактивные записи остатков.
+- Агрегированная информация для клиента и подробная для менеджера.
+- Минимальный срок поставки и резервирование из нескольких источников.
 
-</td>
-</tr>
+### REST API
 
-<tr>
-<td width="50%" valign="top">
+- Django REST Framework и JWT: вход, обновление токена, выход.
+- Swagger / OpenAPI.
+- Каталог и поставщики.
+- Заказы клиента и обработка заказов менеджером.
+- Оплаты клиента, действия менеджера и история статусов.
+- Выписка счёта по ID заказа; данные и PDF клиента по ID самого Invoice.
+- Аннулирование менеджером и администратором с обязательной причиной.
 
-### 💳 Payments & Invoices
+### Финансовое ядро клиента
 
-- Multiple payment receipts per order
-- Service for confirmed office/bank receipts with atomic, idempotent account credits
-- Separate checkout preference, actual receipt and invoice workflows
-- Online method retained in the model; live provider integration deferred
-- Pending, paid and cancelled statuses; legacy pending/mock flows retained
-- Immutable payment history
-- Manager payment actions
-- Administrator-only legacy resets; credited receipts protected from reset
-- Invoice issuance from an order without a payment
-- One issued invoice per order, enforced by a database constraint
-- Cancellation and reissue with retained documents and distinct numbers
-- PDF generation with ReportLab
-- Owner-checked client invoice data/PDF access without a payment
-- Invoice issuance and cancellation by managers and administrators on the website and API
-- Required cancellation reason, actor and time
-- Staff invoice history: pages of 20, PDF links and preserved return context
-- Staff payment search by order, transaction ID or customer email
-- Paginated staff payment results loaded after a search or filter
+- Раздельные личные и юридические финансовые счета.
+- Проекции доступных средств и долга.
+- Статусы счёта и история их изменений.
+- Атомарное создание финансовой операции и изменение балансов
+  с блокировкой счёта.
+- Идемпотентные ключи операций и проверка конфликтующих повторов.
+- Базовые сервисы пополнения, долга, назначения, распределения, возврата и сторнирования.
+- Записи назначения и частей поступлений с ограничениями положительной суммы и уникальности.
+- Сервисы назначения и освобождения до отгрузки без создания долга.
+- Проверки сумм, инициатора операции и результирующих балансов.
+- Django admin и финансовые страницы сотрудников только для чтения.
+- Поиск счетов, общий журнал и пагинация истории конкретного счёта.
+- Явное создание счетов и изменение юрпрофиля через сервисы.
 
-</td>
-<td width="50%" valign="top">
-
-### 💬 Communication
-
-- Order-created email notifications
-- Asynchronous Celery delivery
-- Automatic retry and backoff
-- Customer–manager chat rooms
-- Free-room manager workflow
-- Manager assignment
-- File attachments
-- Unread counters
-- Customer room closing
-- Paginated room lists with preserved filters and return links
-- Closed rooms with unread messages remain visible to the relevant recipient
-
-</td>
-</tr>
-
-<tr>
-<td width="50%" valign="top">
-
-### 🏢 Suppliers & Inventory
-
-- Internal warehouse support
-- External supplier support
-- Supplier products
-- Supplier prices and currencies
-- Active/inactive inventory records
-- Public inventory aggregation
-- Detailed manager inventory
-- Minimum lead-time calculation
-- Multi-source stock reservation
-
-</td>
-<td width="50%" valign="top">
-
-### 🔌 REST API
-
-- Django REST Framework
-- JWT login, refresh and logout
-- Swagger / OpenAPI documentation
-- Catalog endpoints
-- Supplier endpoints
-- Client order endpoints
-- Manager order endpoints
-- Client payment endpoints
-- Manager payment actions
-- Payment history endpoints
-- Invoice and PDF endpoints
-- Order-based invoice creation and role-checked cancellation
-- Client invoice data/PDF endpoints addressed by invoice ID, not payment ID
-
-</td>
-</tr>
-<tr>
-<td colspan="2" valign="top">
-
-### 💰 Customer Financial Core
-
-- Separate personal and legal customer accounts
-- Available funds and debt balance projections
-- Account status lifecycle with audit history
-- Atomic ledger creation and balance updates with account locking
-- Idempotent operation keys and conflicting-retry validation
-- Core services for deposits, debt, fund assignment, allocations, refunds and reversals
-- Order-assignment and deposit-source records with positive-amount/uniqueness constraints
-- Pre-shipment assignment and reversal-based release without creating debt
-- Validation of amounts, actor information and resulting balances
-- Read-only Django admin and staff website finance pages
-- Account search, transaction journal and paginated account history
-- Explicit account creation and legal-profile updates through services
-
-Confirmed manual receipts can credit the account through an atomic service.
-Pre-shipment assignment and whole-release services retain source portions
-and append-only reversal history; staff and customer order cancellation
-release active assignments under their existing order permissions.
-Full-shipment settlement is connected to the existing completion action.
-Dedicated staff receipt/assignment interfaces, post-shipment assignment/removal,
-actual manual cash/bank refunds and
-customer-facing balances remain PHASE 23 work. The core refund service is
-not a real money-out payout workflow.
-
-</td>
-</tr>
-</table>
-
----
+Подтверждённое ручное поступление может пополнять счёт через атомарный
+сервис. Назначение и полная отмена до отгрузки сохраняют части источников
+и историю сторнирования; отмена заказа сотрудником или клиентом освобождает
+действующие назначения в рамках прав на заказ. Расчёт при полной отгрузке
+подключён к существующему завершению. Сервисы назначения/снятия после отгрузки
+погашают и восстанавливают долг выбранной отгрузки, сохраняя `COMPLETED`,
+поступления и историю. Форма сайта регистрирует фактические деньги офиса/
+безнала без автоматического назначения. Формы назначения/снятия, API
+поступлений, реальные ручные возвраты и балансы клиента остаются задачами фазы 23.
+Базовый сервис refund не является сценарием реальной выдачи денег клиенту.
 
 <a id="order-funds-models"></a>
 
-## Order Funds and Shipment Models
+## Модели денег заказа и отгрузки
 
-Status as of 2026-10-20. The model links and full-shipment workflow below are
-implemented. Receipt-registration and fund-assignment forms remain pending.
+Состояние на 2026-10-22. Связи моделей и сервисы расчёта ниже
+реализованы. Регистрация поступления на сайте подключена; формы назначения
+и API регистрации поступлений ещё впереди.
 
-### Receipts and assignment — implemented
+### Поступление и назначение средств — реализовано
 
-Arrows point from the model holding a reference to the referenced model.
-They are database links, not automatic money movements.
+Стрелка направлена от модели с полем-ссылкой к связанной модели.
+Это связи в базе данных, а не автоматическое движение денег.
 
 ```mermaid
 flowchart TB
-    P["Payment<br/>Confirmed receipt workflow"]
-    O["Order<br/>Customer order"]
-    A["OrderFundAssignment<br/>Amount assigned to an order"]
-    S["OrderFundAssignmentSource<br/>Deposit portion funding an assignment"]
-    T["AccountTransaction<br/>Financial ledger entry"]
-    C["CustomerAccount<br/>Available funds and debt"]
+    P["Payment<br/>Сценарий подтверждённого поступления"]
+    O["Order<br/>Заказ"]
+    A["OrderFundAssignment<br/>Назначение суммы заказу"]
+    S["OrderFundAssignmentSource<br/>Источник части назначенной суммы"]
+    T["AccountTransaction<br/>Финансовая операция"]
+    C["CustomerAccount<br/>Счёт клиента: доступно и долг"]
 
     P -->|"order"| O
-    P -->|"deposit_transaction · 1:1, optional"| T
+    P -->|"deposit_transaction · 1:1, необязательно"| T
     A -->|"order"| O
     A -->|"account_transaction · 1:1"| T
     S -->|"assignment"| A
@@ -332,34 +264,34 @@ flowchart TB
     T -->|"account"| C
 ```
 
-- `Payment` records a confirmed receipt in the new manual receipt workflow.
-  Its deposit link is optional in the schema for legacy records; legacy
-  pending payments are not proof that money was received.
-- `OrderFundAssignment` records which amount was explicitly assigned to an
-  order. `Payment.order` alone does not assign money or settle that order.
-- `OrderFundAssignmentSource` records the deposit portions used. For deposits
-  of 40 and 60, an assignment of 70 has two FIFO source rows: 40 and 30.
-  Available funds become 30; debt remains zero before shipment.
-- `AccountTransaction` is the ledger; `CustomerAccount` stores its current
-  available/debt projections. Reversals append history rather than deleting
-  assignments or their source records.
+- `Payment` фиксирует подтверждённое поступление в новом ручном сценарии.
+  Связь с пополнением необязательна в схеме для старых записей; старый
+  ожидающий платёж не доказывает, что деньги действительно получены.
+- `OrderFundAssignment` сохраняет явно назначенную заказу сумму.
+  Само поле `Payment.order` не назначает деньги и не погашает заказ.
+- `OrderFundAssignmentSource` хранит использованные части поступлений.
+  Для поступлений 40 и 60 назначение 70 имеет два FIFO-источника: 40 и 30.
+  Доступно остаётся 30; до отгрузки долг не возникает.
+- `AccountTransaction` — журнал финансовых операций, а `CustomerAccount`
+  хранит текущие проекции доступных средств и долга. Сторнирование дополняет
+  историю, а не удаляет назначения и их источники.
 
-### Shipment and application — full-shipment workflow implemented
+### Отгрузка и применение средств — полная отгрузка подключена
 
-`OrderShipment`, `OrderShipmentItem` and `OrderFundApplication` exist.
-The diagrams show implemented model links. Full-shipment orchestration is
-connected to the existing website and API completion actions as of 2026-10-20.
+Модели `OrderShipment`, `OrderShipmentItem` и `OrderFundApplication` созданы.
+На схемах показаны существующие связи. На 2026-10-20 общий сервис полной
+отгрузки подключён к существующему завершению заказа через сайт и API.
 
 ```mermaid
 flowchart TB
-    F["OrderFundApplication<br/>Application of assigned funds"]
-    A["OrderFundAssignment<br/>Assigned funds"]
-    H["OrderShipment<br/>Shipment and full obligation"]
-    T["AccountTransaction<br/>Financial ledger entry"]
-    C["CustomerAccount<br/>Customer financial account"]
-    O["Order<br/>Customer order"]
-    I["OrderShipmentItem<br/>Shipped item snapshots"]
-    OI["OrderItem<br/>Original order line"]
+    F["OrderFundApplication<br/>Применение назначенных средств"]
+    A["OrderFundAssignment<br/>Назначение средств"]
+    H["OrderShipment<br/>Отгрузка и полное обязательство"]
+    T["AccountTransaction<br/>Финансовая операция"]
+    C["CustomerAccount<br/>Финансовый счёт клиента"]
+    O["Order<br/>Заказ"]
+    I["OrderShipmentItem<br/>Снимки отгруженных позиций"]
+    OI["OrderItem<br/>Исходная позиция заказа"]
 
     F -->|"assignment"| A
     F -->|"shipment"| H
@@ -373,106 +305,114 @@ flowchart TB
 
 ```
 
-`OrderShipment` retains the order, account, obligation transaction, full amount,
-currency, actor and time. Currently a database constraint permits only one
-shipment per order; the underlying foreign key leaves room for future partial
-shipments. One debt transaction cannot be reused for multiple shipments.
+`OrderShipment` сохраняет заказ, счёт, операцию начисления обязательства,
+полную сумму, валюту, сотрудника и дату. Пока ограничение БД разрешает
+одну отгрузку на заказ; сам `ForeignKey` оставляет основу для будущих
+частичных отгрузок. Одно начисление долга нельзя связать с двумя отгрузками.
 
-`OrderShipmentItem` retains the original order-line link and independent name,
-unit-price, quantity, total and currency snapshots. Quantity must be positive;
-an order line cannot repeat within one shipment. Independent snapshot storage
-is implemented, and the shipment service automatically copies the order lines.
-It validates a non-empty order and the saved total against items and shop-paid
-delivery. Snapshot storage alone does not prevent direct historical edits;
-broader edit protection and independent concurrent-workflow coverage remain open.
+`OrderShipmentItem` сохраняет связь с исходной позицией заказа и отдельные
+снимки названия, цены, количества, суммы и валюты. Количество положительное;
+одна позиция заказа не повторяется внутри отгрузки. Независимое хранение
+снимков реализовано; сервис отгрузки автоматически копирует позиции заказа.
+Он проверяет непустой состав и сохранённый итог с учётом товаров и доставки
+магазину. Само хранение снимков не запрещает прямые правки истории;
+общая защита правок и отдельные конкурентные проверки ещё предстоят.
 
-`OrderFundApplication` stores `assignment`, `shipment`, `account_transaction`,
-`amount` and `created_at`. Its three model tests and scoped Ruff checks pass;
-amount must be positive and the financial entry cannot be reused.
-Assignment and shipment use
-foreign keys for future partial shipments; the financial entry is one-to-one.
-The service must validate matching order, account and currency, active
-assignment capacity and the shipment's outstanding obligation.
+`OrderFundApplication` хранит `assignment`, `shipment`, `account_transaction`,
+`amount` и `created_at`. Три теста модели и адресный Ruff прошли;
+сумма положительная, финансовую операцию нельзя использовать повторно.
+Назначение и отгрузка связаны
+через `ForeignKey` с учётом будущих частичных отгрузок; финансовая операция —
+через `OneToOneField`. Сервис должен проверять совпадение заказа, счёта и
+валюты, доступную действующую сумму назначения и непогашенное обязательство
+конкретной отгрузки.
 
-### Implemented full-shipment settlement example
+### Реализованный пример расчёта при полной отгрузке
 
-For a 100 order, a receipt of 100 and an explicit assignment of 60:
+Для заказа на 100, поступления 100 и явного назначения 60:
 
-| Action | AccountTransaction type | Available | Debt |
+| Действие | Тип AccountTransaction | Доступно | Долг |
 |---|---|---:|---:|
-| Confirm receipt | `DEPOSIT` | 100 | 0 |
-| Assign 60 to the order | `FUNDS_ASSIGNMENT` | 40 | 0 |
-| Record full shipment of 100 | `DEBT_INCREASE` | 40 | 100 |
-| Apply the assigned 60 | `FUNDS_APPLICATION` | 40 | 40 |
+| Подтвердили поступление | `DEPOSIT` | 100 | 0 |
+| Назначили заказу 60 | `FUNDS_ASSIGNMENT` | 40 | 0 |
+| Записали полную отгрузку на 100 | `DEBT_INCREASE` | 40 | 100 |
+| Применили назначенные 60 | `FUNDS_APPLICATION` | 40 | 40 |
 
-These are four entry types of the same `AccountTransaction` model.
-The shipment obligation uses the saved `Order.total_price`: delivery paid to
-the shop is included; delivery paid separately to the carrier is excluded.
-The last two steps must commit atomically, so the intermediate debt of 100
-is not exposed as a committed state. Already assigned money is not deducted
-from available funds again. Existing `allocate_customer_funds()` decreases
-both balances and is unsuitable for this application step.
+Это четыре типа записей одной модели `AccountTransaction`.
+Полное обязательство берётся из сохранённого `Order.total_price`: доставка,
+оплачиваемая магазину, включена; отдельная оплата перевозчику исключена.
+Последние два шага должны фиксироваться атомарно, без отдельного сохранённого
+промежуточного долга 100. Уже назначенные средства не списываются с доступного
+баланса повторно. Старый `allocate_customer_funds()` уменьшает оба баланса
+и не подходит для этого применения предоплаты.
 
-`record_customer_funds_application()` is implemented: available delta is zero,
-debt delta is minus the positive amount. The order/shipment service must prove
-the matching assignment; the low-level finance function alone does not.
-`Complete order` now uses `complete_order_shipment()`: the shipment, item
-snapshots, full obligation, application of active pre-shipment assignments and
-`COMPLETED` status commit atomically. A permitted retry returns the existing
-shipment without repeating money movements. Cancelled assignments are excluded;
-shipment-level limits prevent using unrelated account debt as capacity.
-Post-shipment assignment and assignment removal are not implemented yet.
+`record_customer_funds_application()` реализован: изменение доступного
+баланса равно нулю, изменение долга — минус положительная сумма.
+Соответствие назначению должен обеспечивать сервис заказа/отгрузки;
+низкоуровневая финансовая функция сама его не проверяет.
+`Complete order` теперь вызывает `complete_order_shipment()`: отгрузка,
+снимки позиций, полное обязательство, применение действующих назначений
+до отгрузки и статус `COMPLETED` сохраняются атомарно. Разрешённый повтор
+возвращает существующую отгрузку без повторного изменения денег. Отменённые
+назначения исключаются; предел отгрузки не позволяет использовать чужие
+обязательства счёта как дополнительную ёмкость погашения.
+Сервисы назначения и снятия оплаты после отгрузки реализованы на 2026-10-22.
+Для отгруженного заказа на 100 при доступных средствах 100 и долге 100
+назначение 60 атомарно создаёт `FUNDS_ASSIGNMENT` и `FUNDS_APPLICATION`:
+доступно становится 40, долг — 40. Полная отмена назначения добавляет две
+операции `REVERSAL`, восстанавливая доступные средства и долг до 100.
+Поступление, отгрузка и исходные записи назначения/применения сохраняются;
+заказ остаётся в `COMPLETED`. Повторы с тем же ключом не меняют балансы повторно.
+Регистрация поступления подключена к сайту; формы назначения/снятия,
+API поступлений и отдельные конкурентные тесты ещё впереди.
 
-### Full-shipment confirmation — agreed scope
+### Подтверждение полной отгрузки — согласованные границы
 
-The website completion form now requests explicit browser confirmation: "Confirm full shipment of order #...? Once confirmed, shipment
-cannot be cancelled and order items cannot be edited on the website."
-Cancelling the dialog sends no completion request and changes nothing.
+Форма завершения на сайте теперь запрашивает явное подтверждение браузера: «Подтверждаете полную отгрузку заказа №…? После подтверждения
+отменить отгрузку или изменить состав заказа на сайте нельзя».
+При отмене диалога запрос завершения не отправляется и ничего не меняется.
 
-PHASE 23 does not implement correction/reopening of a confirmed shipment:
-no correction action, shipment-reversal service, corrected-shipment state or
-replacement-shipment flow. Keep the existing one-shipment-per-order constraint,
-not a conditional "one active shipment" constraint. A real goods return remains
-a separate deferred workflow. An accidentally confirmed shipment cannot be
-corrected through the standard website workflow in this scope.
+В фазе 23 не реализуем исправление/повторное открытие подтверждённой отгрузки:
+не добавляем действие исправления, сервис сторнирования отгрузки, состояние
+исправленной записи или повторную отгрузку взамен ошибочной. Сохраняем
+существующее ограничение «одна отгрузка на заказ», а не условие «одна
+действующая». Реальный возврат товара — отдельный отложенный сценарий.
+Ошибочно подтверждённую отгрузку штатно исправить на сайте в этих границах нельзя.
 
-The dialog reduces accidental clicks, not deliberate abuse. Server-side
-authorization, status/consistency checks, locking, atomicity and idempotent retry
-remain mandatory. Assignment removal, receipt correction and actual cash/bank
-refunds remain separate agreed money workflows; they do not reopen shipment.
+Диалог снижает риск случайного нажатия, но не защищает от намеренного обхода.
+Серверные проверки прав, статуса и согласованности, блокировки, атомарность
+и идемпотентность обязательны. Снятие назначения, исправление поступления
+и фактические ручные возвраты остаются отдельными согласованными денежными
+сценариями; они не открывают отгрузку повторно.
 
-See the [PHASE 23 plan](docs/phase-23-deposits-and-order-settlement.md#order-funds-models)
-for implementation boundaries and remaining work.
+Границы реализации и оставшаяся работа — в
+[плане фазы 23](docs/phase-23-deposits-and-order-settlement.md#order-funds-models).
 
----
+## Архитектура
 
-## 🏗️ Architecture
+Каждое Django-приложение отвечает за отдельный бизнес-домен. Сервисы
+и селекторы отделяют правила работы от страниц и API.
 
-Shop_ePower uses modular Django applications. Each application owns a specific business responsibility, while services and selectors keep business rules separate from presentation and transport layers.
-
-### Application Responsibilities
-
-| Application | Responsibility |
+| Приложение | Ответственность |
 |---|---|
-| `accounts` | Users, roles, authentication, customer profiles and legal entities |
-| `catalog` | Products, categories, brands, images, variants and public catalog |
-| `suppliers` | Suppliers, supplier products, warehouse and external inventory |
-| `cart` | Shopping cart, cart items and price snapshots |
-| `orders` | Checkout, orders, stock reservation, delivery, fund-assignment sources and release on cancellation |
-| `payments` | Confirmed receipt services, legacy payment transitions, invoice lifecycle, history and PDF generation |
-| `finance` | Personal and legal financial accounts, transaction ledger, atomic balance services, status history and staff finance views |
-| `notifications` | Email services and asynchronous notification tasks |
-| `chat` | Rooms, messages, attachments, assignment and unread state |
-| `api` | REST API endpoints, serializers and permissions |
-| `core` | Shared currency, pricing, settings, utilities and infrastructure |
+| `accounts` | Пользователи, роли, вход, профили, юридические данные |
+| `catalog` | Товары, категории, бренды, изображения, варианты, каталог |
+| `suppliers` | Поставщики, их товары, собственные и внешние остатки |
+| `cart` | Корзина, позиции и снимки цен |
+| `orders` | Оформление, заказы, резервы, доставка, источники назначения и освобождение средств при отмене |
+| `payments` | Сервисы поступлений, старые переходы статусов, жизненный цикл Invoice, история и PDF |
+| `finance` | Финансовые счета, журнал, атомарные сервисы балансов, история статусов и страницы сотрудников |
+| `notifications` | Email-сервисы и асинхронные задачи |
+| `chat` | Комнаты, сообщения, вложения, назначение, непрочитанное |
+| `api` | REST API, сериализаторы и разрешения |
+| `core` | Общие валюты, цены, настройки и вспомогательные функции |
 
-### Application Architecture
+### Взаимодействие приложений
 
 ```mermaid
 flowchart TD
-    Customer([Customer])
-    Manager([Manager / Admin])
-
+    Customer([Клиент])
+    Manager([Менеджер / администратор])
     Accounts[accounts]
     Catalog[catalog]
     Suppliers[suppliers]
@@ -484,20 +424,17 @@ flowchart TD
     Chat[chat]
     API[api]
     Core[core]
-
     Customer --> Accounts
     Customer --> Catalog
     Customer --> Cart
     Customer --> Orders
     Customer --> Payments
     Customer --> Chat
-
     Manager --> Orders
     Manager --> Payments
     Manager --> Finance
     Manager --> Chat
     Manager --> Suppliers
-
     Accounts --> Cart
     Accounts --> Orders
     Accounts --> Finance
@@ -511,107 +448,91 @@ flowchart TD
     Orders --> Chat
     Payments --> Notifications
     Payments --> Finance
-
     Accounts --> API
     Catalog --> API
     Suppliers --> API
     Orders --> API
     Payments --> API
-
-    Core -. shared services .-> Accounts
-    Core -. shared services .-> Catalog
-    Core -. shared services .-> Suppliers
-    Core -. shared services .-> Orders
-    Core -. shared services .-> Payments
-    Core -. shared services .-> Finance
+    Core -. общие сервисы .-> Accounts
+    Core -. общие сервисы .-> Catalog
+    Core -. общие сервисы .-> Suppliers
+    Core -. общие сервисы .-> Orders
+    Core -. общие сервисы .-> Payments
+    Core -. общие сервисы .-> Finance
 ```
 
-### Infrastructure Architecture
+### Инфраструктура
 
 ```mermaid
 flowchart LR
-    Browser[Browser] --> Web[Django Web :8000]
-
+    Browser[Браузер] --> Web[Django Web :8000]
     Web --> PostgreSQL[(PostgreSQL)]
     Web --> Redis[(Redis)]
     Web --> Worker[Celery Worker]
-
     Beat[Celery Beat] --> Redis
     Redis --> Worker
-
     Worker --> PostgreSQL
-    Worker --> Email[Email Backend]
-
+    Worker --> Email[Email]
     Flower[Flower :5555] --> Redis
     Flower --> Worker
 ```
 
-### Design Principles
+### Принципы реализации
 
-- Clear separation of business domains
-- Thin views and API views
-- Service-layer commands for business operations
-- Selectors for optimized read operations
-- Snapshot data for historical integrity
-- Explicit permissions for client, manager and administrator roles
-- Celery tasks as thin orchestration functions
-- Primitive identifiers passed through task queues
-- `transaction.on_commit()` for post-transaction tasks
-- Regression tests for every discovered production-like issue
-- Technical debt documented instead of hidden
+- Разделение бизнес-доменов и небольшие представления/API views.
+- Бизнес-команды в сервисах, чтение данных в селекторах.
+- Снимки данных для сохранения истории.
+- Явные разрешения клиента, менеджера и администратора.
+- Celery-задачи как небольшие функции координации.
+- Передача идентификаторов через очередь задач.
+- Запуск задач после успешной транзакции через `transaction.on_commit()`.
+- Регрессионные тесты обнаруженных при ручных проверках проблем.
+- Документирование технического долга.
 
----
+## Инженерные принципы
 
-## 🧭 Design Principles
+- Бизнес-требования определяют архитектуру.
+- Рабочие компоненты постепенно развиваются без полного переписывания.
+- TDD и автоматические проверки новой функциональности.
+- Бизнес-логика находится в сервисах и доменах.
+- Каждый модуль отвечает за свою область.
+- Документация развивается вместе с кодом.
+- Важные изменения проходят CI перед слиянием.
+- Один логический спринт завершается понятным Git-коммитом.
 
-The project follows a small set of engineering principles.
+## Технологии
 
-- **Business First** — business requirements drive architecture.
-- **Evolution over Revolution ⭐** — existing, working components are evolved instead of rewritten. New functionality extends the current architecture while preserving stability whenever practical.
-- **Test Driven Development** — new functionality is protected by automated tests.
-- **Clean Architecture** — business logic belongs in services and domain layers.
-- **Domain Separation** — each application owns a single business responsibility.
-- **Documentation First** — documentation evolves together with the code.
-- **CI Before Merge** — important changes should pass automated validation.
-- **One Logical Sprint = One Commit** — each completed sprint ends with a meaningful Git commit.
-
----
-
-## ⚙️ Technology Stack
-
-| Layer | Technologies |
+| Область | Технологии |
 |---|---|
-| Language | Python 3.14 |
-| Web Framework | Django 6.0.5 |
-| Dependency Management | Poetry and poetry.lock |
-| REST API | Django REST Framework, Simple JWT |
-| API Documentation | drf-spectacular, Swagger / OpenAPI |
-| Database | PostgreSQL |
-| Cache & Broker | Redis |
-| Background Tasks | Celery |
-| Scheduler | django-celery-beat |
-| Monitoring | Flower |
-| PDF Generation | ReportLab |
-| Frontend | Django Templates, Bootstrap, JavaScript |
-| Infrastructure | Docker, Docker Compose |
-| Testing | Django TestCase, DRF API tests, regression tests |
-| Code Quality | Ruff |
-| Version Control | Git, GitHub |
-| Continuous Integration | GitHub Actions |
-| Container Registry | GitHub Container Registry (GHCR) |
+| Язык | Python 3.14 |
+| Веб-фреймворк | Django 6.0.5 |
+| Зависимости | Poetry и poetry.lock |
+| REST API | DRF, Simple JWT |
+| Документация API | drf-spectacular, Swagger / OpenAPI |
+| База данных | PostgreSQL |
+| Кеш и брокер | Redis |
+| Фоновые задачи | Celery |
+| Планировщик | django-celery-beat |
+| Мониторинг | Flower |
+| PDF | ReportLab |
+| Интерфейс | Django Templates, Bootstrap, JavaScript |
+| Инфраструктура | Docker, Docker Compose |
+| Тесты | Django TestCase, DRF API-тесты, регрессионные тесты |
+| Качество кода | Ruff |
+| Версионность | Git, GitHub |
+| CI | GitHub Actions |
+| Реестр контейнеров | GitHub Container Registry (GHCR) |
 
----
+## Быстрый запуск через Docker
 
-## 🚀 Quick Start with Docker
-
-### 1. Clone the Repository
+### 1. Клонировать репозиторий
 
 ```bash
 git clone https://github.com/asmpc/Shop_ePower.git
 cd Shop_ePower
 ```
 
-### 2. Create the Environment File
+### 2. Создать файл окружения
 
 Linux / macOS:
 
@@ -625,85 +546,78 @@ Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Update the values in `.env` before starting the project.
+До запуска заполнить значения в `.env`.
 
-### 3. Build the Image and Start PostgreSQL / Redis
+### 3. Собрать образ и запустить PostgreSQL / Redis
 
 ```bash
 docker compose build
 docker compose up -d --wait postgres redis
 ```
 
-### 4. Apply Database Migrations
+### 4. Применить миграции
 
 ```bash
 docker compose run --rm --no-deps web python manage.py migrate
 ```
 
-### 5. Start the Full Stack
+### 5. Запустить весь стек
 
 ```bash
 docker compose up -d --wait
 ```
 
-Applying migrations before starting all application services allows the
-web health check to succeed on a fresh database.
+На чистой базе миграции применяем до запуска всех приложений, чтобы
+проверка работоспособности веб-сервиса могла пройти.
 
-### 6. Create a Django Administrator
+### 6. Создать администратора Django
 
 ```bash
 docker compose exec web python manage.py createsuperuser
 ```
 
-Application roles (`CLIENT`, `MANAGER`, `ADMIN`) are separate from Django's
-staff and superuser flags. Assign the appropriate application role through
-the user form in Django admin to access staff pages on the website.
-Customer registration and legal-profile services create financial accounts;
-manually created demonstration users may require explicit account setup
-before checkout.
+Роли приложения `CLIENT`, `MANAGER`, `ADMIN` существуют отдельно от
+флагов Django staff/superuser. Для доступа к менеджерским страницам
+нужно назначить подходящую роль через форму пользователя в Django admin.
+Финансовые счета создаются сервисами регистрации и юридического профиля;
+пользователям, созданным вручную для демонстрации, может потребоваться
+явная подготовка финансового счёта перед оформлением заказа.
 
-### 7. Open the Application
+### 7. Открыть приложение
 
-| Service | Address |
+| Сервис | Адрес |
 |---|---|
-| Shop | <http://127.0.0.1:8000/shop/> |
+| Магазин | <http://127.0.0.1:8000/shop/> |
 | Django Admin | <http://127.0.0.1:8000/admin/> |
 | Swagger / OpenAPI | <http://127.0.0.1:8000/api/schema/swagger-ui/> |
 | Flower | <http://127.0.0.1:5555> |
 
----
+## Сервисы Docker Compose
 
-## 🐳 Docker Compose Services
-
-| Service | Purpose | Host Port |
+| Сервис | Назначение | Порт компьютера |
 |---|---|---:|
-| `web` | Django development web server | `8000` |
-| `postgres` | PostgreSQL database | `5433` |
-| `redis` | Celery broker and result backend | `6380` |
-| `celery_worker` | Background task execution | — |
-| `celery_beat` | Database-backed periodic task scheduler | — |
-| `flower` | Celery monitoring dashboard | `5555` |
+| `web` | Сервер разработки Django | `8000` |
+| `postgres` | База данных PostgreSQL | `5433` |
+| `redis` | Брокер и результаты Celery | `6380` |
+| `celery_worker` | Фоновые задачи | — |
+| `celery_beat` | Периодические задачи из БД | — |
+| `flower` | Мониторинг Celery | `5555` |
 
-The application services use one shared Docker image with different startup commands.
+Сервисы приложения используют общий Docker-образ с разными командами
+запуска. Постоянные volumes сохраняют данные PostgreSQL и Redis.
 
-Persistent Docker volumes preserve:
-
-- PostgreSQL data;
-- Redis data.
-
-The development bind mount:
+Подключение исходников:
 
 ```yaml
 ./src:/app/src
 ```
 
-allows source-code and template changes to appear inside the running container without rebuilding the image.
+Изменения кода и шаблонов появляются в работающем контейнере без
+пересборки образа.
 
----
+## Полезные команды
 
-## 🔧 Useful Commands
-
-### Environment
+### Окружение
 
 ```bash
 docker compose up -d
@@ -712,7 +626,7 @@ docker compose restart
 docker compose down
 ```
 
-### Logs
+### Логи
 
 ```bash
 docker compose logs -f web
@@ -732,13 +646,13 @@ docker compose exec web python manage.py createsuperuser
 docker compose exec web python manage.py shell
 ```
 
-### Tests
+### Тесты
 
 ```bash
 docker compose exec web python manage.py test
 ```
 
-Run a specific test module:
+Один модуль:
 
 ```bash
 docker compose exec web python manage.py test shop_epower.catalog.tests.test_product_list_inventory
@@ -752,10 +666,10 @@ docker compose exec celery_worker celery -A config inspect registered
 docker compose exec celery_worker celery -A config inspect active
 ```
 
-### Local Poetry Environment
+### Локальное окружение Poetry
 
-Run these commands from the repository root after configuring `.env` and
-making PostgreSQL and Redis available to the local application:
+Запускать из корня репозитория после настройки `.env` и доступности
+PostgreSQL и Redis для локального приложения:
 
 ```bash
 poetry install --no-root
@@ -765,293 +679,240 @@ poetry run ruff check src
 poetry run python src/manage.py test
 ```
 
-When working inside `src`, use `manage.py` instead of `src/manage.py`.
-The application Docker image installs runtime dependencies; local Poetry
-and the CI quality job also install the development tools.
+При работе из `src` использовать `manage.py` вместо `src/manage.py`.
+Docker-образ приложения устанавливает runtime-зависимости. Локальное
+Poetry-окружение и CI-проверка качества также устанавливают инструменты
+разработки.
 
-More commands and troubleshooting instructions are available in [`docs/docker.md`](docs/docker.md).
+Дополнительные команды: [docs/docker.md](docs/docker.md).
 
----
+## REST API
 
-## 🌐 REST API
+Через DRF доступны сценарии клиента, менеджера и администратора:
+аутентификация, каталог, поставщики, оформление, заказы, оплаты,
+история статусов, счета и PDF.
 
-The project exposes client, manager and administrator workflows through Django REST Framework.
+Swagger: <http://127.0.0.1:8000/api/schema/swagger-ui/>.
+Схема: <http://127.0.0.1:8000/api/schema/>.
 
-### Main API Areas
+## Тестирование
 
-- authentication and JWT tokens;
-- product catalog;
-- suppliers and supplier products;
-- client checkout and orders;
-- manager order processing;
-- client payments;
-- manager payment actions;
-- payment history;
-- invoice details;
-- PDF invoice downloads;
-- invoice creation by order ID, and client document/PDF access by invoice ID;
-- invoice cancellation by managers and administrators with a required reason.
+Последний проверенный полный прогон: **796 тестов успешно прошли
+2026-10-20**, включая модели, сервисы и подключение полной отгрузки к сайту/API.
+Используется изолированная тестовая PostgreSQL-база.
+GitHub Actions настроен на полный прогон при push в `dev` и `main`,
+а также для pull request в `main`.
 
-Swagger / OpenAPI documentation is available at
-[`/api/schema/swagger-ui/`](http://127.0.0.1:8000/api/schema/swagger-ui/),
-with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
+Модуль сервиса отгрузки содержит 19 прошедших тестов. Связанные модули
+переходов заказа, страниц сотрудника и API, адресный Ruff и проверка состояния
+миграций также прошли. Пользователь применил новые миграции finance/orders
+к рабочей базе и руками подтвердил начисление полного долга при завершении
+неоплаченного заказа без изменения доступных средств. Отдельная конкурентная
+проверка новых сценариев отгрузки/назначения ещё впереди; полный прогон её
+не заменяет.
 
----
+Покрываются модели, селекторы, бизнес-сервисы, страницы, оформление
+и профили, резервы и откат, статусы оплат, финансовые счета и журнал,
+идемпотентность, лимиты распределения, сторнирование, конкурентные
+операции, права, счета-фактуры и PDF, API, асинхронные уведомления
+и регрессии, найденные вручную.
 
-## 🧪 Testing
+Примеры защищённых сценариев:
 
-Shop_ePower is developed with a strong automated-testing focus.
+- Заполненность профиля перед оформлением.
+- Безопасное возвращение через параметр `next`.
+- Отображение остатка и срока поставки в каталоге.
+- Старые переходы статуса и административный сброс; защита платежей,
+  связанных с финансовым пополнением.
+- Оформление без автоматического платежа, фактическое поступление,
+  идемпотентность пополнения.
+- Выписка Invoice по заказу без платежа, аннулирование и перевыпуск.
+- Права владельца на данные/PDF Invoice и пагинация истории сотрудника.
+- Привязка заказа к счёту и отказ при отсутствии нужного счёта.
+- FIFO-части поступлений, лимиты действующих назначений и идемпотентность.
+- Полная отмена назначения, сохранение истории и повторное использование средств.
+- Освобождение денег при разрешённой отмене заказа клиентом/сотрудником и откат ошибки.
+- Пагинация, сохранение фильтров и безопасные обратные ссылки.
+- Непрочитанные сообщения и закрытые комнаты с учётом роли.
 
-The latest verified full run passed **796 tests on 2026-10-20**, including
-full-shipment models, services, and website/API integration. Tests run
-against an isolated PostgreSQL test database. GitHub Actions is configured
-to execute the full suite on pushes to `dev` and `main`, and on pull requests
-targeting `main`.
+## Непрерывная интеграция
 
-The shipment-service module has 19 passing tests. Related order workflow,
-staff-page and API modules, scoped Ruff and migration-drift checks also pass.
-The user applied the new finance/order migrations to the runtime database and
-manually confirmed that completing an unpaid order adds its full obligation
-without changing available funds. Independent concurrency coverage for the new
-shipment/assignment workflows remains open; the full suite does not prove it.
-
-The test suite covers:
-
-- Django models;
-- selectors;
-- service-layer business rules;
-- frontend views;
-- checkout and profile workflows;
-- stock reservation and rollback;
-- payment transitions;
-- financial account lifecycle, ledger entries and balance projections;
-- idempotency, allocation limits, reversals, rollback and concurrent operations;
-- permissions;
-- invoice lifecycle;
-- PDF responses;
-- REST API endpoints;
-- asynchronous notification integration;
-- regression scenarios found during manual testing.
-
-Examples of protected regressions include:
-
-- profile completion before checkout;
-- secure redirect through the `next` parameter;
-- inventory quantity and supplier lead time in catalog cards;
-- payment state-transition validation;
-- administrator-only legacy reset and protection of financially credited receipts;
-- checkout without an automatic payment, actual receipt registration and idempotent account credits;
-- order-based invoice issuance without payment, cancellation and reissue;
-- client invoice/PDF ownership checks and paginated staff invoice history;
-- order-to-account linking and rejection of checkout without the matching account;
-- FIFO funding portions, active-use limits and idempotent pre-shipment assignment;
-- whole-assignment release, retained history and reuse of released funds;
-- automatic release on authorized staff/customer order cancellation and rollback on failure;
-- list pagination, preserved filters and safe return navigation;
-- unread-message visibility and closed-room behavior by role.
-
----
-
-## ✅ Continuous Integration
-
-Shop_ePower uses GitHub Actions as an automated quality gate.
+GitHub Actions используется для автоматических проверок:
 
 ```text
-Push to dev / main OR pull request to main
+Push в dev / main ИЛИ pull request в main
                     │
           ┌─────────┴─────────┐
           ▼                   ▼
       Django CI          Ruff Quality
   PostgreSQL / Redis     Poetry + Ruff
-  Checks + migrations
-  Full test suite
+  Проверки и миграции
+  Полный набор тестов
           │                   │
           └─────────┬─────────┘
                     ▼
-             Docker image build
+          Сборка Docker-образа
                     │
                     ▼
-      Image checks + container smoke test
+     Проверки образа и запуска контейнера
                     │
                     ▼
-       Full Docker Compose integration
+        Интеграция всего Docker Compose
                     │
                     ▼
-      GHCR publishing on push events only
+       Публикация в GHCR только при push
 ```
 
-The CI workflow currently provides:
+Workflow включает Python 3.14, Poetry и зависимости из lock-файла,
+изолированные PostgreSQL/Redis с проверками соединения, Django check,
+проверку забытых миграций и полный набор тестов. Отдельная задача
+проверяет Ruff.
 
-- execution on pushes to `dev` and `main`;
-- execution for pull requests targeting `main`;
-- Python 3.14 setup;
-- Poetry installation and dependencies from the lock file;
-- isolated PostgreSQL and Redis service containers;
-- service health checks;
-- Django configuration validation;
-- real PostgreSQL and Redis connection checks;
-- protection against forgotten migrations;
-- execution of the full automated test suite;
-- a separate Ruff quality job;
-- a Docker build after the test and quality jobs succeed;
-- Docker layer caching through GitHub Actions;
-- Django checks and a container smoke test;
-- full Compose startup with migrations, web, Flower, worker and Beat checks;
-- image publishing to GHCR on pushes, with `dev`, `latest` and commit tags
-  according to the branch.
+После успешных тестов и Ruff собирается Docker-образ с кешированием слоёв,
+проверяются Django внутри контейнера, запуск контейнера и полный стек
+Compose: миграции, веб-сервис, Flower, worker и Beat.
 
-The workflow is stored in:
+При push настроена публикация в GHCR с тегами `dev`, `latest` и коммита
+в зависимости от ветки. Файл workflow: `.github/workflows/ci.yml`.
 
-```text
-.github/workflows/ci.yml
-```
+Публикация образов уже настроена. Автоматизация развёртывания — дальнейшая
+работа. Ближайшая цель — контролируемый тестовый запуск после расчётов
+фазы 23 и минимального обмена с 1С в фазе 24.
 
-Image publishing is already configured. Deployment automation remains later
-work; the immediate delivery target is the controlled test pilot after
-PHASE 23 settlement integration and PHASE 24 minimal 1C exchange.
+## Документация
 
----
-
-## 📚 Documentation
-
-Technical documentation is stored in the [`docs/`](docs/) directory.
-
-| Document | Description |
+| Документ | Содержание |
 |---|---|
-| [`docs/docker.md`](docs/docker.md) | Docker commands, logs, diagnostics and daily workflow |
-| [`docs/architecture.md`](docs/architecture.md) | Current project and infrastructure architecture |
-| [`docs/deployment.md`](docs/deployment.md) | Production deployment plan |
-| [`docs/github-actions.md`](docs/github-actions.md) | Current CI workflow and future CI/CD plan |
-| [`docs/roadmap.md`](docs/roadmap.md) | Master development roadmap |
-| [`docs/phase-22-customer-financial-core.md`](docs/phase-22-customer-financial-core.md) | Financial core rules and completed PHASE 22 work |
-| [`docs/phase-23-deposits-and-order-settlement.md`](docs/phase-23-deposits-and-order-settlement.md) | Current order funds and shipment settlement design |
+| [English README](docs/README.en.md) | Английская версия описания проекта |
+| [docker.md](docs/docker.md) | Docker, логи, диагностика и ежедневная работа |
+| [architecture.md](docs/architecture.md) | Архитектура приложений и инфраструктуры |
+| [deployment.md](docs/deployment.md) | План развёртывания |
+| [github-actions.md](docs/github-actions.md) | CI и развитие CI/CD |
+| [roadmap.md](docs/roadmap.md) | Основной план развития проекта |
+| [phase-22-customer-financial-core.md](docs/phase-22-customer-financial-core.md) | Финансовое ядро и выполненная фаза 22 |
+| [phase-23-deposits-and-order-settlement.md](docs/phase-23-deposits-and-order-settlement.md) | Текущий план расчётов по заказам |
 
-Documentation records both implemented behavior and planned work. The
-roadmap and current phase plan identify the remaining integration tasks.
+Основной README доступен на русском и английском; остальные публичные
+документы в `docs/` пока ведутся на английском.
+Документация описывает реализованное поведение и дальнейшие планы.
+Оставшиеся интеграционные задачи обозначены в roadmap и плане текущей фазы.
 
----
+## Состояние проекта
 
-## 📈 Project Status
+### Выполнено
 
-### ✅ Completed
+- Каталог, цены, поставщики и остатки.
+- Профили, аутентификация и роли.
+- Корзина, оформление, заказы и резервы.
+- Доставка, отмена и возврат резервов.
+- Статусы оплат, счета и PDF.
+- Email-уведомления, чаты, клиентский и служебный REST API.
+- Poetry, общие тестовые helpers и Ruff.
+- Docker Compose, GitHub Actions, контейнерные проверки и публикация GHCR.
+- Фаза 22: личные и юридические счета, атомарные финансовые сервисы,
+  журнал и история статусов.
+- Финансовые страницы сотрудников только для чтения с поиском и пагинацией.
+- Пагинация заказов и чатов с сохранением навигации.
+- Привязка новых заказов к финансовому счёту владельца.
+- Оформление через сайт/API сохраняет способ оплаты без создания платежа.
+- Несколько поступлений заказа и атомарный сервис поступления/пополнения.
+- Сервисы назначения и освобождения до отгрузки с FIFO-источниками и историей.
+- Освобождение денег при разрешённой отмене заказа клиентом и сотрудником.
+- Выписка Invoice по заказу, аннулирование и перевыпуск с сохранением истории.
+- Данные/PDF Invoice клиента без платежа и история сотрудника с пагинацией.
+- Удаление действующих сценариев ошибки оплаты с сохранением истории.
+- Все 796 тестов прошли 2026-10-20.
+- Атомарная полная отгрузка, снимки позиций и применение предоплаты подключены
+  к сайту/API; в форме есть подтверждение, POST завершения доступен сотрудникам.
+- Миграции рабочей базы применены; начисление долга после отгрузки проверено вручную.
+- Сервисы назначения/снятия после отгрузки: модуль назначений и адресный Ruff
+  прошли 2026-10-22; последний полный прогон остаётся результатом от 2026-10-20.
+- Регистрация поступления на сайте: офис/безнал, безопасные повторы ключа,
+  ошибки ввода и сохранение навигации; связанные модули и адресный Ruff прошли.
 
-- Catalog, pricing, suppliers and inventory
-- Customer profiles, authentication and authorization roles
-- Shopping cart, checkout, orders and stock reservations
-- Delivery, cancellation and reservation rollback
-- Payment status workflows, invoices and PDF documents
-- Email notifications and customer–manager chat
-- Client and staff REST APIs
-- Poetry dependency management and shared test helpers
-- Ruff quality checks
-- Docker Compose infrastructure
-- GitHub Actions checks, Docker integration tests and GHCR publishing
-- PHASE 22: personal and legal financial accounts, atomic financial
-  services, transaction ledger and account status history
-- Read-only staff finance pages with search, filters and pagination
-- Paginated order and chat lists with preserved navigation
-- New orders linked to the owner's matching financial account
-- Website/API checkout stores a payment preference without creating a payment
-- Multiple receipts per order and an atomic manual receipt-credit service
-- Pre-shipment assignment/release services with FIFO sources and retained history
-- Automatic fund release during authorized customer and staff order cancellation
-- Order-based invoice issuance, staff cancellation and reissue with retained history
-- Payment-independent client invoice data/PDF access and paginated staff history
-- Removal of active failed-payment paths; historical data preserved
-- Full suite of 796 tests passed on 2026-10-20
-- Atomic full shipment, independent item snapshots and prepayment application
-  connected to website/API completion; browser confirmation and staff-only POST
-- Runtime finance/order migrations applied and unpaid-shipment debt checked manually
+### Текущая работа
 
-### 🚧 Current Work
+**Фаза 23 — деньги заказа и расчёт после полной отгрузки.**
 
-**PHASE 23 — Order Funds & Full-Shipment Settlement**
+Связь со счётом, основа поступлений, блок Invoice сайта/API и сервисы
+назначения/освобождения до отгрузки реализованы. Новый заказ требует
+соответствующий счёт владельца; Invoice не требует платежа и сам не меняет
+деньги или долг. Разрешённая отмена заказа атомарно освобождает назначения.
 
-The account link, receipt-service foundation, website/API invoice block,
-and pre-shipment assignment/release services are implemented. New orders
-require the matching financial account; invoices do not require a payment
-and do not themselves change funds or debt. Existing authorized order
-cancellation now releases active assignments atomically.
+Модели отгрузки и её позиций, а также финансовая операция уменьшения только
+долга созданы и проверены адресно вместе с `OrderFundApplication`.
+`Complete order` подключён через существующее изменение статуса на сайте и в
+API. Форма запрашивает подтверждение, запрещённый POST завершения возвращает
+403. Исправление/повторное открытие отгрузки исключено из фазы 23.
 
-Shipment and shipment-item records and the debt-only application primitive
-are now implemented and scoped-tested, together with `OrderFundApplication`.
-`Complete order` is connected through the existing website and API status action;
-the website asks for confirmation, and unauthorized completion POSTs return 403.
-Shipment correction/reopening remains out of PHASE 23 scope.
+Сервисы назначения/снятия после отгрузки реализованы и проверены модулем.
+Нужна соответствующая зарегистрированная отгрузка; проверены предел суммы,
+повторы с тем же ключом, откат и повторное использование после отмены.
+Снятие восстанавливает доступные деньги и соответствующий долг, сохраняя
+`COMPLETED`, поступление и историю. Пользователь подтвердил модуль и адресный
+Ruff 2026-10-22; новый полный прогон и ручную проверку назначения/снятия не заявляем.
 
-The immediate next service milestone is assignment and removal after shipment,
-reconciling that shipment's debt while keeping the order completed.
-Remaining work includes staff interfaces for receipt registration and
-assignment/removal, post-shipment
-assignment and debt restoration, pre-shipment order editing, safe receipt
-corrections, concurrent-workflow verification, actual manual cash/bank refunds,
-customer balance views and shipped-but-unpaid order lists.
+Регистрация поступления на сайте реализована: менеджер/администратор через
+атомарный сервис подтверждает фактические деньги офиса/безнала без назначения
+заказу. Форма сохраняет ключ при ошибках; повторы и конфликты данных проверены.
+Контекст заказа/списка не теряется. Пользователь подтвердил модули страниц
+поступления, сервиса поступления и страниц заказа сотрудника, а также адресный
+Ruff. Вручную проверены открытие формы, возврат и регистрация поступления:
+доступный баланс увеличивается на внесённую сумму, долг не уменьшается.
+Нового полного прогона нет.
 
-Receipt confirmation, assigning funds to an order, shipment settlement and
-real payout are separate actions. Existing debt allocation cannot substitute
-for pre-shipment assignment. Before order-item editing, preserve invoice-item
-snapshots so historical PDFs cannot change with the order.
+Далее: формы назначения/снятия и API поступлений/назначений, затем клиентские
+балансы и список отгруженных неоплаченных заказов. Ещё впереди правки до
+отгрузки, безопасное исправление поступлений, отдельные конкурентные проверки
+и реальные возвраты наличных/безнала.
 
-### 🗺️ Next Milestones
+Подтверждение поступления, назначение денег заказу, расчёт при отгрузке и
+фактическая выплата — разные действия. Старое погашение долга не заменяет
+назначение предоплаты до отгрузки. До правок состава заказа нужно сохранить
+снимки строк Invoice, чтобы исторические PDF не менялись вместе с заказом.
 
-- PHASE 24: minimal 1C integration using an agreed exchange contract
-- PHASE 25: an internet-accessible test pilot without real sales or live payments
+### Следующие этапы
 
-Further capabilities remain in the [roadmap](docs/roadmap.md), including
-partial shipments, external payment providers, goods-return logistics, caching,
-internationalization and WebSocket communication.
+- Фаза 24: минимальный обмен с 1С по согласованному контракту.
+- Фаза 25: тестовый запуск в интернете без реальных продаж и оплат.
 
----
+Частичные отгрузки, реальные платёжные провайдеры, возвраты товаров, кеширование,
+интернационализация и WebSockets остаются в [roadmap](docs/roadmap.md).
 
-## 🛣️ Engineering Roadmap
+## Порядок развития
 
 ```text
-COMPLETED
-   ├── PHASE 20 — Poetry and dependency modernization
-   ├── PHASE 21 — Shared test helpers and Ruff
-   └── PHASE 22 — Customer financial core
+ЗАВЕРШЕНО
+   ├── ФАЗА 20 — Poetry и обновление зависимостей
+   ├── ФАЗА 21 — Общие тестовые helpers и Ruff
+   └── ФАЗА 22 — Финансовое ядро клиента
         │
         ▼
-PHASE 23 — Order funds and full-shipment settlement 🚧
+ФАЗА 23 — Деньги заказа и расчёт после полной отгрузки
         │
         ▼
-PHASE 24 — Minimal 1C integration
+ФАЗА 24 — Минимальная интеграция с 1С
         │
         ▼
-PHASE 25 — Controlled online test pilot
-           No real sales or live payments
+ФАЗА 25 — Контролируемый тестовый запуск в интернете
+          Без реальных продаж и оплат
         │
         ▼
-FURTHER DEVELOPMENT
-   Prioritized from pilot feedback and business needs
-   See docs/roadmap.md
+ДАЛЬНЕЙШЕЕ РАЗВИТИЕ
+   Приоритеты по результатам пилота и потребностям бизнеса
+   См. roadmap.md
 ```
 
----
+## О проекте
 
-## 👨‍💻 Project
+Shop_ePower — личный дипломный проект **Александра Морозова**. Разработка
+проходит итерациями с обсуждением архитектуры, разбором кода,
+планированием и поддержкой ChatGPT.
 
-Shop_ePower is a personal diploma project created and developed by **Alexander Morozov**.
+Цели: применять современные практики Django, учиться принимать
+архитектурные решения и понимать написанный код, строить расширяемую
+систему, использовать TDD, освоить Docker, PostgreSQL, Redis и Celery
+и заложить основу дальнейшего развития после диплома.
 
-The project has been built through an iterative engineering process with extensive architectural discussions, code reviews, technical planning, and development support provided by ChatGPT.
-
-The primary goals of this project are:
-
-- applying modern Django engineering practices;
-- learning to make architectural decisions instead of copying solutions;
-- designing a scalable and maintainable system;
-- following Test-Driven Development;
-- mastering Docker, PostgreSQL, Redis and Celery;
-- creating a strong foundation for continued development after graduation.
-
----
-
-<div align="center">
-
-## ⚡ Thank You for Visiting Shop_ePower
-
-**The diploma defense is a milestone — not the end of the project.**
-
-Shop_ePower will continue to evolve as a long-term engineering and portfolio project.
-
-</div>
+Защита диплома — этап развития проекта. Shop_ePower продолжает развиваться
+как долгосрочный инженерный проект и часть портфолио.
