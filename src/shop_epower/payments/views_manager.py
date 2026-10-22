@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -11,8 +13,10 @@ from django.views.generic import DetailView, ListView
 
 from shop_epower.orders.models import Order
 from shop_epower.orders.navigation import (
+    get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
+from shop_epower.payments.forms import ManualPaymentReceiptForm
 from shop_epower.payments.models import (
     Invoice,
     Payment,
@@ -25,6 +29,7 @@ from shop_epower.payments.services import (
     cancel_invoice,
     create_invoice_for_order,
     generate_invoice_pdf,
+    record_manual_order_payment,
 )
 
 
@@ -181,6 +186,83 @@ class ManagerPaymentDetailView(
         )
 
         return context
+
+
+class ManagerRecordReceiptView(
+    LoginRequiredMixin,
+    DetailView,
+):
+    model = Order
+
+    template_name = "payments/manage/receipt_form.html"
+    context_object_name = "order"
+
+    def get_queryset(self):
+        if self.request.user.role not in [
+            "manager",
+            "admin",
+        ]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return super().get_queryset()
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = ManualPaymentReceiptForm(
+                initial={
+                    "operation_key": f"manual-receipt:{uuid4()}",
+                },
+            )
+
+        context["return_url"] = get_safe_manager_order_return_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            payment_ids=self.object.payments.values_list(
+                "pk",
+                flat=True,
+            ),
+        )
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = ManualPaymentReceiptForm(request.POST)
+
+        if form.is_valid():
+            try:
+                record_manual_order_payment(
+                    order=self.object,
+                    amount=form.cleaned_data["amount"],
+                    method=form.cleaned_data["method"],
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Receipt registered. Funds have not been assigned "
+                    "to the order.",
+                )
+
+                return redirect_to_manager_order_detail(
+                    request=request,
+                    order_id=self.object.pk,
+                )
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
 
 
 class ManagerGenerateInvoiceView(

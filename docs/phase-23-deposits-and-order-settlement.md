@@ -1,11 +1,12 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
-Status: implementation in progress. Receipt-service and invoice foundations,
-pre-shipment assignment/release, full shipment with prepayment application,
-and post-shipment assignment/removal services are implemented. Full shipment
-is connected to existing website/API completion. Staff money-operation
-interfaces, customer balance/debt views, receipt correction, manual payouts
-and pre-shipment item editing remain open. PHASE 23 is not complete.
+Status: implementation in progress. Receipt/invoice foundations, assignment
+before/after shipment and full shipment with prepayment application are
+implemented. Full shipment is connected to website/API completion; manual
+receipt registration is connected to the staff website. Receipt-registration
+API, staff assignment/removal interfaces, customer balance/debt views, receipt
+correction, manual payouts and pre-shipment item editing remain open.
+PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -143,15 +144,35 @@ As of 2026-10-22, post-shipment assignment/removal services are implemented:
 - The user reports the complete assignment-service module and scoped Ruff
   checks passing on 2026-10-22. No new full-project run or manual website
   assignment/removal test is claimed. These are service-level operations;
-  dedicated staff money-action interfaces are not connected yet.
+  dedicated staff money-action interfaces were not yet connected at that checkpoint.
 
-The immediate next milestone is working money pages: connect actual receipt
-registration and separate assignment/removal actions, then add customer-facing
-balances and the staff shipped-unpaid order list. Receipt correction, actual
-cash/bank refunds and pre-shipment item editing remain open.
-Existing staff `Finances` account pages already show balances/history read-only.
-No shipment correction/reopening or replacement-shipment flow is added.
-Independent concurrency coverage for the new financial workflows remains open.
+Also on 2026-10-22, the staff website receipt-registration milestone is implemented:
+
+- Managers and administrators open `Register receipt` from the order's
+  Payments panel. An order financial account is required by the underlying
+  service; the link is hidden for legacy orders without an account.
+- `ManualPaymentReceiptForm` accepts a positive decimal amount, office payment
+  or bank transfer and an optional comment. A hidden operation key is generated
+  on GET and retained on POST/error; online payment is not offered.
+- `ManagerRecordReceiptView` delegates to `record_manual_order_payment()`:
+  one `PAID` manual Payment and one account deposit are created atomically.
+  No assignment, debt settlement, order-status change or Invoice is created.
+- Tests cover manager office receipt, administrator bank receipt without an
+  invoice, customer POST denial, same-key retry, conflicting data, invalid
+  amount with retained form/key, and list-filter/page context through the
+  order link, submission and Back to order link.
+- The user reports receipt-view, receipt-service and existing manager-order-view
+  modules and scoped Ruff passing. Opening the form and returning to the order
+  were manually confirmed. The user also verified actual receipt registration:
+  available funds increase by the received amount; debt remains unchanged.
+  No new full-suite run is claimed.
+
+Next: connect staff assignment/removal forms and the receipt/assignment API,
+then customer-facing balances and the shipped-unpaid order list. Receipt
+correction, actual cash/bank refunds and pre-shipment item editing remain open.
+Existing staff `Finances` account pages display balances/history read-only.
+No shipment correction/reopening is added. Independent concurrency coverage
+for the new financial workflows remains open.
 
 <a id="order-funds-models"></a>
 
@@ -280,7 +301,8 @@ available funds become 40 and debt becomes 40. Whole-assignment removal adds
 two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
 shipment and original assignment/application records remain; the order stays
 `COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
-money-action interfaces and independent concurrency tests remain pending.
+receipt registration is connected to the website; assignment/removal interfaces,
+receipt API and independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -686,15 +708,15 @@ not only forms. Do not defer office/bank refunds with online withdrawals.
    rollback of both flows and reassignment after cancellation are tested.
    The user reports the assignment-service module and scoped Ruff passing on
    2026-10-22. Independent concurrent-request coverage remains open.
-3. **Working money pages and balances — next.** Connect staff website/API actions to
-   actual receipt registration (a `PAID` Payment and one account credit) and
-   separate assignment/removal. Do not reuse legacy pending-payment actions as
-   if they implemented this flow. Add customer-only read views for available
-   funds, assigned prepayment and debt, separate personal/legal accounts/currency
-   without double counting. Add the staff shipped-unpaid order list with customer,
-   order, shipment and remaining debt; search/filter, paginate and reconcile it.
-   Do not load settled history by default. Existing staff account pages remain
-   read-only until the corresponding money actions are explicitly connected.
+3. **Working money pages and balances — in progress.** Staff website receipt
+   registration is implemented and tested: a `PAID` Payment and one account
+   deposit, with no automatic assignment. Next connect separate assignment/
+   removal forms and the receipt/assignment API. Do not reuse legacy pending
+   payment actions as this flow. Add customer-only available funds, assigned
+   prepayment and debt views, separate by personal/legal account and currency.
+   Add the staff shipped-unpaid list with customer, order, shipment and remaining
+   debt; search/filter, paginate and reconcile it. Do not load settled history
+   by default. Staff account/history pages remain read-only.
 4. **Receipt correction and real cash/bank refunds.** Agree on corrected receipt
    status and permissions. Undo dependent assignments, reverse the credited
    receipt and retain audit history, with dependency guards, retries, rollback
