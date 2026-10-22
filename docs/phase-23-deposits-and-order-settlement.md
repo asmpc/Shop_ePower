@@ -1,11 +1,11 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
 Status: implementation in progress. Receipt-service and invoice foundations,
-pre-shipment assignment/release, and full shipment with prepayment application
-are implemented. Full shipment is connected to existing website/API completion.
-Staff money-operation interfaces, post-shipment assignment/removal, customer
-balance/debt views, receipt correction, manual payouts and pre-shipment item
-editing remain open. PHASE 23 is not complete.
+pre-shipment assignment/release, full shipment with prepayment application,
+and post-shipment assignment/removal services are implemented. Full shipment
+is connected to existing website/API completion. Staff money-operation
+interfaces, customer balance/debt views, receipt correction, manual payouts
+and pre-shipment item editing remain open. PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -125,12 +125,31 @@ As of 2026-10-20, full shipment is connected and verified:
   receipt/assignment forms exist. Manual cancellation of the browser dialog
   has not been separately reported.
 
-The immediate next milestone is assignment/removal after shipment, reconciling
-that shipment's debt while keeping `COMPLETED`. Receipt/assignment forms,
-customer-facing balances, the shipped-unpaid order list, receipt correction,
-actual cash/bank refunds and pre-shipment item editing are not complete.
-Existing staff `Finances` account search/detail pages already display balances
-and history read-only; they are not the missing money-operation forms.
+As of 2026-10-22, post-shipment assignment/removal services are implemented:
+
+- `assign_order_funds()` accepts a completed order only with its matching
+  shipment. A new assignment atomically debits available funds, retains FIFO
+  deposit sources and applies the amount to the recorded shipment's debt.
+  The remaining-order limit still applies even when unrelated account debt
+  and available funds are sufficient. The order stays `COMPLETED`.
+- Whole selected assignment removal requires a reason. It first reverses the
+  debt application, then reverses the assignment debit, restoring the
+  corresponding debt and available funds without reversing the real receipt,
+  shipment obligation or completed order. Historical rows are retained.
+- Sequential tests cover same-key retries, missing shipment, amount limits,
+  rollback of assignment/application and rollback between the two cancellation
+  reversals. Released funds can be assigned again; reversed history does not
+  consume order or deposit capacity.
+- The user reports the complete assignment-service module and scoped Ruff
+  checks passing on 2026-10-22. No new full-project run or manual website
+  assignment/removal test is claimed. These are service-level operations;
+  dedicated staff money-action interfaces are not connected yet.
+
+The immediate next milestone is working money pages: connect actual receipt
+registration and separate assignment/removal actions, then add customer-facing
+balances and the staff shipped-unpaid order list. Receipt correction, actual
+cash/bank refunds and pre-shipment item editing remain open.
+Existing staff `Finances` account pages already show balances/history read-only.
 No shipment correction/reopening or replacement-shipment flow is added.
 Independent concurrency coverage for the new financial workflows remains open.
 
@@ -138,7 +157,7 @@ Independent concurrency coverage for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and full-shipment implementation status as of 2026-10-20.
+Model relationships and settlement-service implementation status as of 2026-10-22.
 Keep this section synchronized with the main README and local Russian copies.
 
 ### Receipts and assignment — implemented
@@ -254,7 +273,14 @@ snapshots, full obligation, application of active pre-shipment assignments and
 `COMPLETED` status commit atomically. A permitted retry returns the existing
 shipment without repeating money movements. Cancelled assignments are excluded;
 shipment-level limits prevent using unrelated account debt as capacity.
-Post-shipment assignment and assignment removal are not implemented yet.
+Post-shipment assignment/removal services are implemented as of 2026-10-22.
+For a shipped order of 100 with available funds of 100 and debt of 100,
+assigning 60 records `FUNDS_ASSIGNMENT` and `FUNDS_APPLICATION` atomically:
+available funds become 40 and debt becomes 40. Whole-assignment removal adds
+two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
+shipment and original assignment/application records remain; the order stays
+`COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
+money-action interfaces and independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -590,11 +616,11 @@ identify the source of funds or the order being settled.
 - Which final status and permissions are required to correct a receipt after
   safely reversing its credit? Preserve legacy `PENDING` and mock scenarios
   without fictitious credits; do not assume a reset-to-`PENDING` workflow.
-- Extend the implemented assignment/source records to application of
-  prepayment at shipment and removal after shipment. Preserve the verified
-  pre-shipment behavior: available 100 -> assign 100 -> zero available/zero
-  debt -> release back to 100. Do not substitute debt allocation or receipt
-  totals for assignments or deduct prepayment twice.
+- Preserve the implemented prepayment application and post-shipment
+  assignment/removal when connecting staff interfaces and receipt correction.
+  Available 100 -> assign 100 before shipment -> zero available/zero debt ->
+  release back to 100 remains valid. Do not substitute debt allocation or
+  receipt totals for assignments or deduct prepayment twice.
 - Define actual manual cash/bank refund records, funding links, permitted
   methods, staff permissions, amount, mandatory reason, and retry key.
   Choose a public money-out operation rather than the positive-delta
@@ -635,8 +661,9 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Execution order agreed on 2026-10-20. The full-shipment milestone is implemented,
-not the whole phase. Each completed step must have a visible acceptance result.
+Execution order agreed on 2026-10-20; service progress updated on 2026-10-22.
+Full shipment and post-shipment assignment/removal are implemented, not the
+whole phase. Each completed step must have a visible acceptance result.
 The user edits application code, tests and migrations and runs all checks.
 Run only the new test in a small TDD step; run related modules at a behavior
 milestone and the full suite at a meaningful checkpoint. Explain targeted
@@ -651,14 +678,15 @@ not only forms. Do not defer office/bank refunds with online withdrawals.
    shipment check passed. Runtime migrations were applied. Confirm the browser
    cancellation branch manually if it has not yet been checked. Independent
    concurrent-request tests remain open. No shipment undo/reopening is planned.
-2. **Assign/remove funds after shipment — next.** Extend the current assignment,
-   source and application records. Explicit assignment reduces available funds
-   and settles only the selected shipment's remaining obligation. Whole selected
-   assignment removal requires a reason, restores its funds and corresponding
-   debt, keeps `COMPLETED` and preserves the actual receipt and all audit records.
-   Cover before/after shipment, partial amounts, multiple receipts/assignments,
-   limits, retries, rollback and no implicit settlement.
-3. **Working money pages and balances.** Connect staff website/API actions to
+2. **Assign/remove funds after shipment — service milestone implemented.**
+   Explicit assignment debits available funds and applies them to a matching
+   shipment within the order's remaining amount. Whole selected removal requires
+   a reason, restores funds/debt and preserves `COMPLETED`, receipts and history.
+   Same-key retries, limits with unrelated account debt, missing shipment,
+   rollback of both flows and reassignment after cancellation are tested.
+   The user reports the assignment-service module and scoped Ruff passing on
+   2026-10-22. Independent concurrent-request coverage remains open.
+3. **Working money pages and balances — next.** Connect staff website/API actions to
    actual receipt registration (a `PAID` Payment and one account credit) and
    separate assignment/removal. Do not reuse legacy pending-payment actions as
    if they implemented this flow. Add customer-only read views for available

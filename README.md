@@ -40,8 +40,9 @@ an atomic receipt-credit service, and order-based invoices with cancellation
 and retained history. Pre-shipment fund-assignment services use FIFO deposit
 sources and support whole-assignment release and automatic release on
 authorized order cancellation. Atomic full-shipment settlement is now connected
-to website/API completion. Staff money-operation interfaces, post-shipment
-assignment/removal and actual cash/bank refunds remain in progress. The priority path is PHASE 23 → minimal
+to website/API completion. Post-shipment assignment/removal services are also
+implemented. Staff money-operation interfaces and actual cash/bank refunds
+remain in progress. The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
 ---
@@ -290,9 +291,10 @@ Pre-shipment assignment and whole-release services retain source portions
 and append-only reversal history; staff and customer order cancellation
 release active assignments under their existing order permissions.
 Full-shipment settlement is connected to the existing completion action.
-Dedicated staff receipt/assignment interfaces, post-shipment assignment/removal,
-actual manual cash/bank refunds and
-customer-facing balances remain PHASE 23 work. The core refund service is
+Post-shipment assignment/removal services now settle and restore the selected
+shipment's debt while preserving `COMPLETED`, receipts and audit history.
+Dedicated staff receipt/assignment interfaces, actual manual cash/bank refunds
+and customer-facing balances remain PHASE 23 work. The core refund service is
 not a real money-out payout workflow.
 
 </td>
@@ -305,7 +307,7 @@ not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-10-20. The model links and full-shipment workflow below are
+Status as of 2026-10-22. The model links and settlement services below are
 implemented. Receipt-registration and fund-assignment forms remain pending.
 
 ### Receipts and assignment — implemented
@@ -421,7 +423,14 @@ snapshots, full obligation, application of active pre-shipment assignments and
 `COMPLETED` status commit atomically. A permitted retry returns the existing
 shipment without repeating money movements. Cancelled assignments are excluded;
 shipment-level limits prevent using unrelated account debt as capacity.
-Post-shipment assignment and assignment removal are not implemented yet.
+Post-shipment assignment/removal services are implemented as of 2026-10-22.
+For a shipped order of 100 with available funds of 100 and debt of 100,
+assigning 60 records `FUNDS_ASSIGNMENT` and `FUNDS_APPLICATION` atomically:
+available funds become 40 and debt becomes 40. Whole-assignment removal adds
+two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
+shipment and original assignment/application records remain; the order stays
+`COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
+money-action interfaces and independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -962,6 +971,8 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually
+- Post-shipment assignment/removal services: assignment-service module and scoped
+  Ruff passed on 2026-10-22; latest full-suite result remains the 2026-10-20 run
 
 ### 🚧 Current Work
 
@@ -979,13 +990,17 @@ are now implemented and scoped-tested, together with `OrderFundApplication`.
 the website asks for confirmation, and unauthorized completion POSTs return 403.
 Shipment correction/reopening remains out of PHASE 23 scope.
 
-The immediate next service milestone is assignment and removal after shipment,
-reconciling that shipment's debt while keeping the order completed.
-Remaining work includes staff interfaces for receipt registration and
-assignment/removal, post-shipment
-assignment and debt restoration, pre-shipment order editing, safe receipt
-corrections, concurrent-workflow verification, actual manual cash/bank refunds,
-customer balance views and shipped-but-unpaid order lists.
+Post-shipment assignment/removal services are implemented and module-tested.
+A matching recorded shipment is required; order limits, same-key retries,
+rollback and reuse after cancellation are covered. Assignment removal restores
+available funds and the corresponding debt, preserving `COMPLETED`, the receipt
+and historical rows. The user reports the module and scoped Ruff passing on
+2026-10-22; no new full-project run or website money-action verification is claimed.
+
+Next: connect staff interfaces for actual receipt registration and separate
+assignment/removal, then customer balances and shipped-but-unpaid order lists.
+Remaining work includes pre-shipment order editing, safe receipt corrections,
+independent concurrent-workflow verification and actual manual cash/bank refunds.
 
 Receipt confirmation, assigning funds to an order, shipment settlement and
 real payout are separate actions. Existing debt allocation cannot substitute
