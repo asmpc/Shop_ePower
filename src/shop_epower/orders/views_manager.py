@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
@@ -9,15 +11,23 @@ from django.views import View
 from django.views.generic import DetailView, ListView
 
 from shop_epower.chat.selectors import get_chat_rooms_for_order
+from shop_epower.orders.forms import (
+    OrderFundAssignmentCancelForm,
+    OrderFundAssignmentForm,
+)
 from shop_epower.orders.models import (
     Order,
+    OrderFundAssignment,
     OrderStatus,
 )
 from shop_epower.orders.navigation import (
     get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
+from shop_epower.orders.selectors import get_order_fund_assignments
 from shop_epower.orders.services import (
+    assign_order_funds,
+    cancel_order_fund_assignment,
     update_order_delivery_by_manager,
     update_order_status_by_manager,
 )
@@ -189,7 +199,183 @@ class ManagerOrderDetailView(
             self.request.GET.get("invoices_page"),
         )
 
+        assignment_history = get_order_fund_assignments(
+            order=self.object,
+        )
+        assignment_paginator = Paginator(
+            assignment_history,
+            20,
+        )
+
+        context["fund_assignments"] = assignment_paginator.get_page(
+            self.request.GET.get("assignments_page"),
+        )
+
         return context
+
+
+class ManagerOrderFundAssignmentView(
+    LoginRequiredMixin,
+    DetailView,
+):
+    model = Order
+
+    template_name = "orders/manage/fund_assignment_form.html"
+    context_object_name = "order"
+
+    def get_queryset(self):
+        if self.request.user.role not in [
+            "manager",
+            "admin",
+        ]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return (
+            super().get_queryset()
+            .select_related("customer_account")
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = OrderFundAssignmentForm(
+                initial={
+                    "operation_key": (
+                        f"order-fund-assignment:{uuid4()}"
+                    ),
+                },
+            )
+
+        context["return_url"] = get_safe_manager_order_return_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            payment_ids=self.object.payments.values_list(
+                "pk",
+                flat=True,
+            ),
+        )
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = OrderFundAssignmentForm(request.POST)
+
+        if form.is_valid():
+            try:
+                assign_order_funds(
+                    order=self.object,
+                    amount=form.cleaned_data["amount"],
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Funds assigned to the order.",
+                )
+
+                return redirect_to_manager_order_detail(
+                    request=request,
+                    order_id=self.object.pk,
+                )
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
+
+
+class ManagerOrderFundAssignmentCancelView(
+    LoginRequiredMixin,
+    DetailView,
+):
+    model = OrderFundAssignment
+
+    template_name = "orders/manage/fund_assignment_cancel_form.html"
+    context_object_name = "assignment"
+
+    def get_queryset(self):
+        if self.request.user.role not in [
+            "manager",
+            "admin",
+        ]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return (
+            super().get_queryset()
+            .select_related(
+                "order",
+                "order__customer_account",
+                "account_transaction",
+            )
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = OrderFundAssignmentCancelForm(
+                initial={
+                    "operation_key": (
+                        f"order-fund-assignment-cancel:{uuid4()}"
+                    ),
+                },
+            )
+
+        context["return_url"] = get_safe_manager_order_return_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            payment_ids=(
+                self.object.order.payments.values_list(
+                    "pk",
+                    flat=True,
+                )
+            ),
+        )
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = OrderFundAssignmentCancelForm(request.POST)
+
+        if form.is_valid():
+            try:
+                cancel_order_fund_assignment(
+                    assignment=self.object,
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Fund assignment cancelled.",
+                )
+                return redirect_to_manager_order_detail(
+                    request=request,
+                    order_id=self.object.order_id,
+                )
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
 
 
 class ManagerPaymentActionMixin(

@@ -9,8 +9,6 @@
 A Django platform being developed for wholesale and retail workflows:
 **catalog → cart → checkout → stock reservation → manager workflow → notifications → history**
 
-Confirmed money receipts and optional invoices are separate workflows.
-
 <br>
 
 ![Python](https://img.shields.io/badge/Python-3.14-3776AB?logo=python&logoColor=white)
@@ -20,7 +18,7 @@ Confirmed money receipts and optional invoices are separate workflows.
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-796-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-846-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -43,8 +41,9 @@ and retained history. Pre-shipment fund-assignment services use FIFO deposit
 sources and support whole-assignment release and automatic release on
 authorized order cancellation. Atomic full-shipment settlement is now connected
 to website/API completion. Post-shipment assignment/removal services are also
-implemented. Staff website receipt registration is connected; assignment/removal
-interfaces, receipt API and actual cash/bank refunds remain in progress.
+implemented. Staff website receipt registration, assignment and cancellation
+forms are connected. Receipt/assignment API, customer balances, the shipped-unpaid
+list and actual cash/bank refunds remain in progress.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -106,8 +105,8 @@ remains pending.
 The implemented pre-shipment assignment service separately reserves an
 explicit amount for an order from eligible FIFO deposit portions, without
 creating debt. Whole-assignment release and authorized order cancellation
-restore available funds while preserving history. Dedicated assignment/removal
-forms and receipt/assignment API actions remain pending.
+restore available funds while preserving history. Staff assignment/cancellation
+forms are connected; receipt/assignment API actions remain pending.
 Full shipment creates its obligation and applies only previously assigned funds;
 receipt or invoice creation does not automatically assign funds or settle debt.
 
@@ -298,8 +297,9 @@ Full-shipment settlement is connected to the existing completion action.
 Post-shipment assignment/removal services now settle and restore the selected
 shipment's debt while preserving `COMPLETED`, receipts and audit history.
 The staff website receipt form records actual office/bank funds without
-automatic assignment. Assignment/removal forms, receipt API, actual manual
-cash/bank refunds and customer-facing balances remain PHASE 23 work.
+automatic assignment. Assignment/cancellation forms and paginated history are
+connected. Receipt/assignment API, actual manual cash/bank refunds and
+customer-facing balances remain PHASE 23 work.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -312,9 +312,9 @@ The core refund service is not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-10-22. The model links and settlement services below are
-implemented. Staff website receipt registration is connected; fund-assignment
-forms and receipt-registration API remain pending.
+Status as of 2026-10-25. The model links and settlement services below are
+implemented. Staff website receipt registration and assignment/cancellation
+forms are connected; receipt/assignment API remains pending.
 
 ### Receipts and assignment — implemented
 
@@ -436,8 +436,8 @@ available funds become 40 and debt becomes 40. Whole-assignment removal adds
 two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
 shipment and original assignment/application records remain; the order stays
 `COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
-receipt registration is connected to the website; assignment/removal interfaces,
-receipt API and independent concurrency tests remain pending.
+receipt registration and assignment/cancellation forms are connected to the
+website. Receipt/assignment API and independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -818,8 +818,9 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **796 tests on 2026-10-20**, including
-full-shipment models, services, and website/API integration. Tests run
+The latest verified full run passed **846 tests in 1025.223 seconds on
+2026-10-25**, including full-shipment website/API integration and staff
+assignment/cancellation pages. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
@@ -830,6 +831,10 @@ The user applied the new finance/order migrations to the runtime database and
 manually confirmed that completing an unpaid order adds its full obligation
 without changing available funds. Independent concurrency coverage for the new
 shipment/assignment workflows remains open; the full suite does not prove it.
+On 2026-10-25 the user reported all 13 cancellation-view tests, related assignment
+view/selector and manager-order-view modules, and Ruff passing. Assignment,
+cancellation and retained order-list filters were also checked manually.
+After these checks, the user also ran the full project suite: all 846 tests passed.
 
 The test suite covers:
 
@@ -974,14 +979,17 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 796 tests passed on 2026-10-20
+- Full suite of 846 tests passed in 1025.223 seconds on 2026-10-25
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually
 - Post-shipment assignment/removal services: assignment-service module and scoped
-  Ruff passed on 2026-10-22; latest full-suite result remains the 2026-10-20 run
+  Ruff passed on 2026-10-22; the subsequent full 846-test run passed on 2026-10-25
 - Staff website receipt registration: office/bank funds, safe same-key retries,
   validation errors and preserved navigation; related modules and scoped Ruff pass
+- Staff website assignment/cancellation and paginated history: 13 cancellation-view
+  tests and related modules plus Ruff passed on 2026-10-25; manual actions and
+  preserved order-list filters confirmed
 
 ### 🚧 Current Work
 
@@ -1004,7 +1012,8 @@ A matching recorded shipment is required; order limits, same-key retries,
 rollback and reuse after cancellation are covered. Assignment removal restores
 available funds and the corresponding debt, preserving `COMPLETED`, the receipt
 and historical rows. The user reports the module and scoped Ruff passing on
-2026-10-22; no new full-project run or manual assignment/removal check is claimed.
+2026-10-22; at that service checkpoint no new full-project run or manual
+assignment/removal check was claimed.
 
 Staff website receipt registration is implemented: managers/admins record actual
 office/bank funds through the atomic service, without assigning them to the order.
@@ -1013,10 +1022,20 @@ data are tested. Order/list navigation context is retained. The user reports
 receipt-view, receipt-service and manager-order-view modules plus scoped Ruff
 passing. Manual website checks confirmed form opening, return navigation and
 actual receipt registration: available funds increase by the received amount,
-while debt remains unchanged. No new full-project run is claimed.
+while debt remains unchanged. The subsequent full 846-test run passed on 2026-10-25.
 
-Next: connect staff assignment/removal forms and receipt/assignment API actions,
-then customer balances and shipped-but-unpaid order lists. Remaining work includes
+Staff assignment/cancellation forms are implemented as of 2026-10-25. They use
+the atomic services; paginated history retains the assignment, cancellation
+reason and actor. Cancellation requires a non-blank reason; same-key retries
+are safe and a new-key second cancellation shows an error without another credit.
+Customer POST is forbidden. Links, hidden next fields and return navigation
+preserve the original order-list filter/page. All 13 cancellation-view tests,
+related assignment-view/selector and existing manager-order-view modules, and
+Ruff passed. Manual assignment/cancellation and filter preservation were
+confirmed. The latest full-suite result is 846 passing tests on 2026-10-25.
+
+Next: receipt/assignment API actions, then customer balances and shipped-but-unpaid
+order lists. Remaining work includes
 pre-shipment order editing, safe receipt corrections, independent concurrency
 verification and actual manual cash/bank refunds.
 

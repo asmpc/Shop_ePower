@@ -237,8 +237,9 @@ remaining amount. Whole selected removal requires a reason, reverses application
 and assignment together and preserves `COMPLETED`, the receipt and history.
 The user reports the assignment-service module and scoped Ruff passing:
 same-key retries, limits with unrelated debt, missing shipment, rollback and
-reuse after cancellation are covered. The latest full-suite result remains
-796 tests on 2026-10-20; no website money-action verification is claimed.
+reuse after cancellation are covered. At that service checkpoint the latest
+full-suite result was 796 tests on 2026-10-20; no website money-action
+verification was claimed.
 Staff website receipt milestone (2026-10-22): managers/admins register office
 or bank funds from the order page through the atomic receipt service; no
 automatic assignment, debt settlement or invoice is created. The form retains
@@ -247,8 +248,19 @@ same-key retries/conflicts and filtered/paginated list-return context.
 The user reports receipt-view/service and manager-order-view modules plus scoped
 Ruff passing. Manual website checks confirmed form opening, return and receipt
 registration: available funds increase by the received amount; debt is unchanged.
-Next: assignment/removal forms and receipt/assignment API, then customer balances
-and the shipped-unpaid list. Follow with safe receipt correction/manual refunds,
+Staff assignment/cancellation website milestone (2026-10-25): forms delegate
+to the existing atomic services before/after shipment. Paginated assignment
+history retains cancellation reasons/actors; cancelled entries have no cancel
+link. Reasons are required, customer POST is forbidden, same-key retries are
+safe and a new-key second cancellation is rejected. Links and hidden next fields
+preserve order-list filters/pages through submission and return. The user reports
+all 13 cancellation-view tests, related assignment-view/selector and existing
+manager-order-view modules, and Ruff passing. Manual assignment/cancellation and
+list-filter preservation were confirmed. The subsequent full suite passed
+**846 tests in 1025.223 seconds on 2026-10-25**; git diff --check reported only
+LF/CRLF warnings, with no whitespace errors. Independent concurrency tests remain open.
+Next: receipt/assignment API, then customer balances and the shipped-unpaid list.
+Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.
 See the [model diagrams and settlement example](phase-23-deposits-and-order-settlement.md#order-funds-models)

@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-4">
+    <h1 class="mb-0">Cancel fund assignment</h1>
+
+    <a
+        href="{% url 'orders:manager_order_detail' assignment.order_id %}?next={{ return_url|urlencode }}"
+        class="btn btn-outline-secondary"
+    >
+        Back to order
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Assignment #{{ assignment.pk }}
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">
+            <strong>Order:</strong>
+            #{{ assignment.order_id }}
+        </p>
+
+        <p class="mb-1">
+            <strong>Customer:</strong>
+            {{ assignment.order.customer_email }}
+        </p>
+
+        <p class="mb-0">
+            <strong>Amount:</strong>
+            {{ assignment.amount }} {{ assignment.account_transaction.currency_snapshot }}
+        </p>
+    </div>
+</div>
+
+<div class="alert alert-warning">
+    Cancelling this assignment returns its funds to the available balance.
+    For a shipped order, the corresponding debt is restored.
+    The receipt and shipment remain unchanged.
+    This does not refund money to the customer.
+</div>
+
+<form method="post" class="card">
+    <div class="card-header">
+        Cancellation details
+    </div>
+
+    <div class="card-body">
+        {% csrf_token %}
+        <input
+            type="hidden"
+            name="next"
+            value="{{ return_url }}"
+        >
+        {{ form.as_p }}
+
+        <button type="submit" class="btn btn-danger">
+            Cancel assignment
+        </button>
+    </div>
+</form>
+
+{% endblock %}
