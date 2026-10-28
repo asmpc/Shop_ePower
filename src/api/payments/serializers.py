@@ -1,9 +1,12 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from shop_epower.payments.models import (
     Invoice,
     Payment,
     PaymentHistory,
+    PaymentMethod,
 )
 
 
@@ -175,3 +178,23 @@ class ManagerInvoiceDetailSerializer(
         )
 
 
+class ManualPaymentReceiptSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    method = serializers.ChoiceField(
+        choices=(
+            PaymentMethod.ON_RECEIPT,
+            PaymentMethod.INVOICE,
+        ),
+    )
+    operation_key = serializers.CharField(
+        max_length=255,
+    )
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )

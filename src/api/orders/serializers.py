@@ -1,3 +1,5 @@
+from decimal import Decimal
+
 from rest_framework import serializers
 
 from shop_epower.orders.models import Order, OrderItem, OrderStatus
@@ -79,4 +81,30 @@ class OrderStatusUpdateSerializer(serializers.Serializer):
     cancellation_comment = serializers.CharField(
         required=False,
         allow_blank=True,
+    )
+
+
+class OrderFundAssignmentSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    operation_key = serializers.CharField(
+        max_length=255,
+    )
+    comment = serializers.CharField(
+        required=False,
+        allow_blank=True,
+        default="",
+    )
+
+
+class OrderFundAssignmentCancelSerializer(serializers.Serializer):
+    comment = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+    operation_key = serializers.CharField(
+        max_length=255,
     )

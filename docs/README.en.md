@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-846-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-871-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -42,8 +42,8 @@ sources and support whole-assignment release and automatic release on
 authorized order cancellation. Atomic full-shipment settlement is now connected
 to website/API completion. Post-shipment assignment/removal services are also
 implemented. Staff website receipt registration, assignment and cancellation
-forms are connected. Receipt/assignment API, customer balances, the shipped-unpaid
-list and actual cash/bank refunds remain in progress.
+forms and the corresponding API actions are connected. Customer balances,
+the shipped-unpaid list and actual cash/bank refunds remain in progress.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -100,13 +100,12 @@ Checkout records the customer's financial account and payment preference,
 but creates no payment or invoice. An invoice is an optional document issued
 from the order, not proof of payment. The implemented receipt service records
 actual office or bank funds as a confirmed payment and account credit in one
-atomic operation; staff website registration is connected, while its API
-remains pending.
+atomic operation; staff website and API registration are connected.
 The implemented pre-shipment assignment service separately reserves an
 explicit amount for an order from eligible FIFO deposit portions, without
 creating debt. Whole-assignment release and authorized order cancellation
 restore available funds while preserving history. Staff assignment/cancellation
-forms are connected; receipt/assignment API actions remain pending.
+forms and receipt/assignment/cancellation API actions are connected.
 Full shipment creates its obligation and applies only previously assigned funds;
 receipt or invoice creation does not automatically assign funds or settle debt.
 
@@ -298,8 +297,8 @@ Post-shipment assignment/removal services now settle and restore the selected
 shipment's debt while preserving `COMPLETED`, receipts and audit history.
 The staff website receipt form records actual office/bank funds without
 automatic assignment. Assignment/cancellation forms and paginated history are
-connected. Receipt/assignment API, actual manual cash/bank refunds and
-customer-facing balances remain PHASE 23 work.
+connected, together with the corresponding API actions. Actual manual cash/bank
+refunds and customer-facing balances remain PHASE 23 work.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -312,9 +311,9 @@ The core refund service is not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-10-25. The model links and settlement services below are
-implemented. Staff website receipt registration and assignment/cancellation
-forms are connected; receipt/assignment API remains pending.
+Status as of 2026-10-28. The model links and settlement services below are
+implemented. Staff receipt registration and assignment/cancellation are connected
+to the website and API; customer balances and independent concurrency checks remain open.
 
 ### Receipts and assignment — implemented
 
@@ -436,8 +435,8 @@ available funds become 40 and debt becomes 40. Whole-assignment removal adds
 two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
 shipment and original assignment/application records remain; the order stays
 `COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
-receipt registration and assignment/cancellation forms are connected to the
-website. Receipt/assignment API and independent concurrency tests remain pending.
+receipt registration and assignment/cancellation are connected to the website
+and API. Independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -808,6 +807,30 @@ The project exposes client, manager and administrator workflows through Django R
 - invoice creation by order ID, and client document/PDF access by invoice ID;
 - invoice cancellation by managers and administrators with a required reason.
 
+### Staff money actions
+
+Managers and administrators can perform these actions; customer POSTs are forbidden.
+
+| Action | POST endpoint | Result |
+|---|---|---|
+| Confirm receipt | `/api/payments/manage/orders/{order_id}/receipts/` | A PAID Payment and an available-balance credit |
+| Assign order funds | `/api/orders/manage/{order_id}/funds/assign/` | An assignment; after shipment, settlement of its corresponding debt |
+| Cancel assignment | `/api/orders/manage/fund-assignments/{assignment_id}/cancel/` | Reversal entries; the receipt and shipment are retained |
+
+Receipts require `amount`, `method` and `operation_key`, with optional `comment`.
+Manual methods are `on_receipt` (office) and `invoice` (bank transfer);
+this action cannot confirm online payments. An Invoice is neither required
+nor created automatically. Assignment takes `amount`, `operation_key` and
+optional `comment`; cancellation takes `operation_key` and a required non-blank
+`comment`. Cancellation applies to the whole selected assignment, without an amount field.
+
+The caller supplies the key. Same-key retries do not repeat money movements;
+changed data under an existing key is rejected. A new-key second cancellation
+is also rejected. Successful receipt/assignment returns 201, including safe
+retries; cancellation returns 200 with `assignment_id` and `reversal_id`.
+Invalid data/business-rule failures return 400; authenticated customer POSTs
+return 403.
+
 Swagger / OpenAPI documentation is available at
 [`/api/schema/swagger-ui/`](http://127.0.0.1:8000/api/schema/swagger-ui/),
 with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
@@ -818,9 +841,9 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **846 tests in 1025.223 seconds on
-2026-10-25**, including full-shipment website/API integration and staff
-assignment/cancellation pages. Tests run
+The latest verified full run passed **871 tests in 1076.950 seconds on
+2026-10-28**, including full-shipment website/API integration, staff
+assignment/cancellation pages and 25 new money API tests. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
@@ -979,7 +1002,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 846 tests passed in 1025.223 seconds on 2026-10-25
+- Full suite of 871 tests passed in 1076.950 seconds on 2026-10-28
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually
@@ -1032,10 +1055,21 @@ Customer POST is forbidden. Links, hidden next fields and return navigation
 preserve the original order-list filter/page. All 13 cancellation-view tests,
 related assignment-view/selector and existing manager-order-view modules, and
 Ruff passed. Manual assignment/cancellation and filter preservation were
-confirmed. The latest full-suite result is 846 passing tests on 2026-10-25.
+confirmed. At that website milestone, the full suite passed 846 tests on 2026-10-25.
 
-Next: receipt/assignment API actions, then customer balances and shipped-but-unpaid
-order lists. Remaining work includes
+As of 2026-10-28, receipt registration, assignment and whole-assignment
+cancellation API actions delegate to the existing atomic services. The 25 new
+tests (8 receipt, 9 assignment, 8 cancellation) cover permissions, amounts,
+required keys/reasons, retries, conflicting keys and retained history.
+Post-shipment assignment/cancellation retain COMPLETED. The user reports related
+order/payment API modules, receipt/assignment service modules, Ruff and
+git diff --check passing. No models changed and no new migration is required.
+The subsequent full suite passed **871 tests in 1076.950 seconds on
+2026-10-28**. Project-wide Ruff passed; git diff --check reported only
+LF/CRLF warnings, with no whitespace errors. Independent concurrency
+verification remains open.
+
+Next: customer balances and shipped-but-unpaid order lists. Remaining work includes
 pre-shipment order editing, safe receipt corrections, independent concurrency
 verification and actual manual cash/bank refunds.
 

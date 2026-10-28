@@ -9,13 +9,20 @@ from rest_framework.views import APIView
 from api.orders.serializers import (
     CheckoutSerializer,
     OrderDetailSerializer,
+    OrderFundAssignmentCancelSerializer,
+    OrderFundAssignmentSerializer,
     OrderListSerializer,
     OrderStatusUpdateSerializer,
 )
 from shop_epower.cart.models import Cart
-from shop_epower.orders.models import Order
+from shop_epower.orders.models import (
+    Order,
+    OrderFundAssignment,
+)
 from shop_epower.orders.services import (
+    assign_order_funds,
     cancel_new_order,
+    cancel_order_fund_assignment,
     create_order_from_cart,
     update_order_status_by_manager,
 )
@@ -250,5 +257,91 @@ class ManagerOrderStatusUpdateAPIView(APIView):
 
         return Response(
             OrderDetailSerializer(order).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+class ManagerOrderFundAssignmentAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        if not is_manager_or_admin(request.user):
+            return Response(
+                {"detail": "Permission denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        order = get_object_or_404(
+            Order,
+            pk=order_id,
+        )
+
+        serializer = OrderFundAssignmentSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            assignment = assign_order_funds(
+                order=order,
+                amount=serializer.validated_data["amount"],
+                operation_key=serializer.validated_data["operation_key"],
+                created_by=request.user,
+                comment=serializer.validated_data["comment"],
+            )
+        except ValidationError as error:
+            return Response(
+                {"detail": error.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "id": assignment.pk,
+                "order_id": assignment.order_id,
+                "amount": str(assignment.amount),
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagerOrderFundAssignmentCancelAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, assignment_id):
+        if not is_manager_or_admin(request.user):
+            return Response(
+                {"detail": "Permission denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        assignment = get_object_or_404(
+            OrderFundAssignment,
+            pk=assignment_id,
+        )
+
+        serializer = OrderFundAssignmentCancelSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            reversal = cancel_order_fund_assignment(
+                assignment=assignment,
+                operation_key=serializer.validated_data["operation_key"],
+                created_by=request.user,
+                comment=serializer.validated_data["comment"],
+            )
+        except ValidationError as error:
+            return Response(
+                {"detail": error.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        return Response(
+            {
+                "assignment_id": assignment.pk,
+                "reversal_id": reversal.pk,
+            },
             status=status.HTTP_200_OK,
         )

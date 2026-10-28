@@ -259,7 +259,16 @@ manager-order-view modules, and Ruff passing. Manual assignment/cancellation and
 list-filter preservation were confirmed. The subsequent full suite passed
 **846 tests in 1025.223 seconds on 2026-10-25**; git diff --check reported only
 LF/CRLF warnings, with no whitespace errors. Independent concurrency tests remain open.
-Next: receipt/assignment API, then customer balances and the shipped-unpaid list.
+Staff money API milestone (2026-10-28): receipt, assignment and whole-assignment
+cancellation delegate to the same services as the website. Mandatory caller keys,
+non-blank cancellation reasons, staff roles, retries/conflicts, limits and
+post-shipment debt restoration are covered by 25 new tests (8/9/8).
+The user reports related order/payment API and receipt/assignment service modules,
+Ruff and diff checks passing. No new models/migrations or manual API verification
+are claimed. The post-API full suite passed **871 tests in 1076.950 seconds
+on 2026-10-28**. Project-wide Ruff passed; diff checks report no whitespace
+errors, only LF/CRLF warnings. Independent concurrency checks remain open.
+Next: customer balances and the shipped-unpaid list.
 Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.

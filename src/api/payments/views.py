@@ -16,6 +16,7 @@ from api.payments.serializers import (
     ManagerInvoiceDetailSerializer,
     ManagerPaymentDetailSerializer,
     ManagerPaymentListSerializer,
+    ManualPaymentReceiptSerializer,
     PaymentDetailSerializer,
     PaymentHistorySerializer,
     PaymentListSerializer,
@@ -38,6 +39,7 @@ from shop_epower.payments.services import (
     create_invoice_for_order,
     mark_payment_cancelled,
     mark_payment_paid,
+    record_manual_order_payment,
     reset_payment_to_pending,
 )
 
@@ -423,4 +425,42 @@ class ManagerInvoiceCancelAPIView(APIView):
 
         return Response(
             status=status.HTTP_200_OK,
+        )
+
+
+class ManagerRecordReceiptAPIView(APIView):
+    permission_classes = (
+        IsManagerOrAdmin,
+    )
+
+    def post(self, request, order_id):
+        order = get_object_or_404(
+            Order,
+            pk=order_id,
+        )
+
+        serializer = ManualPaymentReceiptSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            payment = record_manual_order_payment(
+                order=order,
+                amount=serializer.validated_data["amount"],
+                method=serializer.validated_data["method"],
+                operation_key=serializer.validated_data["operation_key"],
+                created_by=request.user,
+                comment=serializer.validated_data["comment"],
+            )
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                {
+                    "detail": exc.messages[0],
+                },
+            ) from exc
+
+        return Response(
+            ManagerPaymentDetailSerializer(payment).data,
+            status=status.HTTP_201_CREATED,
         )
