@@ -4,8 +4,8 @@ Status: implementation in progress. Receipt/invoice foundations, assignment
 before/after shipment and full shipment with prepayment application are
 implemented. Full shipment is connected to website/API completion; receipt
 registration, explicit assignment and whole-assignment cancellation are connected
-to the staff website. Receipt/assignment API, customer balance/debt views, receipt
-correction, manual payouts and pre-shipment item editing remain open.
+to the staff website and API. Customer balance/debt views, receipt correction,
+manual payouts and pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
@@ -193,8 +193,37 @@ As of 2026-10-25, staff website assignment and cancellation are implemented:
   The user's git diff --check reported no whitespace errors, only LF/CRLF
   warnings. Independent concurrent-request verification remains open.
 
-Next: connect the receipt/assignment API, then customer-facing balances and
-the shipped-unpaid order list. Receipt
+As of 2026-10-28, receipt registration, assignment and whole-assignment
+cancellation API actions delegate to the existing atomic services. The 25 new
+tests (8 receipt, 9 assignment, 8 cancellation) cover permissions, amounts,
+required keys/reasons, retries, conflicting keys and retained history.
+Post-shipment assignment/cancellation retain COMPLETED. The user reports related
+order/payment API modules, receipt/assignment service modules, Ruff and
+git diff --check passing. No models changed and no new migration is required.
+The subsequent full suite passed **871 tests in 1076.950 seconds on
+2026-10-28**. Project-wide Ruff passed; git diff --check reported only
+LF/CRLF warnings, with no whitespace errors. Independent concurrency
+verification remains open.
+
+- Receipt input: positive amount, manual office/bank method and caller-supplied
+  operation key; comment is optional. Output is a Payment representation with
+  201, including safe same-key retries. No Invoice, assignment or debt settlement
+  is created. Manual online confirmation is rejected.
+- Assignment input: positive amount, operation key and optional comment.
+  Output is 201 with id, order_id and a decimal amount string, including retries.
+  Available funds/order limits are enforced; before shipment no debt is created.
+- Cancellation input: operation key and required non-blank reason. The selected
+  assignment is cancelled whole, with 200 and assignment_id/reversal_id.
+  A safe retry returns the same reversal. A new-key second cancellation is
+  rejected without a second credit or overwritten cancellation reason.
+- Authenticated customer POSTs return 403. Field and business-rule failures
+  return 400 without partial financial changes. After-shipment cancellation
+  reverses both application and assignment, retaining receipt, shipment,
+  original source/application rows and COMPLETED.
+- These are API/service checks, not a claim of new manual API verification or
+  independent concurrent-request coverage. Models and migrations are unchanged.
+
+Next: customer-facing balances and the shipped-unpaid order list. Receipt
 correction, actual cash/bank refunds and pre-shipment item editing remain open.
 Existing staff `Finances` account pages display balances/history read-only.
 No shipment correction/reopening is added. Independent concurrency coverage
@@ -204,7 +233,7 @@ for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and website/service implementation status as of 2026-10-25.
+Model relationships and website/API/service implementation status as of 2026-10-28.
 Keep this section synchronized with the main README and local Russian copies.
 
 ### Receipts and assignment — implemented
@@ -328,7 +357,7 @@ two `REVERSAL` entries, restoring available funds and debt to 100. The receipt,
 shipment and original assignment/application records remain; the order stays
 `COMPLETED`. Same-key retries do not repeat balance changes. Dedicated staff
 receipt registration and explicit assignment/cancellation forms are connected
-to the website. Receipt/assignment API and independent concurrency tests remain pending.
+to the website and API. Independent concurrency tests remain pending.
 
 ### Full-shipment confirmation — agreed scope
 
@@ -709,7 +738,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Execution order agreed on 2026-10-20; website/service progress updated on 2026-10-25.
+Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-10-28.
 Full shipment and post-shipment assignment/removal are implemented, not the
 whole phase. Each completed step must have a visible acceptance result.
 The user edits application code, tests and migrations and runs all checks.
@@ -742,8 +771,13 @@ not only forms. Do not defer office/bank refunds with online withdrawals.
    paginated history are implemented and module-tested as of 2026-10-25;
    required reasons, staff permissions, retries and list-return context are
    covered. Manual assignment/cancellation and filter preservation were checked.
-   The full 846-test run passed on 2026-10-25. Next connect the receipt/assignment API. Do not reuse legacy pending payment
-   actions as this flow. Add customer-only available funds, assigned
+   The full 846-test run passed on 2026-10-25, before the API milestone.
+   Receipt/assignment/cancellation API and 25 new tests are implemented as of
+   2026-10-28; related API/service modules, Ruff and diff checks passed.
+   The full 871-test run passed on 2026-10-28; independent concurrency checks
+   remain open.
+   Do not reuse legacy pending payment actions as this flow.
+   Next add customer-only available funds, assigned
    prepayment and debt views, separate by personal/legal account and currency.
    Add the staff shipped-unpaid list with customer, order, shipment and remaining
    debt; search/filter, paginate and reconcile it. Do not load settled history
