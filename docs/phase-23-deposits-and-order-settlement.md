@@ -4,7 +4,8 @@ Status: implementation in progress. Receipt/invoice foundations, assignment
 before/after shipment and full shipment with prepayment application are
 implemented. Full shipment is connected to website/API completion; receipt
 registration, explicit assignment and whole-assignment cancellation are connected
-to the staff website and API. Customer balance/debt views, receipt correction,
+to the staff website and API. Customer balances are available on the profile and
+through the read-only API. The shipped-unpaid list, receipt correction,
 manual payouts and pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
@@ -223,7 +224,39 @@ verification remains open.
 - These are API/service checks, not a claim of new manual API verification or
   independent concurrent-request coverage. Models and migrations are unchanged.
 
-Next: customer-facing balances and the shipped-unpaid order list. Receipt
+As of 2026-11-04, customer balances are available on the website at
+`accounts:profile`. The `get_customer_account_balances()` selector loads the
+user's own accounts and balance figures in one SQL query. Assigned prepayment
+equals active assignments minus active shipment applications; reversed entries
+are excluded and applied funds are not counted again. Personal and legal
+accounts are displayed separately with their own currency, available funds,
+assigned prepayment and debt. A missing account produces an empty result and
+message without creating an account. The navbar username opens the profile;
+Edit profile opens editing. The view uses the authenticated user, ignoring a
+query-string `user_id`. The user confirmed 10 selector tests, 6 profile tests,
+the existing frontend-auth module, scoped Ruff and git diff --check, plus a
+manual website check. No models or migrations changed.
+
+Customer-balance API access is implemented and verified as of 2026-11-04:
+`GET /api/accounts/balances/` (`api-account-balances`) returns 200 and the
+authenticated user's own accounts through the same selector as the website.
+Each item contains `id`, `account_type`, `status`, `currency`,
+`available_balance`, `assigned_prepayment` and `debt_balance`; monetary
+values are two-decimal strings. The list is unpaginated: a user currently has
+at most one personal and one legal account. Missing accounts return an empty
+list without creating an account. Unauthenticated requests receive 401;
+a foreign query-string `user_id` does not alter ownership. POST/PUT/PATCH/DELETE
+receive 405, retaining balances and ledger history. Eight new tests cover
+zero balances, authentication, ownership, prepayment, post-shipment figures,
+missing accounts, separate account types and rejected writes. The user
+confirmed the entire `api.accounts.tests` module, scoped Ruff and
+git diff --check. Models and migrations are unchanged.
+
+The full regression after customer balances passed on **2026-11-04:
+895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
+only LF/CRLF warnings.
+
+Next: commit customer balances, then implement the shipped-unpaid order list. Receipt
 correction, actual cash/bank refunds and pre-shipment item editing remain open.
 Existing staff `Finances` account pages display balances/history read-only.
 No shipment correction/reopening is added. Independent concurrency coverage
@@ -233,7 +266,7 @@ for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and website/API/service implementation status as of 2026-10-28.
+Model relationships and website/API/service implementation status as of 2026-11-04.
 Keep this section synchronized with the main README and local Russian copies.
 
 ### Receipts and assignment — implemented
@@ -738,7 +771,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-10-28.
+Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-11-04.
 Full shipment and post-shipment assignment/removal are implemented, not the
 whole phase. Each completed step must have a visible acceptance result.
 The user edits application code, tests and migrations and runs all checks.
@@ -777,8 +810,16 @@ not only forms. Do not defer office/bank refunds with online withdrawals.
    The full 871-test run passed on 2026-10-28; independent concurrency checks
    remain open.
    Do not reuse legacy pending payment actions as this flow.
-   Next add customer-only available funds, assigned
-   prepayment and debt views, separate by personal/legal account and currency.
+   Customer-only balances are available on the website profile as of 2026-11-04:
+   available funds, unused assigned prepayment and debt, separate by account and
+   currency. The one-query selector, profile navigation, ownership and missing
+   accounts are covered by targeted tests; related modules, Ruff and diff checks
+   passed, and the website was checked manually. The read-only balance API now
+   uses the same selector; eight new API tests, the full accounts API module,
+   scoped Ruff and diff checks passed. No account is created implicitly.
+   The full 895-test regression passed in 787.610 seconds on 2026-11-04;
+   diff checks reported only LF/CRLF warnings. This balance milestone is ready
+   for the user's commit.
    Add the staff shipped-unpaid list with customer, order, shipment and remaining
    debt; search/filter, paginate and reconcile it. Do not load settled history
    by default. Staff account/history pages remain read-only.

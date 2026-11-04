@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-871-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-895-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -42,8 +42,10 @@ sources and support whole-assignment release and automatic release on
 authorized order cancellation. Atomic full-shipment settlement is now connected
 to website/API completion. Post-shipment assignment/removal services are also
 implemented. Staff website receipt registration, assignment and cancellation
-forms and the corresponding API actions are connected. Customer balances,
-the shipped-unpaid list and actual cash/bank refunds remain in progress.
+forms and the corresponding API actions are connected. Customers can view
+available funds, assigned prepayment and debt separately for their own accounts
+on the profile page and through the API. The shipped-unpaid list and actual
+cash/bank refunds remain in progress.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -277,6 +279,8 @@ receipt or invoice creation does not automatically assign funds or settle debt.
 
 - Separate personal and legal customer accounts
 - Available funds and debt balance projections
+- Customer profile/API balances: available funds, assigned prepayment and debt,
+  separate by personal/legal account and each account's currency
 - Account status lifecycle with audit history
 - Atomic ledger creation and balance updates with account locking
 - Idempotent operation keys and conflicting-retry validation
@@ -297,8 +301,9 @@ Post-shipment assignment/removal services now settle and restore the selected
 shipment's debt while preserving `COMPLETED`, receipts and audit history.
 The staff website receipt form records actual office/bank funds without
 automatic assignment. Assignment/cancellation forms and paginated history are
-connected, together with the corresponding API actions. Actual manual cash/bank
-refunds and customer-facing balances remain PHASE 23 work.
+connected, together with the corresponding API actions. Customer balances are
+available on the website profile and through the API. Actual manual cash/bank
+refunds remain PHASE 23 work.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -311,9 +316,10 @@ The core refund service is not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-10-28. The model links and settlement services below are
+Status as of 2026-11-04. The model links and settlement services below are
 implemented. Staff receipt registration and assignment/cancellation are connected
-to the website and API; customer balances and independent concurrency checks remain open.
+to the website and API; customer balances are available on the profile and API.
+Independent concurrency checks remain open.
 
 ### Receipts and assignment — implemented
 
@@ -807,6 +813,14 @@ The project exposes client, manager and administrator workflows through Django R
 - invoice creation by order ID, and client document/PDF access by invoice ID;
 - invoice cancellation by managers and administrators with a required reason.
 
+### Customer balances
+
+`GET /api/accounts/balances/` requires authentication and returns the user's
+own accounts with type, status, currency, available funds, assigned prepayment
+and debt. Monetary values are two-decimal strings; missing accounts return an
+empty list without creating an account. Unauthenticated requests receive 401;
+POST/PUT/PATCH/DELETE receive 405. A `user_id` parameter cannot change ownership.
+
 ### Staff money actions
 
 Managers and administrators can perform these actions; customer POSTs are forbidden.
@@ -841,12 +855,15 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **871 tests in 1076.950 seconds on
-2026-10-28**, including full-shipment website/API integration, staff
-assignment/cancellation pages and 25 new money API tests. Tests run
+The latest verified full run passed **895 tests in 787.610 seconds on
+2026-11-04**, including customer balances on the website and through the API. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
+
+As of 2026-11-04, the user confirmed targeted customer-balance checks: 10 selector
+tests, 6 profile tests and the existing frontend-auth module. Scoped Ruff,
+git diff --check and a manual website check also passed.
 
 The shipment-service module has 19 passing tests. Related order workflow,
 staff-page and API modules, scoped Ruff and migration-drift checks also pass.
@@ -1002,7 +1019,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 871 tests passed in 1076.950 seconds on 2026-10-28
+- Full suite of 895 tests passed in 787.610 seconds on 2026-11-04
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually
@@ -1069,9 +1086,40 @@ The subsequent full suite passed **871 tests in 1076.950 seconds on
 LF/CRLF warnings, with no whitespace errors. Independent concurrency
 verification remains open.
 
-Next: customer balances and shipped-but-unpaid order lists. Remaining work includes
-pre-shipment order editing, safe receipt corrections, independent concurrency
-verification and actual manual cash/bank refunds.
+As of 2026-11-04, customer balances are available on the website at
+`accounts:profile`. The `get_customer_account_balances()` selector loads the
+user's own accounts and balance figures in one SQL query. Assigned prepayment
+equals active assignments minus active shipment applications; reversed entries
+are excluded and applied funds are not counted again. Personal and legal
+accounts are displayed separately with their own currency, available funds,
+assigned prepayment and debt. A missing account produces an empty result and
+message without creating an account. The navbar username opens the profile;
+Edit profile opens editing. The view uses the authenticated user, ignoring a
+query-string `user_id`. The user confirmed 10 selector tests, 6 profile tests,
+the existing frontend-auth module, scoped Ruff and git diff --check, plus a
+manual website check. No models or migrations changed.
+
+Customer-balance API access is implemented and verified as of 2026-11-04:
+`GET /api/accounts/balances/` (`api-account-balances`) returns 200 and the
+authenticated user's own accounts through the same selector as the website.
+Each item contains `id`, `account_type`, `status`, `currency`,
+`available_balance`, `assigned_prepayment` and `debt_balance`; monetary
+values are two-decimal strings. The list is unpaginated: a user currently has
+at most one personal and one legal account. Missing accounts return an empty
+list without creating an account. Unauthenticated requests receive 401;
+a foreign query-string `user_id` does not alter ownership. POST/PUT/PATCH/DELETE
+receive 405, retaining balances and ledger history. Eight new tests cover
+zero balances, authentication, ownership, prepayment, post-shipment figures,
+missing accounts, separate account types and rejected writes. The user
+confirmed the entire `api.accounts.tests` module, scoped Ruff and
+git diff --check. Models and migrations are unchanged.
+
+The full regression after customer balances passed on **2026-11-04:
+895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
+only LF/CRLF warnings.
+
+Next: commit customer balances, then implement shipped-but-unpaid order lists. Remaining work includes pre-shipment order editing, safe receipt corrections, independent
+concurrency verification and actual manual cash/bank refunds.
 
 Receipt confirmation, assigning funds to an order, shipment settlement and
 real payout are separate actions. Existing debt allocation cannot substitute

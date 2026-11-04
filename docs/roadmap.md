@@ -268,7 +268,38 @@ Ruff and diff checks passing. No new models/migrations or manual API verificatio
 are claimed. The post-API full suite passed **871 tests in 1076.950 seconds
 on 2026-10-28**. Project-wide Ruff passed; diff checks report no whitespace
 errors, only LF/CRLF warnings. Independent concurrency checks remain open.
-Next: customer balances and the shipped-unpaid list.
+As of 2026-11-04, customer balances are available on the website at
+`accounts:profile`. The `get_customer_account_balances()` selector loads the
+user's own accounts and balance figures in one SQL query. Assigned prepayment
+equals active assignments minus active shipment applications; reversed entries
+are excluded and applied funds are not counted again. Personal and legal
+accounts are displayed separately with their own currency, available funds,
+assigned prepayment and debt. A missing account produces an empty result and
+message without creating an account. The navbar username opens the profile;
+Edit profile opens editing. The view uses the authenticated user, ignoring a
+query-string `user_id`. The user confirmed 10 selector tests, 6 profile tests,
+the existing frontend-auth module, scoped Ruff and git diff --check, plus a
+manual website check. No models or migrations changed.
+
+Customer-balance API access is implemented and verified as of 2026-11-04:
+`GET /api/accounts/balances/` (`api-account-balances`) returns 200 and the
+authenticated user's own accounts through the same selector as the website.
+Each item contains `id`, `account_type`, `status`, `currency`,
+`available_balance`, `assigned_prepayment` and `debt_balance`; monetary
+values are two-decimal strings. The list is unpaginated: a user currently has
+at most one personal and one legal account. Missing accounts return an empty
+list without creating an account. Unauthenticated requests receive 401;
+a foreign query-string `user_id` does not alter ownership. POST/PUT/PATCH/DELETE
+receive 405, retaining balances and ledger history. Eight new tests cover
+zero balances, authentication, ownership, prepayment, post-shipment figures,
+missing accounts, separate account types and rejected writes. The user
+confirmed the entire `api.accounts.tests` module, scoped Ruff and
+git diff --check. Models and migrations are unchanged.
+The full regression after customer balances passed on **2026-11-04:
+895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
+only LF/CRLF warnings.
+
+Next: commit customer balances, then implement the shipped-unpaid list.
 Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.

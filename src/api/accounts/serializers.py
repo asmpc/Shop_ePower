@@ -7,6 +7,7 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 from shop_epower.accounts.models import LegalProfile
 from shop_epower.accounts.services import register_customer, save_legal_profile
+from shop_epower.finance.models import CustomerAccount
 
 User = get_user_model()
 
@@ -171,3 +172,24 @@ class UserProfileSerializer(serializers.ModelSerializer):
                 ) from exc
 
         return instance
+
+
+class CustomerAccountBalanceSerializer(serializers.ModelSerializer):
+    assigned_prepayment = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        read_only=True,
+    )
+
+    class Meta:
+        model = CustomerAccount
+        fields = (
+            "id",
+            "account_type",
+            "status",
+            "currency",
+            "available_balance",
+            "assigned_prepayment",
+            "debt_balance",
+        )
+        read_only_fields = fields

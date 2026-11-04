@@ -12,14 +12,15 @@ from rest_framework_simplejwt.views import (
     TokenRefreshView,
 )
 
-from shop_epower.accounts.models import LegalProfile
-
 # Local
-from .serializers import (
+from api.accounts.serializers import (
+    CustomerAccountBalanceSerializer,
     LogoutSerializer,
     RegisterSerializer,
     UserProfileSerializer,
 )
+from shop_epower.accounts.models import LegalProfile
+from shop_epower.finance.selectors import get_customer_account_balances
 
 
 @extend_schema(
@@ -80,3 +81,19 @@ class UserProfileAPIView(generics.RetrieveUpdateAPIView):
         )
 
         return self.request.user
+
+
+@extend_schema(
+    tags=["Accounts"],
+    summary="Current user account balances",
+    description="Return financial balances of the authenticated user's accounts.",
+)
+class CustomerAccountBalanceListAPIView(generics.ListAPIView):
+    serializer_class = CustomerAccountBalanceSerializer
+    permission_classes = [IsAuthenticated]
+    pagination_class = None
+
+    def get_queryset(self):
+        return get_customer_account_balances(
+            user=self.request.user,
+        )
