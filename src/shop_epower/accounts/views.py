@@ -15,16 +15,16 @@ from django.urls import reverse, reverse_lazy
 from django.utils.http import url_has_allowed_host_and_scheme
 from django.views.generic import CreateView, TemplateView
 
-from shop_epower.accounts.services import register_customer, save_legal_profile
-from shop_epower.cart.services import merge_session_cart_to_user_cart
-
-from .forms import (
+from shop_epower.accounts.forms import (
     LegalProfileForm,
     LoginForm,
     RegisterForm,
     UserProfileForm,
 )
-from .models import LegalProfile
+from shop_epower.accounts.models import LegalProfile
+from shop_epower.accounts.services import register_customer, save_legal_profile
+from shop_epower.cart.services import merge_session_cart_to_user_cart
+from shop_epower.finance.selectors import get_customer_account_balances
 
 
 class CustomLoginView(LoginView):
@@ -110,7 +110,16 @@ class RegisterTemplateView(CreateView):
 
 class ProfileView(LoginRequiredMixin, TemplateView):
     template_name = "accounts/profile.html"
-    login_url = 'accounts:login'
+    login_url = "accounts:login"
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        context["customer_accounts"] = get_customer_account_balances(
+            user=self.request.user,
+        )
+
+        return context
 
 
 @login_required

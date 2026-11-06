@@ -1,6 +1,7 @@
 from django.urls import path
 
-from .views import (
+from api.accounts.views import (
+    CustomerAccountBalanceListAPIView,
     CustomTokenObtainPairView,
     CustomTokenRefreshView,
     LogoutAPIView,
@@ -14,4 +15,9 @@ urlpatterns = [
     path("register/", RegisterAPIView.as_view(), name="api-register"),
     path("logout/", LogoutAPIView.as_view(), name="api-logout"),
     path("profile/", UserProfileAPIView.as_view(), name="api-profile"),
+    path(
+        "balances/",
+        CustomerAccountBalanceListAPIView.as_view(),
+        name="api-account-balances",
+    ),
 ]

@@ -84,9 +84,37 @@
 
                 </table>
 
+                <section class="mt-4">
+                    <h3 class="mb-3">Financial accounts</h3>
+
+                    {% for account in customer_accounts %}
+                        <div class="card mb-3">
+                            <div class="card-body">
+                                <h4 class="h5 mb-3">
+                                    {{ account.get_account_type_display }} account
+                                </h4>
+
+                                <p class="mb-2">
+                                    Available funds: {{ account.available_balance|floatformat:2 }} {{ account.currency }}
+                                </p>
+
+                                <p class="mb-2">
+                                    Assigned prepayment: {{ account.assigned_prepayment|floatformat:2 }} {{ account.currency }}
+                                </p>
+
+                                <p class="mb-0">
+                                    Outstanding debt: {{ account.debt_balance|floatformat:2 }} {{ account.currency }}
+                                </p>
+                            </div>
+                        </div>
+                    {% empty %}
+                        <p class="text-muted">No financial accounts yet.</p>
+                    {% endfor %}
+                </section>
+
                 <div class="mt-4">
 
-                    <a href="#"
+                    <a href="{% url 'accounts:profile_edit' %}"
                        class="btn btn-outline-dark">
 
                         Edit profile
