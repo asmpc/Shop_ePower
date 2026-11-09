@@ -1,12 +1,15 @@
 # PHASE 23 — Order Funds and Full-Shipment Settlement
 
+**English | [Русский](ru/phase-23-deposits-and-order-settlement.md)**
+
 Status: implementation in progress. Receipt/invoice foundations, assignment
 before/after shipment and full shipment with prepayment application are
 implemented. Full shipment is connected to website/API completion; receipt
 registration, explicit assignment and whole-assignment cancellation are connected
 to the staff website and API. Customer balances are available on the profile and
-through the read-only API. The shipped-unpaid list, receipt correction,
-manual payouts and pre-shipment item editing remain open.
+through the read-only API. The staff shipped-unpaid list is implemented with
+search, pagination and preserved return context. Receipt correction, manual
+payouts and pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
 ## Completed Steps and Current Implementation Boundary
@@ -256,8 +259,30 @@ The full regression after customer balances passed on **2026-11-04:
 895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
 only LF/CRLF warnings.
 
-Next: commit customer balances, then implement the shipped-unpaid order list. Receipt
-correction, actual cash/bank refunds and pre-shipment item editing remain open.
+As of 2026-11-09, the staff shipped-unpaid order list is implemented at
+`/shop/orders/manage/unpaid/` (`orders:manager_unpaid_order_list`).
+Managers and administrators immediately see unpaid shipments, 20 per page;
+customers receive 403 and guests are redirected to login. Each row's debt is
+the shipment amount minus active fund applications, excluding reversed
+applications and assignments. Fully settled shipments leave the list and return
+after assignment cancellation. A legacy `COMPLETED` order without an
+`OrderShipment` neither creates debt nor enters the list automatically.
+Email-fragment and exact order-number searches narrow the selection and combine;
+invalid order numbers return no results. Pagination and order/Back links retain
+filters and the page. If settlement removes the final row on a page, returning
+opens the last available page with the same search.
+A separate navbar `Unpaid shipments` link supports daily control. The
+`Finances` dropdown contains `Payments`, `Customer accounts` and
+`Transaction journal`; the duplicate journal button on the account list is removed.
+The user confirmed 11 selector tests and 14 page tests, related modules,
+scoped Ruff, git diff --check and a manual website check. The selector loads
+the required related data in one SQL query. Models and migrations are unchanged;
+the pages are read-only. The full regression after this list passed on
+**2026-11-09: 920 tests in 941.617 seconds**.
+
+Next: commit the shipped-unpaid list, then agree on receipt correction and
+actual manual cash/bank refunds.
+Pre-shipment item editing also remains open.
 Existing staff `Finances` account pages display balances/history read-only.
 No shipment correction/reopening is added. Independent concurrency coverage
 for the new financial workflows remains open.
@@ -266,8 +291,8 @@ for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and website/API/service implementation status as of 2026-11-04.
-Keep this section synchronized with the main README and local Russian copies.
+Model relationships and website/API/service implementation status as of 2026-11-09.
+Keep this section synchronized with the main README and published Russian version.
 
 ### Receipts and assignment — implemented
 
@@ -771,7 +796,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-11-04.
+Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-11-09.
 Full shipment and post-shipment assignment/removal are implemented, not the
 whole phase. Each completed step must have a visible acceptance result.
 The user edits application code, tests and migrations and runs all checks.
@@ -818,11 +843,16 @@ not only forms. Do not defer office/bank refunds with online withdrawals.
    uses the same selector; eight new API tests, the full accounts API module,
    scoped Ruff and diff checks passed. No account is created implicitly.
    The full 895-test regression passed in 787.610 seconds on 2026-11-04;
-   diff checks reported only LF/CRLF warnings. This balance milestone is ready
-   for the user's commit.
-   Add the staff shipped-unpaid list with customer, order, shipment and remaining
-   debt; search/filter, paginate and reconcile it. Do not load settled history
-   by default. Staff account/history pages remain read-only.
+   diff checks reported only LF/CRLF warnings. The user committed the balance milestone.
+   The staff shipped-unpaid list is implemented as of 2026-11-09: customer,
+   order, shipment, applied funds and remaining debt, with email/order-number
+   search and 20 rows per page. It initially shows unpaid shipments for daily
+   control; settled history is excluded. Navbar access and filtered return links
+   are in place, including a fallback after settlement removes the final page.
+   The 11 selector and 14 page tests, related modules, scoped Ruff and diff checks
+   passed; the website was checked manually. The full regression passed on
+   2026-11-09: 920 tests in 941.617 seconds. This list milestone is ready to commit.
+   Staff account/history pages remain read-only.
 4. **Receipt correction and real cash/bank refunds.** Agree on corrected receipt
    status and permissions. Undo dependent assignments, reverse the credited
    receipt and retain audit history, with dependency guards, retries, rollback

@@ -1,5 +1,7 @@
 # PHASE 22 — Customer Financial Core
 
+**English | [Русский](ru/phase-22-customer-financial-core.md)**
+
 ## Document Status
 
 - Phase: PHASE 22

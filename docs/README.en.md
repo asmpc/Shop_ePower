@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-895-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-920-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -44,8 +44,9 @@ to website/API completion. Post-shipment assignment/removal services are also
 implemented. Staff website receipt registration, assignment and cancellation
 forms and the corresponding API actions are connected. Customers can view
 available funds, assigned prepayment and debt separately for their own accounts
-on the profile page and through the API. The shipped-unpaid list and actual
-cash/bank refunds remain in progress.
+on the profile page and through the API. The staff shipped-unpaid list now
+provides per-order debt, search, pagination and retained return links.
+Actual cash/bank refunds remain in progress.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -290,6 +291,9 @@ receipt or invoice creation does not automatically assign funds or settle debt.
 - Validation of amounts, actor information and resulting balances
 - Read-only Django admin and staff website finance pages
 - Account search, transaction journal and paginated account history
+- Daily shipped-unpaid orders: per-order debt, email/order-number search,
+  20 rows per page and retained return links
+- A direct Unpaid shipments link and a Finances menu for payments, accounts and journal
 - Explicit account creation and legal-profile updates through services
 
 Confirmed manual receipts can credit the account through an atomic service.
@@ -316,7 +320,7 @@ The core refund service is not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-11-04. The model links and settlement services below are
+Status as of 2026-11-09. The model links and settlement services below are
 implemented. Staff receipt registration and assignment/cancellation are connected
 to the website and API; customer balances are available on the profile and API.
 Independent concurrency checks remain open.
@@ -855,8 +859,9 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **895 tests in 787.610 seconds on
-2026-11-04**, including customer balances on the website and through the API. Tests run
+The latest verified full run passed **920 tests in 941.617 seconds on
+2026-11-09**, including the staff shipped-unpaid order list, search, pagination
+and retained return links. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
@@ -976,6 +981,8 @@ PHASE 23 settlement integration and PHASE 24 minimal 1C exchange.
 ## 📚 Documentation
 
 Technical documentation is stored in the [`docs/`](./) directory.
+The roadmap and PHASE 22/23 plans are published in both English and Russian;
+see the [Russian documentation index](ru/README.md).
 
 | Document | Description |
 |---|---|
@@ -1019,7 +1026,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 895 tests passed in 787.610 seconds on 2026-11-04
+- Full suite of 920 tests passed in 941.617 seconds on 2026-11-09
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually
@@ -1118,7 +1125,29 @@ The full regression after customer balances passed on **2026-11-04:
 895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
 only LF/CRLF warnings.
 
-Next: commit customer balances, then implement shipped-but-unpaid order lists. Remaining work includes pre-shipment order editing, safe receipt corrections, independent
+As of 2026-11-09, the staff shipped-unpaid order list is implemented at
+`/shop/orders/manage/unpaid/` (`orders:manager_unpaid_order_list`).
+Managers and administrators immediately see unpaid shipments, 20 per page;
+customers receive 403 and guests are redirected to login. Each row's debt is
+the shipment amount minus active fund applications, excluding reversed
+applications and assignments. Fully settled shipments leave the list and return
+after assignment cancellation. A legacy `COMPLETED` order without an
+`OrderShipment` neither creates debt nor enters the list automatically.
+Email-fragment and exact order-number searches narrow the selection and combine;
+invalid order numbers return no results. Pagination and order/Back links retain
+filters and the page. If settlement removes the final row on a page, returning
+opens the last available page with the same search.
+A separate navbar `Unpaid shipments` link supports daily control. The
+`Finances` dropdown contains `Payments`, `Customer accounts` and
+`Transaction journal`; the duplicate journal button on the account list is removed.
+The user confirmed 11 selector tests and 14 page tests, related modules,
+scoped Ruff, git diff --check and a manual website check. The selector loads
+the required related data in one SQL query. Models and migrations are unchanged;
+the pages are read-only. The full regression after this list passed on
+**2026-11-09: 920 tests in 941.617 seconds**.
+
+Next: commit the shipped-unpaid list, then agree on receipt correction and
+actual manual cash/bank refunds. Remaining work includes pre-shipment order editing, safe receipt corrections, independent
 concurrency verification and actual manual cash/bank refunds.
 
 Receipt confirmation, assigning funds to an order, shipment settlement and

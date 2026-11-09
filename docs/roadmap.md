@@ -1,5 +1,7 @@
 # Shop_ePower Roadmap
 
+**English | [Русский](ru/roadmap.md)**
+
 ## Project Vision
 
 Shop_ePower is evolving from a diploma e-commerce project into a
@@ -299,7 +301,29 @@ The full regression after customer balances passed on **2026-11-04:
 895 tests in 787.610 seconds**. git diff --check reported no whitespace errors,
 only LF/CRLF warnings.
 
-Next: commit customer balances, then implement the shipped-unpaid list.
+As of 2026-11-09, the staff shipped-unpaid order list is implemented at
+`/shop/orders/manage/unpaid/` (`orders:manager_unpaid_order_list`).
+Managers and administrators immediately see unpaid shipments, 20 per page;
+customers receive 403 and guests are redirected to login. Each row's debt is
+the shipment amount minus active fund applications, excluding reversed
+applications and assignments. Fully settled shipments leave the list and return
+after assignment cancellation. A legacy `COMPLETED` order without an
+`OrderShipment` neither creates debt nor enters the list automatically.
+Email-fragment and exact order-number searches narrow the selection and combine;
+invalid order numbers return no results. Pagination and order/Back links retain
+filters and the page. If settlement removes the final row on a page, returning
+opens the last available page with the same search.
+A separate navbar `Unpaid shipments` link supports daily control. The
+`Finances` dropdown contains `Payments`, `Customer accounts` and
+`Transaction journal`; the duplicate journal button on the account list is removed.
+The user confirmed 11 selector tests and 14 page tests, related modules,
+scoped Ruff, git diff --check and a manual website check. The selector loads
+the required related data in one SQL query. Models and migrations are unchanged;
+the pages are read-only. The full regression after this list passed on
+**2026-11-09: 920 tests in 941.617 seconds**.
+
+Next: commit the shipped-unpaid list, then agree on receipt correction and
+actual manual cash/bank refunds.
 Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.
@@ -307,7 +331,7 @@ See the [model diagrams and settlement example](phase-23-deposits-and-order-sett
 and the [English README model map](README.en.md#order-funds-models).
 Existing debt allocation cannot be reused before an order has debt. Funding
 source traceability does not yet implement dependency-safe receipt correction.
-The detailed phase plan and local Russian copy record the current boundary.
+The detailed phase plan and its published Russian version record the current boundary.
 Application code, tests, and migrations remain user-edited and user-run.
 The exit goal is a testable order-to-money flow
 ready for a minimal 1C exchange, not every future finance feature.

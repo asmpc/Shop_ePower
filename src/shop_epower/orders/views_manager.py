@@ -24,7 +24,10 @@ from shop_epower.orders.navigation import (
     get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
-from shop_epower.orders.selectors import get_order_fund_assignments
+from shop_epower.orders.selectors import (
+    get_order_fund_assignments,
+    get_unpaid_order_shipments_for_staff,
+)
 from shop_epower.orders.services import (
     assign_order_funds,
     cancel_order_fund_assignment,
@@ -639,4 +642,53 @@ class ManagerOrderDeliveryUpdateView(
         return redirect_to_manager_order_detail(
             request=request,
             order_id=order.id,
+        )
+
+
+class ManagerUnpaidOrderListView(LoginRequiredMixin, ListView):
+    template_name = "orders/manage/unpaid_order_list.html"
+    context_object_name = "shipments"
+    paginate_by = 20
+
+    def get_queryset(self):
+        if self.request.user.role not in ("manager", "admin"):
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return get_unpaid_order_shipments_for_staff(
+            customer_email=self.request.GET.get(
+                "customer_email",
+                "",
+            ),
+            order_id=self.request.GET.get(
+                "order_id",
+                "",
+            ),
+        )
+
+    def paginate_queryset(self, queryset, page_size):
+        paginator = self.get_paginator(
+            queryset,
+            page_size,
+            orphans=self.get_paginate_orphans(),
+            allow_empty_first_page=self.get_allow_empty(),
+        )
+
+        page_number = (
+            self.kwargs.get(self.page_kwarg)
+            or self.request.GET.get(self.page_kwarg)
+            or 1
+        )
+
+        if page_number == "last":
+            page_number = paginator.num_pages
+
+        page = paginator.get_page(page_number)
+
+        return (
+            paginator,
+            page,
+            page.object_list,
+            page.has_other_pages(),
         )

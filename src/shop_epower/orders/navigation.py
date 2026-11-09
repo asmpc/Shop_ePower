@@ -8,6 +8,7 @@ def get_safe_manager_order_return_url(candidate, *, payment_ids=()):
     default_url = reverse("orders:manager_order_list")
     allowed_paths = {
         default_url,
+        reverse("orders:manager_unpaid_order_list"),
         reverse("payments:manager_payment_list"),
     }
 

@@ -17,6 +17,7 @@ from shop_epower.orders.views_manager import (
     ManagerOrderFundAssignmentView,
     ManagerOrderListView,
     ManagerOrderStatusUpdateView,
+    ManagerUnpaidOrderListView,
 )
 
 app_name = "orders"
@@ -56,6 +57,12 @@ urlpatterns = [
         "manage/",
         ManagerOrderListView.as_view(),
         name="manager_order_list",
+    ),
+
+    path(
+        "manage/unpaid/",
+        ManagerUnpaidOrderListView.as_view(),
+        name="manager_unpaid_order_list",
     ),
 
     path(
