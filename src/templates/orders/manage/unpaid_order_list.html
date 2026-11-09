@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+
+{% block title %}Unpaid shipped orders{% endblock %}
+
+{% block content %}
+
+<h1 class="mb-4">Unpaid shipped orders</h1>
+
+<form method="get" class="row g-2 align-items-end mb-4">
+    <div class="col-md-6">
+        <label for="customer-email-search" class="form-label">
+            Customer email
+        </label>
+        <input
+            id="customer-email-search"
+            name="customer_email"
+            type="search"
+            class="form-control"
+            value="{{ request.GET.customer_email|default:'' }}"
+            placeholder="Enter part of customer email"
+        >
+    </div>
+
+    <div class="col-md-3">
+        <label for="order-id-search" class="form-label">
+            Order number
+        </label>
+        <input
+            id="order-id-search"
+            name="order_id"
+            type="text"
+            inputmode="numeric"
+            class="form-control"
+            value="{{ request.GET.order_id|default:'' }}"
+            placeholder="e.g. 42"
+        >
+    </div>
+
+    <div class="col-auto">
+        <button type="submit" class="btn btn-primary">
+            Search
+        </button>
+        <a href="{% url 'orders:manager_unpaid_order_list' %}"
+           class="btn btn-outline-secondary">
+            Reset
+        </a>
+    </div>
+</form>
+
+{% for shipment in shipments %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <div class="row align-items-center g-3">
+
+                <div class="col-md-2">
+                    <h2 class="h5 mb-1">
+                        <a href="{% url 'orders:manager_order_detail' shipment.order_id %}?next={{ request.get_full_path|urlencode }}">
+                            Order #{{ shipment.order_id }}
+                        </a>
+                    </h2>
+                    <div class="text-muted small">
+                        Shipment #{{ shipment.pk }}
+                    </div>
+                    <div class="text-muted small">
+                        {{ shipment.created_at }}
+                    </div>
+                </div>
+
+                <div class="col-md-4 border-start">
+                    <div class="text-muted">Customer</div>
+                    <div>{{ shipment.order.customer_name }}</div>
+                    <div class="text-break">
+                        {{ shipment.order.user.email }}
+                    </div>
+                    <div class="text-muted small">
+                        {{ shipment.customer_account.get_account_type_display }}
+                    </div>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <p class="mb-0">
+                        Shipped total: {{ shipment.total_amount|floatformat:2 }} {{ shipment.currency_snapshot }}
+                    </p>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <p class="mb-0">
+                        Applied funds: {{ shipment.applied_amount|floatformat:2 }} {{ shipment.currency_snapshot }}
+                    </p>
+                </div>
+
+                <div class="col-md-2 border-start">
+                    <p class="mb-0 fw-semibold text-danger">
+                        Remaining debt: {{ shipment.remaining_debt|floatformat:2 }} {{ shipment.currency_snapshot }}
+                    </p>
+                </div>
+
+            </div>
+        </div>
+    </div>
+{% empty %}
+    <div class="alert alert-info">
+        No unpaid shipped orders.
+    </div>
+{% endfor %}
+
+{% if page_obj.has_other_pages %}
+    <nav aria-label="Unpaid order pages" class="mt-4">
+        <div class="d-flex align-items-center justify-content-center gap-3">
+
+            {% if page_obj.has_previous %}
+                <a class="btn btn-outline-secondary"
+                   href="{% querystring page=page_obj.previous_page_number %}">
+                    Previous
+                </a>
+            {% endif %}
+
+            <span>
+                Page {{ page_obj.number }} of {{ page_obj.paginator.num_pages }}
+            </span>
+
+            {% if page_obj.has_next %}
+                <a class="btn btn-outline-secondary"
+                   href="{% querystring page=page_obj.next_page_number %}">
+                    Next
+                </a>
+            {% endif %}
+
+        </div>
+    </nav>
+{% endif %}
+
+{% endblock %}

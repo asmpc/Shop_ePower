@@ -54,17 +54,46 @@
                     <li class="nav-item">
                         <a class="nav-link fs-5"
                            style="color: #d63384;"
-                           href="{% url 'payments:manager_payment_list' %}">
-                            Payments
+                           href="{% url 'orders:manager_unpaid_order_list' %}">
+                            Unpaid shipments
                         </a>
                     </li>
 
-                    <li class="nav-item">
-                        <a class="nav-link fs-5"
-                           style="color: #75d6a5;"
-                           href="{% url 'finance:manager_account_list' %}">
+                    <li class="nav-item dropdown">
+                        <button class="nav-link dropdown-toggle fs-5"
+                                style="color: #75d6a5;"
+                                type="button"
+                                id="finance-menu"
+                                data-bs-toggle="dropdown"
+                                aria-expanded="false">
                             Finances
-                        </a>
+                        </button>
+
+                        <ul class="dropdown-menu dropdown-menu-dark"
+                            aria-labelledby="finance-menu">
+
+                            <li>
+                                <a class="dropdown-item"
+                                   href="{% url 'payments:manager_payment_list' %}">
+                                    Payments
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item"
+                                   href="{% url 'finance:manager_account_list' %}">
+                                    Customer accounts
+                                </a>
+                            </li>
+
+                            <li>
+                                <a class="dropdown-item"
+                                   href="{% url 'finance:manager_transaction_list' %}">
+                                    Transaction journal
+                                </a>
+                            </li>
+
+                        </ul>
                     </li>
 
                     <li class="nav-item">
