@@ -75,6 +75,15 @@
                     <div class="text-muted small">
                         {{ shipment.customer_account.get_account_type_display }}
                     </div>
+
+                    <div class="mt-2">
+                        <div class="text-muted small">
+                            Customer account balance
+                        </div>
+                        <span class="text-success fw-semibold">
+                            Available to assign: {{ shipment.customer_account.available_balance|floatformat:2 }} {{ shipment.customer_account.currency }}
+                        </span>
+                    </div>
                 </div>
 
                 <div class="col-md-2 border-start">

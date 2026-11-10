@@ -100,6 +100,19 @@ Django checks, and migration-state check passed at phase closure.
 
 ## PHASE 23 --- Order Funds & Full-Shipment Settlement
 
+Current work order (2026-11-10): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
+Payment model protection is complete: nullable order, the at-least-one-reference
+constraint and migrations 0012/0013. The user confirmed 14 model/history tests,
+scoped Ruff and no outstanding model migrations. Both-language diagrams are updated;
+website database migration application remains to be confirmed.
+The checkpoint also passed 86 related tests in 138.452 seconds, orders/payments
+Ruff and git diff --check (LF/CRLF warnings only); the latest full run remains 920.
+Next checkpoint the accumulated work; then account receipt service → consumer/API compatibility
+→ staff account summary/form/history → remaining order-history UI → complete receipt
+correction → actual cash/bank payouts → invoice snapshots/item edits → final verification.
+Checkpoint commits follow model protection and the complete account-funding flow.
+This sequence preserves all unfinished work and does not mark PHASE 23 complete.
+
 Status: implementation started; remaining architecture decisions are being refined.
 
 Completed first step (2026-10-13): new orders record their owner's matching
@@ -322,8 +335,36 @@ the required related data in one SQL query. Models and migrations are unchanged;
 the pages are read-only. The full regression after this list passed on
 **2026-11-09: 920 tests in 941.617 seconds**.
 
-Next: commit the shipped-unpaid list, then agree on receipt correction and
-actual manual cash/bank refunds.
+The shipped-unpaid list is published in commit `c7abdc5`.
+Agreed on 2026-11-09: a manager or administrator cancels an erroneous manual
+receipt with a required reason, reversing its credit and changing the original
+Payment from `PAID` to `CANCELLED` with history retained atomically. First undo
+any dependent assignments. No reset to `PENDING` and no actual payout occur.
+A later valid receipt is a new Payment. The basic cancellation service now has
+12 passing tests; the existing receipt module, scoped Ruff and diff also pass.
+Coverage includes dependency/retry guards, history, roles and atomic rollback.
+Credit-link consistency, post-shipment and concurrency tests and cancellation
+interfaces remain open; no new full-suite result is claimed.
+At the user's request, first improve staff financial UI: green available account
+funds on the unpaid-shipment list; a compact order summary before money actions;
+collapsed receipt/assignment histories with independent 20-entry pagination and
+preserved filters/Back links. Summary totals must not depend on the history page.
+Available funds belong to the shared customer account; debt is shipment-specific.
+As of 2026-11-10 the order summary/action rows and three collapsed histories are
+implemented; the user confirmed order/invoice modules and manual checks. Receipt
+paging (20 entries), independent totals and preserved context passed focused
+tests; expansion after page changes remains open. No new full regression claimed.
+The next agreed PHASE 23 priority is an actual receipt into a customer account
+with no order: optional Payment order, mandatory linked deposit for an orderless
+receipt, atomic credit, no automatic assignment/debt, office/bank methods and
+staff-only confirmation. Adapt payment UI/API ownership and order-dependent
+paths before exposing the account action. Account detail must show customer
+information, freely available funds, assigned prepayment and shipped debt,
+a receipt button and collapsed/paginated transactions with safe return context.
+Keep personal/legal accounts separate. Then finish history expansion and the
+remaining correction/payout/concurrency work. Application changes/checks remain
+user-run; diagrams are updated when the schema is actually changed.
+Actual manual cash/bank refunds remain a separate subsequent workflow.
 Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.

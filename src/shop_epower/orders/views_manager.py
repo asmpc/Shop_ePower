@@ -25,6 +25,7 @@ from shop_epower.orders.navigation import (
     redirect_to_manager_order_detail,
 )
 from shop_epower.orders.selectors import (
+    get_order_financial_summary,
     get_order_fund_assignments,
     get_unpaid_order_shipments_for_staff,
 )
@@ -155,14 +156,18 @@ class ManagerOrderDetailView(
             )
             .prefetch_related(
                 "items",
-                "payments",
             )
         )
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        payments = self.object.payments.all()
+        context["financial_summary"] = get_order_financial_summary(
+            order=self.object,
+        )
+
+        payments = self.object.payments.order_by("-created_at", "-pk")
+        payment_paginator = Paginator(payments, 20)
         invoice = get_active_invoice_for_order(
             order=self.object,
         )
@@ -170,7 +175,9 @@ class ManagerOrderDetailView(
                 self.object.payment_method == PaymentMethod.INVOICE
         )
 
-        context["payments"] = payments
+        context["payments"] = payment_paginator.get_page(
+            self.request.GET.get("payments_page"),
+        )
         context["invoice"] = invoice
         context["invoice_required"] = invoice_required
 
@@ -180,7 +187,7 @@ class ManagerOrderDetailView(
 
         context["back_url"] = get_safe_manager_order_return_url(
             self.request.GET.get("next"),
-            payment_ids=[payment.pk for payment in payments],
+            order=self.object,
         )
 
         context["invoice_workflow_state"] = None

@@ -700,3 +700,40 @@ class TestsInvoiceViews(TestCase):
             second_response,
             f'href="{escape(previous_link)}"',
         )
+
+    # История Invoice изначально свёрнута.
+    # Документы остаются доступны в раскрываемом списке.
+    def test_invoice_history_is_collapsed_by_default(self):
+        invoice = create_invoice_for_order(
+            order=self.order,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                args=[self.order.pk],
+            ),
+        )
+
+        self.assertContains(
+            response,
+            """
+            <button
+                class="btn btn-outline-secondary btn-sm collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#invoice-history"
+                aria-expanded="false"
+                aria-controls="invoice-history"
+            >
+                Invoice history
+            </button>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="invoice-history">',
+        )
+        self.assertContains(response, invoice.invoice_number)

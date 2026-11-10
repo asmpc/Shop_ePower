@@ -3,6 +3,7 @@ from urllib.parse import urlencode
 
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.html import escape
 
 from shop_epower.accounts.tests.helpers import (
     create_test_admin,
@@ -13,6 +14,10 @@ from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.core.currency import get_base_currency
 from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.models import Order, OrderItem, OrderStatus
+from shop_epower.orders.services import (
+    assign_order_funds,
+    complete_order_shipment,
+)
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     InvoiceStatus,
@@ -20,7 +25,10 @@ from shop_epower.payments.models import (
     PaymentProvider,
     PaymentStatus,
 )
-from shop_epower.payments.services import mark_payment_paid
+from shop_epower.payments.services import (
+    mark_payment_paid,
+    record_manual_order_payment,
+)
 from shop_epower.payments.tests.helpers import (
     create_test_invoice,
     create_test_payment,
@@ -118,6 +126,38 @@ class TestsManagerOrderViews(TestCase):
             f"{urlencode({'next': manager_order_list_url})}"
         )
 
+    def _prepare_partially_paid_shipped_order(self):
+        """Готовит денежный сценарий для проверок страницы заказа."""
+        record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("150.00"),
+            method=PaymentMethod.INVOICE,
+            operation_key="manager:summary:receipt",
+            created_by=self.manager,
+        )
+
+        assign_order_funds(
+            order=self.order,
+            amount=Decimal("90.00"),
+            operation_key="manager:summary:assignment",
+            created_by=self.manager,
+        )
+
+        complete_order_shipment(
+            order=self.order,
+            created_by=self.manager,
+        )
+
+    def _create_receipts(self, count):
+        """Создаёт поступления по 1 BYN для проверок истории."""
+        for number in range(count):
+            record_manual_order_payment(
+                order=self.order,
+                amount=Decimal("1.00"),
+                method=PaymentMethod.INVOICE,
+                operation_key=f"manager:receipt-pagination:{number}",
+                created_by=self.manager,
+            )
 
     # Проверяем manager detail page:
     # для заказа в статусе PROCESSING
@@ -984,3 +1024,215 @@ class TestsManagerOrderViews(TestCase):
         )
         self.assertFalse(self.order.shipments.exists())
         self.assertFalse(self.account.transactions.exists())
+
+    # Страница заказа получает денежную сводку в контексте:
+    # поступило 150, назначено 90, долг — 10, доступно — 60.
+    def test_manager_order_detail_contains_financial_summary(self):
+        self._prepare_partially_paid_shipped_order()
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+
+        summary = response.context["financial_summary"]
+
+        self.assertEqual(summary["received_amount"], Decimal("150.00"))
+        self.assertEqual(summary["assigned_amount"], Decimal("90.00"))
+        self.assertEqual(summary["remaining_debt"], Decimal("10.00"))
+        self.assertEqual(summary["available_balance"], Decimal("60.00"))
+        self.assertEqual(summary["currency"], self.account.currency)
+
+    # Денежная сводка видна перед кнопками работы с деньгами.
+    # Каждая сумма отображается со своей подписью и валютой.
+    def test_manager_order_detail_displays_financial_summary_before_actions(self):
+        self._prepare_partially_paid_shipped_order()
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+        )
+
+        self.assertContains(response, "Financial summary")
+
+        expected_values = (
+            ("Received for this order", "150.00"),
+            ("Assigned to this order", "90.00"),
+            ("Order debt", "10.00"),
+            ("Available to assign", "60.00"),
+        )
+
+        for label, amount in expected_values:
+            with self.subTest(label=label):
+                self.assertContains(
+                    response,
+                    f"{label}: {amount} {self.account.currency}",
+                )
+
+        html = response.content.decode()
+
+        self.assertLess(
+            html.index("Financial summary"),
+            html.index("Register receipt"),
+        )
+
+    # История поступлений изначально свёрнута.
+    # Денежные действия остаются перед раскрываемым списком.
+    def test_receipt_history_is_collapsed_by_default(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+        )
+
+        self.assertContains(
+            response,
+            """
+            <button
+                class="btn btn-outline-secondary btn-sm collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#receipt-history"
+                aria-expanded="false"
+                aria-controls="receipt-history"
+            >
+                Receipt history
+            </button>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="receipt-history">',
+        )
+        self.assertContains(response, f"Payment #{self.payment.pk}")
+
+        html = response.content.decode()
+        history_position = html.index('id="receipt-history"')
+
+        self.assertLess(html.index("Register receipt"), history_position)
+        self.assertLess(html.index("Assign funds"), history_position)
+
+    # История назначений изначально свёрнута.
+    # Существующее назначение остаётся в раскрываемом списке.
+    def test_assignment_history_is_collapsed_by_default(self):
+        self._prepare_partially_paid_shipped_order()
+        assignment = self.order.fund_assignments.get()
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+        )
+
+        self.assertContains(
+            response,
+            """
+            <button
+                class="btn btn-outline-secondary btn-sm collapsed"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#assignment-history"
+                aria-expanded="false"
+                aria-controls="assignment-history"
+            >
+                Assignment history
+            </button>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="assignment-history">',
+        )
+        self.assertContains(response, f"Assignment #{assignment.pk}")
+
+    # История платежей разбита на страницы по 20 записей.
+    # Денежная сводка учитывает поступления со всех страниц.
+    def test_receipt_history_is_paginated(self):
+        self._create_receipts(20)
+
+        self.client.force_login(self.manager)
+        detail_url = reverse(
+            "orders:manager_order_detail",
+            kwargs={"pk": self.order.pk},
+        )
+
+        first_response = self.client.get(detail_url)
+        second_response = self.client.get(
+            detail_url,
+            {"payments_page": 2},
+        )
+
+        first_page = first_response.context["payments"]
+        second_page = second_response.context["payments"]
+
+        self.assertEqual(len(first_page), 20)
+        self.assertEqual(len(second_page), 1)
+        self.assertEqual(first_page.paginator.count, 21)
+        self.assertEqual(first_page.paginator.per_page, 20)
+        self.assertEqual(list(second_page), [self.payment])
+
+        for response in (first_response, second_response):
+            self.assertEqual(
+                response.context["financial_summary"]["received_amount"],
+                Decimal("20.00"),
+            )
+
+    # Ссылки истории поступлений сохраняют адрес исходного списка
+    # и страницы других историй. Меняется только payments_page.
+    def test_receipt_pagination_preserves_context(self):
+        self._create_receipts(20)
+        self.client.force_login(self.manager)
+
+        detail_url = reverse(
+            "orders:manager_order_detail",
+            kwargs={"pk": self.order.pk},
+        )
+        list_url = (
+            f"{self.get_manager_order_list_url()}"
+            "?status=processing&page=2"
+        )
+        params = {
+            "next": list_url,
+            "assignments_page": 1,
+            "invoices_page": 1,
+        }
+
+        first_response = self.client.get(detail_url, params)
+        second_response = self.client.get(
+            detail_url,
+            {**params, "payments_page": 2},
+        )
+
+        self.assertEqual(
+            first_response.context["payments"].paginator.count,
+            21,
+        )
+
+        next_query = urlencode({**params, "payments_page": 2})
+        previous_query = urlencode({**params, "payments_page": 1})
+
+        self.assertContains(
+            first_response,
+            f'href="?{escape(next_query)}"',
+        )
+        self.assertContains(
+            second_response,
+            f'href="?{escape(previous_query)}"',
+        )
+        self.assertEqual(first_response.context["back_url"], list_url)
+        self.assertEqual(second_response.context["back_url"], list_url)

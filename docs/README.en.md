@@ -320,7 +320,7 @@ The core refund service is not a real money-out payout workflow.
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-11-09. The model links and settlement services below are
+Status as of 2026-11-10. The model links and settlement services below are
 implemented. Staff receipt registration and assignment/cancellation are connected
 to the website and API; customer balances are available on the profile and API.
 Independent concurrency checks remain open.
@@ -339,7 +339,7 @@ flowchart TB
     T["AccountTransaction<br/>Financial ledger entry"]
     C["CustomerAccount<br/>Available funds and debt"]
 
-    P -->|"order"| O
+    P -->|"order · optional"| O
     P -->|"deposit_transaction · 1:1, optional"| T
     A -->|"order"| O
     A -->|"account_transaction · 1:1"| T
@@ -352,6 +352,11 @@ flowchart TB
 - `Payment` records a confirmed receipt in the new manual receipt workflow.
   Its deposit link is optional in the schema for legacy records; legacy
   pending payments are not proof that money was received.
+- `Payment.order` is now optional. The database constraint
+  `payment_requires_order_or_deposit` requires at least one populated reference:
+  `order` or `deposit_transaction`; both are allowed.
+  An orderless receipt identifies its account through `deposit_transaction.account`.
+  The model is prepared; its account-receipt service and website/API are still pending.
 - `OrderFundAssignment` records which amount was explicitly assigned to an
   order. `Payment.order` alone does not assign money or settle that order.
 - `OrderFundAssignmentSource` records the deposit portions used. For deposits
@@ -865,6 +870,16 @@ and retained return links. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
+
+On 2026-11-10 the user confirmed **14 payment/history model tests** in
+11.231 seconds, scoped Ruff and `makemigrations --check --dry-run`.
+They cover a linked orderless receipt, rejection when both references are absent,
+and compatibility with existing order-linked payments. Model migrations exist;
+their application to the website database still needs confirmation.
+A subsequent run passed **86 related tests** in **138.452 seconds**, covering
+receipt/correction services, the summary, order/unpaid-list views and invoices.
+Ruff for orders/payments passed; git diff --check reported only LF/CRLF warnings.
+No subsequent full-suite result is claimed.
 
 As of 2026-11-04, the user confirmed targeted customer-balance checks: 10 selector
 tests, 6 profile tests and the existing frontend-auth module. Scoped Ruff,

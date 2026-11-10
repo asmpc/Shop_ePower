@@ -8,11 +8,15 @@ from shop_epower.finance.models import (
     CustomerAccount,
     CustomerAccountType,
 )
-from shop_epower.finance.services import record_customer_deposit
+from shop_epower.finance.services import (
+    record_customer_deposit,
+    reverse_customer_transaction,
+)
 from shop_epower.orders.models import Order
 from shop_epower.payments.choices import PaymentMethod
 from shop_epower.payments.models import (
     Payment,
+    PaymentHistory,
     PaymentProvider,
     PaymentStatus,
 )
@@ -141,3 +145,104 @@ def record_manual_order_payment(
         currency_snapshot=account.currency,
         manager_comment=comment,
     )
+
+@transaction.atomic
+def cancel_manual_order_payment(
+    *,
+    payment,
+    operation_key,
+    created_by,
+    comment,
+):
+    """Отменяет ошибочно зарегистрированное ручное поступление."""
+
+    if (
+        getattr(created_by, "pk", None) is None
+        or not created_by.is_active
+        or created_by.role not in (Role.MANAGER, Role.ADMIN)
+    ):
+        raise ValidationError(
+            "Only managers and administrators can cancel receipts."
+        )
+
+    locked_payment = Payment.objects.select_for_update().get(
+        pk=payment.pk,
+    )
+
+    if (
+            locked_payment.status not in (
+            PaymentStatus.PAID,
+            PaymentStatus.CANCELLED,
+    )
+            or locked_payment.provider != PaymentProvider.MANUAL
+            or locked_payment.deposit_transaction_id is None
+    ):
+        raise ValidationError(
+            "Only confirmed manual receipts with a deposit can be cancelled."
+        )
+
+    deposit = locked_payment.deposit_transaction
+
+    # Назначение средств тоже блокирует этот счёт.
+    # Берём блокировку до проверки зависимых назначений.
+    CustomerAccount.objects.select_for_update().get(
+        pk=deposit.account_id,
+    )
+
+    if (
+        locked_payment.status == PaymentStatus.CANCELLED
+        and not AccountTransaction.objects.filter(
+            reversal_of=deposit,
+        ).exists()
+    ):
+        raise ValidationError(
+            "Cancelled receipt must have a reversed deposit."
+        )
+
+    if deposit.order_fund_assignment_sources.filter(
+        assignment__account_transaction__reversal__isnull=True,
+    ).exists():
+        raise ValidationError(
+            "Cancel dependent fund assignments before cancelling the receipt."
+        )
+
+    actor_type = (
+        AccountTransactionActorType.ADMIN
+        if created_by.role == Role.ADMIN
+        else AccountTransactionActorType.MANAGER
+    )
+
+    # Финансовое ядро создаёт сторно исходного пополнения
+    # и пересчитывает баланс счёта.
+    reverse_customer_transaction(
+        original_transaction=deposit,
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )
+
+    # Финансовое ядро уже проверило соответствие повторного запроса.
+    # Смена статуса и запись истории выполнены при первой отмене.
+    if locked_payment.status == PaymentStatus.CANCELLED:
+        return locked_payment
+
+    old_status = locked_payment.status
+
+    locked_payment.status = PaymentStatus.CANCELLED
+    locked_payment.save(
+        update_fields=[
+            "status",
+            "updated_at",
+        ]
+    )
+
+    PaymentHistory.objects.create(
+        payment=locked_payment,
+        old_status=old_status,
+        new_status=locked_payment.status,
+        comment=comment,
+        changed_by=created_by,
+    )
+
+    return locked_payment

@@ -313,11 +313,50 @@
     </div>
 </div>
 
-<div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
-        <span>Payments</span>
+{% if financial_summary %}
+    <div class="card mb-4" id="financial-summary">
+        <div class="card-header">
+            Financial summary
+        </div>
 
-        {% if order.customer_account_id %}
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-sm-6 col-xl-3">
+                    <p class="mb-0 fw-semibold">
+                        Received for this order: {{ financial_summary.received_amount|floatformat:2 }} {{ financial_summary.currency }}
+                    </p>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <p class="mb-0 fw-semibold">
+                        Assigned to this order: {{ financial_summary.assigned_amount|floatformat:2 }} {{ financial_summary.currency }}
+                    </p>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <p class="mb-0 fw-semibold {% if financial_summary.remaining_debt > 0 %}text-danger{% else %}text-muted{% endif %}">
+                        Order debt: {{ financial_summary.remaining_debt|floatformat:2 }} {{ financial_summary.currency }}
+                    </p>
+                </div>
+
+                <div class="col-sm-6 col-xl-3">
+                    <p class="mb-0 fw-semibold text-success">
+                        Available to assign: {{ financial_summary.available_balance|floatformat:2 }} {{ financial_summary.currency }}
+                    </p>
+                    <div class="text-muted small">
+                        Customer account balance
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endif %}
+
+{% if order.customer_account_id %}
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <span>Payment actions</span>
+
             <div class="d-flex flex-wrap gap-2">
                 <a
                     href="{% url 'payments:manager_record_receipt' order.pk %}?next={{ back_url|urlencode }}"
@@ -335,165 +374,234 @@
                     </a>
                 {% endif %}
             </div>
-        {% endif %}
+        </div>
+    </div>
+{% endif %}
+
+<div class="card mb-4">
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Payments</span>
+
+        <button
+            class="btn btn-outline-secondary btn-sm collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#receipt-history"
+            aria-expanded="false"
+            aria-controls="receipt-history"
+        >
+            Receipt history
+        </button>
     </div>
 
-    <div class="card-body">
-        {% for payment in payments %}
-            <div class="border rounded p-3 mb-3">
-                <h5 class="mb-3">
-                    Payment #{{ payment.pk }}
-                </h5>
+    <div class="collapse" id="receipt-history">
+        <div class="card-body">
+            {% for payment in payments %}
+                <div class="border rounded p-3 mb-3">
+                    <h5 class="mb-3">
+                        Payment #{{ payment.pk }}
+                    </h5>
 
-                <p class="mb-1">
-                    <strong>Method:</strong>
-                    {{ payment.get_method_display }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Method:</strong>
+                        {{ payment.get_method_display }}
+                    </p>
 
-                <p class="mb-1">
-                    <strong>Status:</strong>
-                    {{ payment.get_status_display }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Status:</strong>
+                        {{ payment.get_status_display }}
+                    </p>
 
-                <p class="mb-1">
-                    <strong>Provider:</strong>
-                    {{ payment.get_provider_display }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Provider:</strong>
+                        {{ payment.get_provider_display }}
+                    </p>
 
-                <p class="mb-1">
-                    <strong>Amount:</strong>
-                    {{ payment.amount }} {{ payment.currency_snapshot }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Amount:</strong>
+                        {{ payment.amount }} {{ payment.currency_snapshot }}
+                    </p>
 
-                <p class="mb-1">
-                    <strong>Transaction ID:</strong>
-                    {{ payment.transaction_id|default:"-" }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Transaction ID:</strong>
+                        {{ payment.transaction_id|default:"-" }}
+                    </p>
 
-                <p class="mb-1">
-                    <strong>Provider payment ID:</strong>
-                    {{ payment.provider_payment_id|default:"-" }}
-                </p>
+                    <p class="mb-1">
+                        <strong>Provider payment ID:</strong>
+                        {{ payment.provider_payment_id|default:"-" }}
+                    </p>
 
-                <p class="mb-0">
-                    <strong>Manager comment:</strong>
-                    {{ payment.manager_comment|default:"-" }}
-                </p>
+                    <p class="mb-0">
+                        <strong>Manager comment:</strong>
+                        {{ payment.manager_comment|default:"-" }}
+                    </p>
+                </div>
+            {% empty %}
+                <p class="mb-0">No payment information.</p>
+            {% endfor %}
+        </div>
+
+        {% if payments.has_other_pages %}
+            <div class="card-footer">
+                <nav aria-label="Receipt history pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if payments.has_previous %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring payments_page=payments.previous_page_number %}"
+                                >
+                                    Previous
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                Page {{ payments.number }}
+                                of {{ payments.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if payments.has_next %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring payments_page=payments.next_page_number %}"
+                                >
+                                    Next
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
-        {% empty %}
-            <p class="mb-0">No payment information.</p>
-        {% endfor %}
+        {% endif %}
     </div>
 </div>
 
 <div class="card mb-4">
-    <div class="card-header">
-        Fund assignments
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Fund assignments</span>
+
+        <button
+            class="btn btn-outline-secondary btn-sm collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#assignment-history"
+            aria-expanded="false"
+            aria-controls="assignment-history"
+        >
+            Assignment history
+        </button>
     </div>
 
-    <div class="card-body">
-        {% for assignment in fund_assignments %}
-            <div class="border rounded p-3 mb-3">
-                <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
-                    <h5 class="mb-0">
-                        Assignment #{{ assignment.pk }}
-                    </h5>
+    <div class="collapse" id="assignment-history">
+        <div class="card-body">
+            {% for assignment in fund_assignments %}
+                <div class="border rounded p-3 mb-3">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0">
+                            Assignment #{{ assignment.pk }}
+                        </h5>
 
+                        {% if assignment.account_transaction.reversal %}
+                            <span class="badge bg-secondary">CANCELLED</span>
+                        {% else %}
+                            <div class="d-flex align-items-center flex-wrap gap-2">
+                                <span class="badge bg-success">ACTIVE</span>
+
+                                <a
+                                    href="{% url 'orders:manager_cancel_order_fund_assignment' assignment.pk %}?next={{ back_url|urlencode }}"
+                                    class="btn btn-outline-danger btn-sm"
+                                >
+                                    Cancel assignment
+                                </a>
+                            </div>
+                        {% endif %}
+                    </div>
+
+                    <p class="mb-1">
+                        <strong>Amount:</strong>
+                        {{ assignment.amount }} {{ assignment.account_transaction.currency_snapshot }}
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Assigned by:</strong>
+                        {{ assignment.account_transaction.created_by.email|default:"-" }}
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Created:</strong>
+                        {{ assignment.created_at }}
+                    </p>
+
+                    <p class="mb-0">
+                        <strong>Comment:</strong>
+                        {{ assignment.account_transaction.comment|default:"-" }}
+                    </p>
                     {% if assignment.account_transaction.reversal %}
-                        <span class="badge bg-secondary">CANCELLED</span>
-                    {% else %}
-                        <div class="d-flex align-items-center flex-wrap gap-2">
-                            <span class="badge bg-success">ACTIVE</span>
+                        <div class="alert alert-secondary mt-3 mb-0">
+                            <p class="mb-1">
+                                <strong>Cancellation reason:</strong>
+                                {{ assignment.account_transaction.reversal.comment }}
+                            </p>
 
-                            <a
-                                href="{% url 'orders:manager_cancel_order_fund_assignment' assignment.pk %}?next={{ back_url|urlencode }}"
-                                class="btn btn-outline-danger btn-sm"
-                            >
-                                Cancel assignment
-                            </a>
+                            <p class="mb-1">
+                                <strong>Cancelled by:</strong>
+                                {{ assignment.account_transaction.reversal.created_by.email|default:"-" }}
+                            </p>
+
+                            <p class="mb-0">
+                                <strong>Cancelled:</strong>
+                                {{ assignment.account_transaction.reversal.created_at }}
+                            </p>
                         </div>
                     {% endif %}
                 </div>
-
-                <p class="mb-1">
-                    <strong>Amount:</strong>
-                    {{ assignment.amount }} {{ assignment.account_transaction.currency_snapshot }}
-                </p>
-
-                <p class="mb-1">
-                    <strong>Assigned by:</strong>
-                    {{ assignment.account_transaction.created_by.email|default:"-" }}
-                </p>
-
-                <p class="mb-1">
-                    <strong>Created:</strong>
-                    {{ assignment.created_at }}
-                </p>
-
-                <p class="mb-0">
-                    <strong>Comment:</strong>
-                    {{ assignment.account_transaction.comment|default:"-" }}
-                </p>
-                {% if assignment.account_transaction.reversal %}
-                    <div class="alert alert-secondary mt-3 mb-0">
-                        <p class="mb-1">
-                            <strong>Cancellation reason:</strong>
-                            {{ assignment.account_transaction.reversal.comment }}
-                        </p>
-
-                        <p class="mb-1">
-                            <strong>Cancelled by:</strong>
-                            {{ assignment.account_transaction.reversal.created_by.email|default:"-" }}
-                        </p>
-
-                        <p class="mb-0">
-                            <strong>Cancelled:</strong>
-                            {{ assignment.account_transaction.reversal.created_at }}
-                        </p>
-                    </div>
-                {% endif %}
-            </div>
-        {% empty %}
-            <p class="mb-0">No fund assignments.</p>
-        {% endfor %}
-    </div>
-
-    {% if fund_assignments.has_other_pages %}
-        <div class="card-footer">
-            <nav aria-label="Fund assignment history pagination">
-                <ul class="pagination justify-content-center mb-0">
-                    {% if fund_assignments.has_previous %}
-                        <li class="page-item">
-                            <a
-                                class="page-link"
-                                href="{% querystring assignments_page=fund_assignments.previous_page_number %}"
-                            >
-                                Previous
-                            </a>
-                        </li>
-                    {% endif %}
-
-                    <li class="page-item disabled">
-                        <span class="page-link">
-                            Page {{ fund_assignments.number }}
-                            of {{ fund_assignments.paginator.num_pages }}
-                        </span>
-                    </li>
-
-                    {% if fund_assignments.has_next %}
-                        <li class="page-item">
-                            <a
-                                class="page-link"
-                                href="{% querystring assignments_page=fund_assignments.next_page_number %}"
-                            >
-                                Next
-                            </a>
-                        </li>
-                    {% endif %}
-                </ul>
-            </nav>
+            {% empty %}
+                <p class="mb-0">No fund assignments.</p>
+            {% endfor %}
         </div>
-    {% endif %}
+
+        {% if fund_assignments.has_other_pages %}
+            <div class="card-footer">
+                <nav aria-label="Fund assignment history pagination">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if fund_assignments.has_previous %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring assignments_page=fund_assignments.previous_page_number %}"
+                                >
+                                    Previous
+                                </a>
+                            </li>
+                        {% endif %}
+
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                Page {{ fund_assignments.number }}
+                                of {{ fund_assignments.paginator.num_pages }}
+                            </span>
+                        </li>
+
+                        {% if fund_assignments.has_next %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring assignments_page=fund_assignments.next_page_number %}"
+                                >
+                                    Next
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+        {% endif %}
+    </div>
 </div>
 
 {% if order.status == "new" %}
@@ -520,79 +628,62 @@
     </div>
 {% elif order.status == "processing" %}
     <div class="card mb-4">
-        <div class="card-header">
-            Order actions
-        </div>
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <span>Order actions</span>
 
-        <div class="card-body">
-            <form method="post"
-                  action="{% url 'orders:manager_order_status_update' order.id %}"
-                  class="mb-2"
-                  onsubmit="return confirm('Confirm full shipment of order #{{ order.pk }}? Once confirmed, shipment cannot be cancelled and order items cannot be edited on the website.');">
+            <form
+                method="post"
+                action="{% url 'orders:manager_order_status_update' order.id %}"
+                class="mb-0"
+                onsubmit="return confirm('Confirm full shipment of order #{{ order.pk }}? Once confirmed, shipment cannot be cancelled and order items cannot be edited on the website.');"
+            >
                 {% csrf_token %}
 
-                <input
-                    type="hidden"
-                    name="next"
-                    value="{{ back_url }}"
-                >
+                <input type="hidden" name="next" value="{{ back_url }}">
+                <input type="hidden" name="status" value="completed">
 
-                <input type="hidden"
-                       name="status"
-                       value="completed">
-
-                <button type="submit"
-                        class="btn btn-success"
-                        style="width: 160px;">
+                <button type="submit" class="btn btn-success btn-sm">
                     Complete order
                 </button>
             </form>
 
             <button
-                class="btn btn-outline-danger btn-sm mb-3"
+                class="btn btn-outline-danger btn-sm"
                 type="button"
                 data-bs-toggle="collapse"
                 data-bs-target="#cancelOrderForm"
                 aria-expanded="false"
                 aria-controls="cancelOrderForm"
-                style="width: 160px;"
             >
                 Cancel order...
             </button>
+        </div>
 
-            <div
-                class="collapse"
-                id="cancelOrderForm"
-            >
-                <form method="post"
-                      action="{% url 'orders:manager_order_status_update' order.id %}">
+        <div class="collapse" id="cancelOrderForm">
+            <div class="card-body">
+                <form
+                    method="post"
+                    action="{% url 'orders:manager_order_status_update' order.id %}"
+                >
                     {% csrf_token %}
 
-                    <input
-                        type="hidden"
-                        name="next"
-                        value="{{ back_url }}"
-                    >
+                    <input type="hidden" name="next" value="{{ back_url }}">
 
                     <div class="mb-3">
                         <label class="form-label">
                             Cancellation reason
                         </label>
 
-                        <select name="cancellation_reason"
-                                class="form-select">
+                        <select name="cancellation_reason" class="form-select">
                             <option value="client_refused">
                                 Client refused
                             </option>
-
                             <option value="supplier_unavailable">
                                 Supplier unavailable
                             </option>
-
                             <option value="delivery_cost">
                                 Delivery cost
                             </option>
-
                             <option value="other">
                                 Other
                             </option>
@@ -604,17 +695,16 @@
                             Comment
                         </label>
 
-                        <textarea name="cancellation_comment"
-                                  class="form-control"
-                                  rows="3"></textarea>
+                        <textarea
+                            name="cancellation_comment"
+                            class="form-control"
+                            rows="3"
+                        ></textarea>
                     </div>
 
-                    <input type="hidden"
-                           name="status"
-                           value="cancelled">
+                    <input type="hidden" name="status" value="cancelled">
 
-                    <button type="submit"
-                            class="btn btn-danger">
+                    <button type="submit" class="btn btn-danger btn-sm">
                         Cancel order
                     </button>
                 </form>
@@ -624,14 +714,36 @@
 {% endif %}
 
 <div class="card mb-4">
-    <div class="card-header d-flex justify-content-between align-items-center">
+    <div class="card-header d-flex align-items-center flex-wrap gap-2">
         <span>Invoice</span>
 
         {% if invoice %}
             {% if invoice.status == "issued" %}
-                <span class="badge bg-success">ISSUED</span>
+                {% if request.user.role == "manager" or request.user.role == "admin" %}
+                    <button
+                        class="btn btn-outline-danger btn-sm collapsed"
+                        type="button"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#cancelInvoiceForm"
+                        aria-expanded="false"
+                        aria-controls="cancelInvoiceForm"
+                    >
+                        Cancel invoice...
+                    </button>
+                {% endif %}
+            {% endif %}
+
+            <a
+                href="{% url 'payments:manager_invoice_pdf' invoice.pk %}"
+                class="btn btn-sm {% if invoice.status == 'issued' %}btn-primary{% else %}btn-outline-secondary{% endif %}"
+            >
+                Download PDF
+            </a>
+
+            {% if invoice.status == "issued" %}
+                <span class="badge bg-success ms-auto">ISSUED</span>
             {% elif invoice.status == "cancelled" %}
-                <span class="badge bg-danger">CANCELLED</span>
+                <span class="badge bg-danger ms-auto">CANCELLED</span>
             {% endif %}
         {% endif %}
     </div>
@@ -684,62 +796,48 @@
                 </div>
 
             {% elif request.user.role == "manager" or request.user.role == "admin" %}
-                <hr>
+                <div class="collapse" id="cancelInvoiceForm">
+                    <hr>
 
-                <h5 class="mb-3">Invoice cancellation</h5>
+                    <h5 class="mb-3">Invoice cancellation</h5>
 
-                <form
-                    method="post"
-                    action="{% url 'payments:manager_cancel_invoice' invoice.pk %}"
-                    class="mb-0"
-                >
-                    {% csrf_token %}
-
-                    <input
-                        type="hidden"
-                        name="next"
-                        value="{{ back_url }}"
+                    <form
+                        method="post"
+                        action="{% url 'payments:manager_cancel_invoice' invoice.pk %}"
+                        class="mb-0"
                     >
+                        {% csrf_token %}
 
-                    <label
-                        for="invoice_cancel_comment"
-                        class="form-label fw-bold"
-                    >
-                        Cancellation comment
-                    </label>
+                        <input
+                            type="hidden"
+                            name="next"
+                            value="{{ back_url }}"
+                        >
 
-                    <textarea
-                        id="invoice_cancel_comment"
-                        name="cancel_comment"
-                        rows="3"
-                        class="form-control mb-3"
-                        placeholder="Explain why the invoice is being cancelled"
-                        required
-                    ></textarea>
+                        <label
+                            for="invoice_cancel_comment"
+                            class="form-label fw-bold"
+                        >
+                            Cancellation comment
+                        </label>
 
-                    <button
-                        type="submit"
-                        class="btn btn-outline-danger"
-                    >
-                        Cancel invoice
-                    </button>
-                </form>
-            {% endif %}
+                        <textarea
+                            id="invoice_cancel_comment"
+                            name="cancel_comment"
+                            rows="3"
+                            class="form-control mb-3"
+                            placeholder="Explain why the invoice is being cancelled"
+                            required
+                        ></textarea>
 
-            {% if invoice.status == "issued" %}
-                <a
-                    href="{% url 'payments:manager_invoice_pdf' invoice.pk %}"
-                    class="btn btn-primary mt-3"
-                >
-                    Download invoice PDF
-                </a>
-            {% else %}
-                <a
-                    href="{% url 'payments:manager_invoice_pdf' invoice.pk %}"
-                    class="btn btn-outline-secondary mt-3"
-                >
-                    Download cancelled invoice PDF
-                </a>
+                        <button
+                            type="submit"
+                            class="btn btn-outline-danger"
+                        >
+                            Cancel invoice
+                        </button>
+                    </form>
+                </div>
             {% endif %}
 
         {% elif invoice_required %}
@@ -776,7 +874,7 @@
                     Delivery method
                 </label>
 
-                <select name="delivery_method" class="form<select
+                <select
                     name="delivery_method"
                     class="form-select"
                     id="deliveryMethodSelect"
@@ -954,102 +1052,122 @@
 </div>
 
 <div class="card mb-4">
-    <div class="card-header">
-        Invoice history
+    <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
+        <span>Invoices</span>
+
+        <button
+            class="btn btn-outline-secondary btn-sm collapsed"
+            type="button"
+            data-bs-toggle="collapse"
+            data-bs-target="#invoice-history"
+            aria-expanded="false"
+            aria-controls="invoice-history"
+        >
+            Invoice history
+        </button>
     </div>
 
-    <div class="card-body">
-        {% for entry in invoice_history %}
-            <div class="border-bottom py-3">
-                <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+    <div class="collapse" id="invoice-history">
+        <div class="card-body">
+            {% for entry in invoice_history %}
+                <div class="border-bottom py-3">
+                    <div class="d-flex flex-wrap justify-content-between align-items-start gap-2">
+                        <div>
+                            <strong>{{ entry.invoice_number }}</strong>
+
+                            {% if entry.status == "issued" %}
+                                <span class="badge bg-success ms-2">
+                                    {{ entry.get_status_display }}
+                                </span>
+                            {% else %}
+                                <span class="badge bg-secondary ms-2">
+                                    {{ entry.get_status_display }}
+                                </span>
+                            {% endif %}
+                        </div>
+
+                        <a
+                            href="{% url 'payments:manager_invoice_pdf' entry.pk %}"
+                            class="btn btn-outline-secondary btn-sm"
+                        >
+                            Download PDF
+                        </a>
+                    </div>
+
+                    <div class="small text-muted mt-2">
+                        Created: {{ entry.created_at }}
+                    </div>
+
                     <div>
-                        <strong>{{ entry.invoice_number }}</strong>
+                        Amount: {{ entry.amount }} {{ entry.currency_snapshot }}
+                    </div>
 
-                        {% if entry.status == "issued" %}
-                            <span class="badge bg-success ms-2">
-                                {{ entry.get_status_display }}
-                            </span>
-                        {% else %}
-                            <span class="badge bg-secondary ms-2">
-                                {{ entry.get_status_display }}
-                            </span>
+                    {% if entry.status == "cancelled" %}
+                        <div class="mt-2">
+                            Reason: {{ entry.cancel_comment }}
+                        </div>
+
+                        <div class="small text-muted">
+                            Cancelled by: {{ entry.cancelled_by.email|default:"—" }}
+                        </div>
+
+                        <div class="small text-muted">
+                            Cancelled at: {{ entry.cancelled_at|default:"—" }}
+                        </div>
+                    {% endif %}
+                </div>
+            {% empty %}
+                <div class="text-muted">
+                    No invoices yet.
+                </div>
+            {% endfor %}
+        </div>
+
+        {% if invoice_history.has_other_pages %}
+            <div class="card-footer">
+                <nav aria-label="Invoice history pages">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if invoice_history.has_previous %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring invoices_page=invoice_history.previous_page_number %}"
+                                >
+                                    Previous
+                                </a>
+                            </li>
                         {% endif %}
-                    </div>
 
-                    <a
-                        href="{% url 'payments:manager_invoice_pdf' entry.pk %}"
-                        class="btn btn-outline-secondary btn-sm"
-                    >
-                        Download PDF
-                    </a>
-                </div>
+                        <li class="page-item disabled">
+                            <span class="page-link">
+                                Page {{ invoice_history.number }} of {{ invoice_history.paginator.num_pages }}
+                            </span>
+                        </li>
 
-                <div class="small text-muted mt-2">
-                    Created: {{ entry.created_at }}
-                </div>
-
-                <div>
-                    Amount: {{ entry.amount }} {{ entry.currency_snapshot }}
-                </div>
-
-                {% if entry.status == "cancelled" %}
-                    <div class="mt-2">
-                        Reason: {{ entry.cancel_comment }}
-                    </div>
-
-                    <div class="small text-muted">
-                        Cancelled by: {{ entry.cancelled_by.email|default:"—" }}
-                    </div>
-
-                    <div class="small text-muted">
-                        Cancelled at: {{ entry.cancelled_at|default:"—" }}
-                    </div>
-                {% endif %}
+                        {% if invoice_history.has_next %}
+                            <li class="page-item">
+                                <a
+                                    class="page-link"
+                                    href="{% querystring invoices_page=invoice_history.next_page_number %}"
+                                >
+                                    Next
+                                </a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
             </div>
-        {% empty %}
-            <div class="text-muted">
-                No invoices yet.
-            </div>
-        {% endfor %}
+        {% endif %}
     </div>
 </div>
-{% if invoice_history.has_other_pages %}
-    <nav aria-label="Invoice history pages" class="mb-4">
-        <ul class="pagination justify-content-center">
-            {% if invoice_history.has_previous %}
-                <li class="page-item">
-                    <a
-                        class="page-link"
-                        href="{% querystring invoices_page=invoice_history.previous_page_number %}"
-                    >
-                        Previous
-                    </a>
-                </li>
-            {% endif %}
-
-            <li class="page-item disabled">
-                <span class="page-link">
-                    Page {{ invoice_history.number }} of {{ invoice_history.paginator.num_pages }}
-                </span>
-            </li>
-
-            {% if invoice_history.has_next %}
-                <li class="page-item">
-                    <a
-                        class="page-link"
-                        href="{% querystring invoices_page=invoice_history.next_page_number %}"
-                    >
-                        Next
-                    </a>
-                </li>
-            {% endif %}
-        </ul>
-    </nav>
-{% endif %}
 <script>
     document.addEventListener("DOMContentLoaded", function () {
         const deliveryMethodSelect = document.getElementById("deliveryMethodSelect");
         const shippingDeliveryFields = document.getElementById("shippingDeliveryFields");
+
+        if (!deliveryMethodSelect || !shippingDeliveryFields) {
+            return;
+        }
 
         function toggleShippingDeliveryFields() {
             if (deliveryMethodSelect.value === "shipping") {

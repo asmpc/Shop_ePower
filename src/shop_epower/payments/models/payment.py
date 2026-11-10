@@ -22,6 +22,8 @@ class Payment(models.Model):
         Order,
         on_delete=models.PROTECT,
         related_name="payments",
+        null=True,
+        blank=True,
     )
 
     deposit_transaction = models.OneToOneField(
@@ -84,6 +86,15 @@ class Payment(models.Model):
 
     class Meta:
         ordering = ["-created_at"]
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    models.Q(order__isnull=False)
+                    | models.Q(deposit_transaction__isnull=False)
+                ),
+                name="payment_requires_order_or_deposit",
+            ),
+        ]
 
     def save(self, *args, **kwargs):
         if not self.transaction_id:
