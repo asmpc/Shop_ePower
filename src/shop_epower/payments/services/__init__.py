@@ -20,6 +20,7 @@ from shop_epower.payments.services.provider import (
 )
 from shop_epower.payments.services.receipts import (
     cancel_manual_order_payment,
+    record_manual_account_payment,
     record_manual_order_payment,
 )
 from shop_epower.payments.services.validators import (

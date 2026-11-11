@@ -156,9 +156,19 @@
 
                 <div class="col-md-3 border-start">
                     <div class="text-muted">Customer</div>
-                    <div class="text-break">{{ payment.order.customer_email }}</div>
-                    <div class="text-muted mt-1">Order</div>
-                    <div>#{{ payment.order.id }}</div>
+
+                    <div class="text-break">
+                        {% if payment.order_id %}
+                            {{ payment.order.customer_email }}
+                        {% else %}
+                            {{ payment.deposit_transaction.account.user.email }}
+                        {% endif %}
+                    </div>
+
+                    {% if payment.order_id %}
+                        <div class="text-muted mt-1">Order</div>
+                        <div>#{{ payment.order_id }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-2 border-start">
@@ -179,10 +189,12 @@
                            class="btn btn-outline-secondary btn-sm">
                             Open payment
                         </a>
-                        <a href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
-                           class="btn btn-outline-primary btn-sm">
-                            Open order
-                        </a>
+                        {% if payment.order_id %}
+                            <a href="{% url 'orders:manager_order_detail' payment.order_id %}?next={{ request.get_full_path|urlencode }}"
+                               class="btn btn-outline-primary btn-sm">
+                                Open order
+                            </a>
+                        {% endif %}
                     </div>
                 </div>
 

@@ -11,40 +11,36 @@ from shop_epower.payments.models import (
 
 
 class PaymentListSerializer(serializers.ModelSerializer):
+    customer_account_id = serializers.SerializerMethodField()
 
-    class Meta:
-        model = Payment
-        fields = (
-            'id',
-            'order_id',
-            'method',
-            'status',
-            'provider',
-            'amount',
-            'currency_snapshot',
-            'transaction_id',
-            'created_at',
-        )
+    def get_customer_account_id(self, payment):
+        if payment.deposit_transaction_id is not None:
+            return payment.deposit_transaction.account_id
 
+        if payment.order_id is not None:
+            return payment.order.customer_account_id
 
-class PaymentDetailSerializer(
-    serializers.ModelSerializer,
-):
+        return None
 
     class Meta:
         model = Payment
 
         fields = (
-            'id',
-            'order_id',
-            'method',
-            'status',
-            'provider',
-            'amount',
-            'currency_snapshot',
-            'transaction_id',
-            'created_at',
+            "id",
+            "order_id",
+            "customer_account_id",
+            "method",
+            "status",
+            "provider",
+            "amount",
+            "currency_snapshot",
+            "transaction_id",
+            "created_at",
         )
+
+
+class PaymentDetailSerializer(PaymentListSerializer):
+    pass
 
 
 class InvoiceDetailSerializer(
@@ -93,7 +89,17 @@ class InvoiceDetailSerializer(
         )
 
 
-class ManagerPaymentListSerializer(serializers.ModelSerializer):
+class ManagerPaymentDetailSerializer(PaymentListSerializer):
+    customer_email = serializers.SerializerMethodField()
+
+    def get_customer_email(self, payment):
+        if payment.deposit_transaction_id is not None:
+            return payment.deposit_transaction.account.user.email
+
+        if payment.order_id is not None:
+            return payment.order.customer_email
+
+        return None
 
     class Meta:
         model = Payment
@@ -101,28 +107,21 @@ class ManagerPaymentListSerializer(serializers.ModelSerializer):
         fields = (
             "id",
             "order",
+            "customer_account_id",
+            "customer_email",
             "method",
             "provider",
             "status",
             "amount",
             "currency_snapshot",
-            "created_at",
         )
 
 
-class ManagerPaymentDetailSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Payment
-
+class ManagerPaymentListSerializer(ManagerPaymentDetailSerializer):
+    class Meta(ManagerPaymentDetailSerializer.Meta):
         fields = (
-            "id",
-            "order",
-            "method",
-            "provider",
-            "status",
-            "amount",
-            "currency_snapshot",
+            *ManagerPaymentDetailSerializer.Meta.fields,
+            "created_at",
         )
 
 class PaymentHistorySerializer(
@@ -180,7 +179,7 @@ class ManagerInvoiceDetailSerializer(
 
 class ManualPaymentReceiptSerializer(serializers.Serializer):
     amount = serializers.DecimalField(
-        max_digits=18,
+        max_digits=12,
         decimal_places=2,
         min_value=Decimal("0.01"),
     )

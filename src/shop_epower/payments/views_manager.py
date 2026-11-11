@@ -7,10 +7,12 @@ from django.http import (
     HttpResponse,
     HttpResponseForbidden,
 )
-from django.shortcuts import get_object_or_404
+from django.shortcuts import get_object_or_404, redirect
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from shop_epower.finance.models import CustomerAccount
+from shop_epower.finance.navigation import get_safe_manager_account_detail_url
 from shop_epower.orders.models import Order
 from shop_epower.orders.navigation import (
     get_safe_manager_order_return_url,
@@ -29,6 +31,7 @@ from shop_epower.payments.services import (
     cancel_invoice,
     create_invoice_for_order,
     generate_invoice_pdf,
+    record_manual_account_payment,
     record_manual_order_payment,
 )
 
@@ -157,6 +160,7 @@ class ManagerPaymentDetailView(
             .select_related(
                 "order",
                 "order__user",
+                "deposit_transaction__account__user",
             )
             .prefetch_related(
                 "history",
@@ -173,6 +177,13 @@ class ManagerPaymentDetailView(
         )
 
         payment = self.object
+
+        if payment.order_id is not None:
+            context["customer_email"] = payment.order.customer_email
+        else:
+            context["customer_email"] = (
+                payment.deposit_transaction.account.user.email
+            )
 
         try:
             invoice = payment.invoice
@@ -259,6 +270,75 @@ class ManagerRecordReceiptView(
                     request=request,
                     order_id=self.object.pk,
                 )
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
+
+
+class ManagerRecordAccountReceiptView(
+    LoginRequiredMixin,
+    DetailView,
+):
+    model = CustomerAccount
+    template_name = "payments/manage/account_receipt_form.html"
+    context_object_name = "account"
+
+    def get_queryset(self):
+        if self.request.user.role not in ["manager", "admin"]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return super().get_queryset().select_related("user")
+
+    def get_return_url(self):
+        return get_safe_manager_account_detail_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            account=self.object,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = ManualPaymentReceiptForm(
+                initial={
+                    "operation_key": f"manual-account-receipt:{uuid4()}",
+                },
+            )
+
+        context["return_url"] = self.get_return_url()
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = ManualPaymentReceiptForm(request.POST)
+
+        if form.is_valid():
+            try:
+                record_manual_account_payment(
+                    account=self.object,
+                    amount=form.cleaned_data["amount"],
+                    method=form.cleaned_data["method"],
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Receipt registered. Funds are available for assignment.",
+                )
+
+                return redirect(self.get_return_url())
 
         return self.render_to_response(
             self.get_context_data(form=form),

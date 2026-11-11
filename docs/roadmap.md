@@ -100,15 +100,25 @@ Django checks, and migration-state check passed at phase closure.
 
 ## PHASE 23 --- Order Funds & Full-Shipment Settlement
 
-Current work order (2026-11-10): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
+Current work order (2026-11-11): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
 Payment model protection is complete: nullable order, the at-least-one-reference
 constraint and migrations 0012/0013. The user confirmed 14 model/history tests,
 scoped Ruff and no outstanding model migrations. Both-language diagrams are updated;
-website database migration application remains to be confirmed.
+the user confirmed the website database migration check on 2026-11-11.
 The checkpoint also passed 86 related tests in 138.452 seconds, orders/payments
-Ruff and git diff --check (LF/CRLF warnings only); the latest full run remains 920.
-Next checkpoint the accumulated work; then account receipt service → consumer/API compatibility
-→ staff account summary/form/history → remaining order-history UI → complete receipt
+Ruff and git diff --check (LF/CRLF warnings only); that model checkpoint preceded
+the full account-funding regression below.
+The model checkpoint is committed. The account receipt service is implemented:
+17 new-module tests and Ruff pass; related services passed during refactoring.
+Page/API compatibility and staff account-receipt POST passed related checks.
+Compatibility step 3 is complete: no-order Invoice guards and own-history API
+coverage pass; receipt-service/client modules now contain 18/7 tests respectively.
+Step 4 is implemented: account summary, orderless receipt form, preserved search
+and safe return links, retry/amount/permission checks and collapsed transaction paging.
+The user confirmed focused tests, related modules, Ruff and manual navigation/history checks.
+The full account-funding checkpoint passed on 2026-11-11: **1002 tests in
+1215.051 seconds**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+Next: account-funding checkpoint → remaining order-history UI → complete receipt
 correction → actual cash/bank payouts → invoice snapshots/item edits → final verification.
 Checkpoint commits follow model protection and the complete account-funding flow.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.

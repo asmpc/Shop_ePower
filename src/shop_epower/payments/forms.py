@@ -8,7 +8,7 @@ from shop_epower.payments.choices import PaymentMethod
 class ManualPaymentReceiptForm(forms.Form):
     amount = forms.DecimalField(
         label="Amount received",
-        max_digits=18,
+        max_digits=12,
         decimal_places=2,
         min_value=Decimal("0.01"),
         widget=forms.NumberInput(

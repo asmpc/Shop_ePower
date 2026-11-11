@@ -12,7 +12,7 @@ search, pagination and preserved return context. Receipt correction, manual
 payouts and pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
-Current work order (2026-11-10): [nine steps and checkpoints](#current-work-order).
+Current work order (2026-11-11): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -294,7 +294,7 @@ for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and website/API/service implementation status as of 2026-11-10.
+Model relationships and website/API/service implementation status as of 2026-11-11.
 Keep this section synchronized with the main README and published Russian version.
 
 ### Receipts and assignment — implemented
@@ -328,7 +328,12 @@ flowchart TB
   `payment_requires_order_or_deposit` requires at least one populated reference:
   `order` or `deposit_transaction`; both are allowed.
   An orderless receipt identifies its account through `deposit_transaction.account`.
-  The model is prepared; its account-receipt service and website/API are still pending.
+  `record_manual_account_payment` is implemented; its module passes 18 tests,
+  including rejection of Invoice creation without an order.
+  Pages and receipt read/registration APIs support orderless receipts.
+  Staff account detail now shows the three balances and Register receipt.
+  Account/search return context is retained; transactions start collapsed and
+  remain expanded when paging through their existing 20-entry history.
 - `OrderFundAssignment` records which amount was explicitly assigned to an
   order. `Payment.order` alone does not assign money or settle that order.
 - `OrderFundAssignmentSource` records the deposit portions used. For deposits
@@ -761,8 +766,9 @@ same-key retries, changed-reason/new-key conflicts, customer/inactive-manager de
 administrator bank-receipt correction and atomic rollback on history-creation failure.
 The website/API action is not connected. Matching the payment to its credited
 transaction, post-shipment preservation and independent concurrency checks remain
-before treating this workflow as complete. The latest full regression remains
-920 tests; no new full-suite run is claimed.
+before treating this workflow as complete. At that correction-service checkpoint,
+the latest full regression was 920 tests; the later account-funding checkpoint
+is recorded in the current work plan below.
 
 - A manager or administrator may cancel an erroneously registered manual receipt
   with a required reason. Its original `Payment` changes from `PAID` to
@@ -824,13 +830,38 @@ database constraint rejects a record with neither reference. Migrations
 `0012_allow_payment_without_order` and `0013_require_payment_order_or_deposit`
 exist. The user confirmed **14 payment/history model tests** in **11.231 seconds**,
 scoped Ruff and `makemigrations --check --dry-run`. Both new cases and existing
-order-linked payments pass. Applying these migrations to the website database
-still needs confirmation; the latest full run remains 920 tests on 2026-11-09.
+order-linked payments pass. The user confirmed the website database migration
+check on 2026-11-11; the full checkpoint run passed 1002 tests in 1215.051 seconds.
 The subsequent checkpoint passed **86 related tests in 138.452 seconds**:
 receipt/correction services, the financial summary, manager order/unpaid-list views
 and invoice views. Ruff for orders/payments passed; git diff --check reported only
 LF/CRLF warnings. This was a scoped checkpoint, not a new full-suite run.
-The account receipt service and UI/API are still pending.
+`record_manual_account_payment` is implemented: office/bank funds without an order,
+one PAID Payment and one credit, with no automatic assignment or debt.
+The user confirmed 17 new-module tests and scoped Ruff; related receipt/correction
+modules also passed during refactoring. Shared validation and Payment creation use
+internal helpers.
+Payment pages and email search support orderless receipts.
+The client API identifies ownership through the account and returns
+`customer_account_id`; the staff API also returns the customer email.
+`POST /api/payments/manage/accounts/{account_id}/receipts/` is implemented:
+staff permissions, office/bank funds, key retries/conflicts and
+400/401/403/404 responses without extra credits. Input precision now matches
+Payment: 12 total digits and 2 decimal places. The user confirmed related API
+modules, Ruff and git diff --check. Both follow-ups are complete: legacy Invoice
+validators reject receipts without orders, and the separate client-own-history
+read test is restored. The user confirmed the 18-test receipt-service module,
+7-test client module, related Invoice modules and Ruff.
+As of 2026-11-11, staff account detail and the orderless receipt form are implemented.
+The summary reuses the available-funds, assigned-prepayment and debt computation.
+Form Back, successful POST and return to account search retain their parameters;
+external return URLs are rejected. Repeating a form does not double-credit funds,
+customers receive 403 on GET/POST, and form precision matches Payment (12, 2).
+Transactions start collapsed, contain 20-entry pagination and stay expanded on
+page changes. The user confirmed 8 form tests, 7 account-detail tests, related
+checks and Ruff, plus manual summary, search-return and history-toggle checks.
+The user then confirmed the full run of **1002 tests in 1215.051 seconds on
+2026-11-11**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
 A customer may have a financial account and pay before placing any order.
 
 - From `Finances → Customer accounts → account`, a manager or administrator
@@ -919,7 +950,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Single work order as of 2026-11-10. This list defines the immediate sequence;
+Single work order as of 2026-11-11. This list defines the immediate sequence;
 earlier dated sections retain the history of decisions and validation.
 PHASE 23 remains open. Full shipment, debt creation, fund assignment/removal,
 customer balances and the staff shipped-unpaid list are implemented.
@@ -927,38 +958,45 @@ Receipt correction has a basic service and 12 passing tests; interfaces and
 additional checks remain. Order UI was improved, but preserving expanded
 history after pagination is unfinished.
 
-Current point: model protection is complete — nullable `Payment.order`,
-the `payment_requires_order_or_deposit` constraint and payments migrations 0012/0013.
-The user confirmed 14 tests, scoped Ruff and no outstanding model migrations.
-Diagrams in both languages are updated. Before further code, checkpoint the
-accumulated work; then proceed to step 2, the account receipt service.
-The service and its interface are not implemented yet. Applying these migrations
-to the website database must be confirmed before manual checks of the new flow.
+Current point: the user committed the model checkpoint.
+`record_manual_account_payment` is implemented with 17 passing tests and Ruff;
+related receipt/correction modules passed during refactoring.
+Step 3 is complete: page/API support and account-receipt POST pass related checks.
+Invoice rejection without an order is covered and the own-history API test is restored;
+receipt service (18 tests), client API (7 tests), Invoice modules and Ruff pass.
+Step 4 is implemented: staff account summary, orderless receipt form, safe
+search/account return context, amount validation, retries, customer denial and
+collapsed transaction paging. The user confirmed focused tests, related modules,
+Ruff, manual navigation/history checks and the website migration check.
+Finish the account-funding checkpoint before step 5 (remaining order-history UI).
+Full checkpoint validation passed on 2026-11-11: 1002 tests in 1215.051 seconds,
+project-wide Ruff and git diff --check (LF/CRLF warnings only).
 
 1. **Payment model protection — complete.** Records with neither an order nor
    a linked deposit are rejected; existing order-linked payments remain valid.
    Both new cases and related models pass: 14 tests, Ruff and the migration check.
    Diagrams/documentation are current. First checkpoint: logical intermediate
    commits of the accumulated validated work.
-2. **Implement direct receipt into a financial account.** The customer may have
-   no orders. Office/bank receipts atomically create a PAID Payment and one
-   credit; available funds increase without debt or assignment changes.
-   Preserve active staff roles, amount/currency/account checks, operation keys,
-   retries and rollback; share logic with receipt registration through an order.
-3. **Adapt consumers to orderless receipts.** Payment lists/details, customer
-   ownership checks and API output identify the customer/account through the
-   credit. Keep legacy order-linked records available. Order links and Invoice
-   actions require an actual order. Add account-receipt API registration and
-   verify that other customers cannot access the receipt.
-4. **Complete the staff account page.** Show customer details, freely available
-   funds, prepayment assigned before shipment and debt from shipped orders.
-   Add Register receipt and the office/bank form with account/search/filter
-   return context. Start transactions collapsed, keep 20-entry pagination
-   inside, and preserve expansion when paging. Apply migrations in the website
-   environment and manually verify receipt for a customer with no orders:
-   available funds increase without creating debt or an order. Checkpoint:
-   related modules, Ruff, migration checks, documentation and a separate commit
-   for the completed account-funding flow.
+2. **Direct account receipt — service implemented.** The customer may have no
+   orders; office/bank receipts atomically create a PAID Payment and one credit.
+   Only available funds increase. Roles, separate accounts, amount/currency,
+   keys/retries, conflicts and rollback pass 17 tests and Ruff. Validation and
+   Payment creation are shared with receipt registration through an order.
+3. **Consumer/API adaptation — complete.** Payment lists/details, email search,
+   account identification, client ownership and staff receipt POST pass checks.
+   Order links/Invoice cards are conditional. Legacy validators reject Invoice
+   creation without an order; the separate own-history API test is restored.
+   Related service/API/Invoice modules and Ruff pass.
+4. **Staff account page — implemented; checkpoint next.** Customer details and
+   three balances, Register receipt and the office/bank form are connected.
+   Account/search/filter context survives Back and successful POST. External
+   returns are rejected, repeated submissions do not double-credit funds,
+   customer GET/POST is forbidden, and amount precision matches Payment.
+   Transactions start collapsed, keep 20-entry pagination inside and remain
+   expanded when paging. Focused/related tests, Ruff, manual UI checks and the
+   website migration check are confirmed. Before committing, verify an actual
+   receipt for a customer with no orders: only available funds increase.
+   Update documentation and make a separate account-funding checkpoint commit.
 5. **Close the remaining order financial UI work.** Receipts, assignments and
    invoices retain expansion on their own page changes while preserving other
    histories and return-list parameters. Verify Back to a payment from another

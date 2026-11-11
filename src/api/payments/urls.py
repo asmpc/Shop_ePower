@@ -16,6 +16,7 @@ from api.payments.views import (
     ManagerPaymentMarkCancelledAPIView,
     ManagerPaymentMarkPaidAPIView,
     ManagerPaymentResetToPendingAPIView,
+    ManagerRecordAccountReceiptAPIView,
     ManagerRecordReceiptAPIView,
 )
 
@@ -39,6 +40,12 @@ urlpatterns = [
         'my/<int:payment_id>/history/',
         ClientPaymentHistoryAPIView.as_view(),
         name='client-payment-history',
+    ),
+
+    path(
+        "manage/accounts/<int:account_id>/receipts/",
+        ManagerRecordAccountReceiptAPIView.as_view(),
+        name="manager-record-account-receipt",
     ),
 
     path(

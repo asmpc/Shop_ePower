@@ -21,6 +21,7 @@ from api.payments.serializers import (
     PaymentHistorySerializer,
     PaymentListSerializer,
 )
+from shop_epower.finance.models import CustomerAccount
 from shop_epower.orders.models import Order
 from shop_epower.payments.models import Invoice, Payment
 from shop_epower.payments.selectors.invoice import (
@@ -39,6 +40,7 @@ from shop_epower.payments.services import (
     create_invoice_for_order,
     mark_payment_cancelled,
     mark_payment_paid,
+    record_manual_account_payment,
     record_manual_order_payment,
     reset_payment_to_pending,
 )
@@ -447,6 +449,44 @@ class ManagerRecordReceiptAPIView(APIView):
         try:
             payment = record_manual_order_payment(
                 order=order,
+                amount=serializer.validated_data["amount"],
+                method=serializer.validated_data["method"],
+                operation_key=serializer.validated_data["operation_key"],
+                created_by=request.user,
+                comment=serializer.validated_data["comment"],
+            )
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                {
+                    "detail": exc.messages[0],
+                },
+            ) from exc
+
+        return Response(
+            ManagerPaymentDetailSerializer(payment).data,
+            status=status.HTTP_201_CREATED,
+        )
+
+
+class ManagerRecordAccountReceiptAPIView(APIView):
+    permission_classes = (
+        IsManagerOrAdmin,
+    )
+
+    def post(self, request, account_id):
+        account = get_object_or_404(
+            CustomerAccount,
+            pk=account_id,
+        )
+
+        serializer = ManualPaymentReceiptSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            payment = record_manual_account_payment(
+                account=account,
                 amount=serializer.validated_data["amount"],
                 method=serializer.validated_data["method"],
                 operation_key=serializer.validated_data["operation_key"],

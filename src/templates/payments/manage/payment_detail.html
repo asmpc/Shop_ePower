@@ -28,14 +28,19 @@
     </div>
 
     <div class="card-body">
-        <p class="mb-1">
-            <strong>Order:</strong>
+        {% if payment.order_id %}
+            <p class="mb-1">
+                <strong>Order:</strong>
 
-            <a href="{% url 'orders:manager_order_detail' payment.order.id %}">
-                #{{ payment.order.id }}
-            </a>
+                <a href="{% url 'orders:manager_order_detail' payment.order_id %}">
+                    #{{ payment.order_id }}
+                </a>
+            </p>
+        {% endif %}
+
+        <p class="mb-1">
+            <strong>Customer:</strong> {{ customer_email }}
         </p>
-        <p class="mb-1"><strong>Customer:</strong> {{ payment.order.customer_email }}</p>
         <p class="mb-1"><strong>Method:</strong> {{ payment.get_method_display }}</p>
         <p class="mb-1"><strong>Status:</strong> {{ payment.get_status_display }}</p>
         <p class="mb-1"><strong>Provider:</strong> {{ payment.get_provider_display }}</p>
@@ -48,6 +53,7 @@
     </div>
 </div>
 
+{% if payment.order_id %}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Invoice</span>
@@ -212,6 +218,7 @@
         {% endif %}
     </div>
 </div>
+{% endif %}
 
 <div class="card mb-4">
     <div class="card-header">
@@ -262,11 +269,13 @@
     </div>
 </div>
 
-<a
-    href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
-    class="btn btn-outline-primary"
->
-    Open order
-</a>
+{% if payment.order_id %}
+    <a
+        href="{% url 'orders:manager_order_detail' payment.order_id %}?next={{ request.get_full_path|urlencode }}"
+        class="btn btn-outline-primary"
+    >
+        Open order
+    </a>
+{% endif %}
 
 {% endblock %}

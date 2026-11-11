@@ -40,6 +40,9 @@ def validate_client_can_create_invoice(
     *,
     payment,
 ):
+    if payment.order_id is None:
+        raise ValidationError("Invoice requires an order.")
+
     order = payment.order
 
     if payment.method != PaymentMethod.INVOICE:
@@ -65,6 +68,9 @@ def validate_manager_can_create_invoice(
     *,
     payment,
 ):
+    if payment.order_id is None:
+        raise ValidationError("Invoice requires an order.")
+
     if payment.method != PaymentMethod.INVOICE:
         raise ValidationError(
             "Invoice can be created only for invoice payment method."

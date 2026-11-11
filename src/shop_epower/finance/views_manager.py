@@ -4,9 +4,11 @@ from django.core.paginator import Paginator
 from django.views.generic import DetailView, ListView
 
 from shop_epower.accounts.models import Role
+from shop_epower.finance.navigation import get_safe_manager_account_list_url
 from shop_epower.finance.selectors import (
     get_account_status_history,
     get_account_transactions,
+    get_customer_account_balances,
     get_customer_accounts_for_staff,
     get_financial_transactions_for_staff,
 )
@@ -41,6 +43,18 @@ class ManagerAccountDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
+
+        context["back_url"] = get_safe_manager_account_list_url(
+            self.request.GET.get("next"),
+        )
+
+        context["account"] = (
+            get_customer_account_balances(
+                user=self.object.user,
+            )
+            .select_related("user")
+            .get(pk=self.object.pk)
+        )
 
         operations = get_account_transactions(account=self.object)
         paginator = Paginator(operations, 20)
