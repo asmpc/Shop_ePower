@@ -118,8 +118,26 @@ and safe return links, retry/amount/permission checks and collapsed transaction 
 The user confirmed focused tests, related modules, Ruff and manual navigation/history checks.
 The full account-funding checkpoint passed on 2026-11-11: **1002 tests in
 1215.051 seconds**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
-Next: account-funding checkpoint → remaining order-history UI → complete receipt
-correction → actual cash/bank payouts → invoice snapshots/item edits → final verification.
+The account-funding checkpoint is committed. Step 5 is complete: histories retain
+expansion, payment/order return context is preserved, and summary boundaries are covered.
+The user confirmed 99 related tests in 123.751 seconds, 6 summary tests, Ruff and
+git diff --check. At that order-UI checkpoint, the latest full run was 1002.
+Receipt correction services and website are implemented: amount/currency/account
+consistency, orderless/post-shipment behavior, reason/history, permissions, retries
+and return context. Account links to paid/manual receipts filtered by account ID.
+Confirmed: 56 related tests in 59.639 seconds; 29 service/website tests in
+38.584 seconds (18 + 11), Ruff and git diff --check (LF/CRLF warnings only).
+On 2026-11-12, the receipt-cancellation API passed 11 tests in 9.371 seconds,
+API Ruff and diff. Step 6 is implemented at service/website/API level.
+Registered by now shows the deposit author's username in payment detail/order
+receipt history; Changed by retains the cancellation author. Related data are
+loaded with select_related. Confirmed: 49 related tests in 79.340 seconds,
+Ruff and diff; the website correction module now has 13 tests.
+Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
+project-wide Ruff and git diff --check (LF/CRLF warnings only).
+Before committing: visually confirm author labels and review the staged diff.
+Next: actual cash/bank payouts → invoice snapshots/item edits → final verification.
+Independent concurrency coverage remains in step 9; the latest full run is 1047.
 Checkpoint commits follow model protection and the complete account-funding flow.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.
 

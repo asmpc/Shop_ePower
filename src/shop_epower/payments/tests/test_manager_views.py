@@ -438,7 +438,10 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertContains(
             initial_response,
-            "Enter an order ID, transaction ID, customer email, or choose a filter to find payments.",
+            (
+                "Enter an account ID, order ID, transaction ID, customer email, "
+                "or choose a filter to find payments."
+            ),
         )
         self.assertNotContains(initial_response, "No payments found.")
 
@@ -592,4 +595,33 @@ class TestsManagerPaymentViews(TestCase):
         self.assertEqual(
             list(response.context["payments"]),
             [self.payment],
+        )
+
+    # Адрес другого заказа не принимается для возврата из платежа.
+    # Вместо него используется стандартный список Payments.
+    def test_payment_detail_rejects_unrelated_order_back_url(self):
+        other_order = create_test_order(
+            user=self.client_user,
+        )
+        other_order_url = reverse(
+            "orders:manager_order_detail",
+            kwargs={"pk": other_order.pk},
+        )
+        list_url = reverse("payments:manager_payment_list")
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "payments:manager_payment_detail",
+                kwargs={"pk": self.payment.pk},
+            ),
+            {"next": other_order_url},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["back_url"], list_url)
+        self.assertContains(
+            response,
+            f'href="{list_url}"',
         )

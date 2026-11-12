@@ -9,19 +9,26 @@ from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
 )
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.finance.models import (
     AccountTransactionActorType,
     AccountTransactionType,
 )
-from shop_epower.finance.services import create_personal_customer_account
+from shop_epower.finance.services import (
+    create_personal_customer_account,
+    record_customer_deposit,
+)
+from shop_epower.orders.models import OrderItem, OrderStatus
 from shop_epower.orders.services import (
     assign_order_funds,
     cancel_order_fund_assignment,
+    complete_order_shipment,
 )
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import PaymentMethod, PaymentStatus
 from shop_epower.payments.services import (
     cancel_manual_order_payment,
+    record_manual_account_payment,
     record_manual_order_payment,
 )
 
@@ -36,6 +43,30 @@ class TestsPaymentReceiptCorrectionServices(TestCase):
             customer_account=self.account,
             total_price=Decimal("100.00"),
             payment_method=PaymentMethod.ON_RECEIPT,
+        )
+
+    def _ship_order(self):
+        """Готовит товарную позицию и полностью отгружает заказ."""
+        product = create_test_product(
+            base_price=self.order.total_price,
+        )
+
+        OrderItem.objects.create(
+            order=self.order,
+            product=product,
+            product_name=product.name,
+            unit_price=self.order.total_price,
+            quantity=1,
+            total_price=self.order.total_price,
+            currency_snapshot=self.order.currency_snapshot,
+        )
+
+        self.order.status = OrderStatus.PROCESSING
+        self.order.save(update_fields=["status"])
+
+        return complete_order_shipment(
+            order=self.order,
+            created_by=self.manager,
         )
 
     # Проверяем отмену ошибочного поступления без назначений:
@@ -503,3 +534,312 @@ class TestsPaymentReceiptCorrectionServices(TestCase):
         self.assertEqual(self.account.debt_balance, Decimal("0.00"))
         self.assertEqual(self.account.transactions.count(), 1)
         self.assertEqual(payment.history.count(), 0)
+
+    # Несовпадение суммы платежа и пополнения запрещает отмену.
+    # Баланс, статус платежа и история остаются без изменений.
+    def test_cannot_cancel_receipt_with_mismatched_amount(self):
+        payment = record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:amount-mismatch:original",
+            created_by=self.manager,
+        )
+
+        payment.amount = Decimal("90.00")
+        payment.save(update_fields=["amount"])
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Payment amount does not match its deposit.",
+        ):
+            cancel_manual_order_payment(
+                payment=payment,
+                operation_key="receipt:amount-mismatch:cancel",
+                created_by=self.manager,
+                comment="Receipt registered by mistake.",
+            )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.PAID)
+        self.assertEqual(payment.amount, Decimal("90.00"))
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
+        self.assertEqual(payment.history.count(), 0)
+
+    # Разные валюты платежа и пополнения запрещают отмену.
+    # Статус, баланс и история остаются без изменений.
+    def test_cannot_cancel_receipt_with_mismatched_currency(self):
+        payment = record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:currency-mismatch:original",
+            created_by=self.manager,
+        )
+
+        different_currency = (
+            "USD" if payment.currency_snapshot != "USD" else "EUR"
+        )
+        payment.currency_snapshot = different_currency
+        payment.save(update_fields=["currency_snapshot"])
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Payment currency does not match its deposit.",
+        ):
+            cancel_manual_order_payment(
+                payment=payment,
+                operation_key="receipt:currency-mismatch:cancel",
+                created_by=self.manager,
+                comment="Receipt registered by mistake.",
+            )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.PAID)
+        self.assertEqual(
+            payment.currency_snapshot,
+            different_currency,
+        )
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
+        self.assertEqual(payment.history.count(), 0)
+
+    # Платёж заказа нельзя отменить через пополнение другого счёта.
+    # Оба баланса, статус платежа и история сохраняются.
+    def test_cannot_cancel_receipt_with_another_account_deposit(self):
+        payment = record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:account-mismatch:original",
+            created_by=self.manager,
+        )
+
+        other_user = create_test_user()
+        other_account = create_personal_customer_account(
+            user=other_user,
+        )
+        other_deposit = record_customer_deposit(
+            account=other_account,
+            amount=Decimal("100.00"),
+            operation_key="receipt:account-mismatch:other-deposit",
+            actor_type=AccountTransactionActorType.MANAGER,
+            created_by=self.manager,
+        )
+
+        payment.deposit_transaction = other_deposit
+        payment.save(update_fields=["deposit_transaction"])
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Payment order account does not match its deposit account.",
+        ):
+            cancel_manual_order_payment(
+                payment=payment,
+                operation_key="receipt:account-mismatch:cancel",
+                created_by=self.manager,
+                comment="Receipt registered by mistake.",
+            )
+
+        payment.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.PAID)
+        self.assertEqual(payment.history.count(), 0)
+
+        for account in (self.account, other_account):
+            with self.subTest(account_id=account.pk):
+                account.refresh_from_db()
+
+                self.assertEqual(
+                    account.available_balance,
+                    Decimal("100.00"),
+                )
+                self.assertEqual(
+                    account.debt_balance,
+                    Decimal("0.00"),
+                )
+                self.assertEqual(account.transactions.count(), 1)
+
+    # Поступление без заказа можно отменить, пока деньги не назначены.
+    # Платёж сохраняется со статусом CANCELLED, пополнение сторнируется.
+    def test_manager_can_cancel_unassigned_account_receipt(self):
+        payment = record_manual_account_payment(
+            account=self.account,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:account-correction:original",
+            created_by=self.manager,
+        )
+        deposit = payment.deposit_transaction
+
+        self.assertIsNone(payment.order_id)
+
+        cancel_manual_order_payment(
+            payment=payment,
+            operation_key="receipt:account-correction:cancel",
+            created_by=self.manager,
+            comment="Receipt registered by mistake.",
+        )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.CANCELLED)
+        self.assertEqual(payment.deposit_transaction_id, deposit.pk)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 2)
+        self.assertTrue(
+            self.account.transactions.filter(
+                reversal_of_id=deposit.pk,
+            ).exists(),
+        )
+        self.assertEqual(payment.history.count(), 1)
+
+    # Отмена неназначенного поступления после отгрузки
+    # убирает доступные деньги, сохраняя долг и завершённую отгрузку.
+    def test_cancelling_receipt_after_shipment_preserves_debt(self):
+        payment = record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:after-shipment:original",
+            created_by=self.manager,
+        )
+
+        shipment = self._ship_order()
+
+        self.account.refresh_from_db()
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+
+        cancel_manual_order_payment(
+            payment=payment,
+            operation_key="receipt:after-shipment:cancel",
+            created_by=self.manager,
+            comment="Money was not actually received.",
+        )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.CANCELLED)
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(self.order.shipments.get(), shipment)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 3)
+
+    # Использованное поступление без заказа сначала освобождается
+    # снятием назначения. Последующая отмена сохраняет долг и отгрузку.
+    def test_account_receipt_cancellation_after_shipment_requires_release(self):
+        payment = record_manual_account_payment(
+            account=self.account,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="receipt:postship-dependent:original",
+            created_by=self.manager,
+        )
+
+        self._ship_order()
+
+        assignment = assign_order_funds(
+            order=self.order,
+            amount=Decimal("60.00"),
+            operation_key="receipt:postship-dependent:assignment",
+            created_by=self.manager,
+        )
+        reason = "Receipt registered by mistake."
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            "Cancel dependent fund assignments before cancelling the receipt.",
+        ):
+            cancel_manual_order_payment(
+                payment=payment,
+                operation_key="receipt:postship-dependent:cancel",
+                created_by=self.manager,
+                comment=reason,
+            )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.PAID)
+        self.assertEqual(payment.history.count(), 0)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("40.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("40.00"),
+        )
+
+        cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key="receipt:postship-dependent:release",
+            created_by=self.manager,
+            comment="Release funds before correcting the receipt.",
+        )
+
+        cancel_manual_order_payment(
+            payment=payment,
+            operation_key="receipt:postship-dependent:cancel",
+            created_by=self.manager,
+            comment=reason,
+        )
+
+        payment.refresh_from_db()
+        self.account.refresh_from_db()
+        self.order.refresh_from_db()
+
+        self.assertEqual(payment.status, PaymentStatus.CANCELLED)
+        self.assertEqual(payment.history.count(), 1)
+        self.assertEqual(self.order.status, OrderStatus.COMPLETED)
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("100.00"),
+        )

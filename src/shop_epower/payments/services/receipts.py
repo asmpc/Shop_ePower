@@ -306,6 +306,24 @@ def cancel_manual_order_payment(
 
     deposit = locked_payment.deposit_transaction
 
+    if locked_payment.amount != deposit.available_delta:
+        raise ValidationError(
+            "Payment amount does not match its deposit."
+        )
+
+    if locked_payment.currency_snapshot != deposit.currency_snapshot:
+        raise ValidationError(
+            "Payment currency does not match its deposit."
+        )
+
+    if (
+        locked_payment.order_id is not None
+        and locked_payment.order.customer_account_id != deposit.account_id
+    ):
+        raise ValidationError(
+            "Payment order account does not match its deposit account."
+        )
+
     # Назначение средств тоже блокирует этот счёт.
     # Берём блокировку до проверки зависимых назначений.
     CustomerAccount.objects.select_for_update().get(

@@ -197,3 +197,13 @@ class ManualPaymentReceiptSerializer(serializers.Serializer):
         allow_blank=True,
         default="",
     )
+
+
+class ManualReceiptCancellationSerializer(serializers.Serializer):
+    comment = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+    operation_key = serializers.CharField(
+        max_length=255,
+    )

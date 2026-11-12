@@ -1236,3 +1236,188 @@ class TestsManagerOrderViews(TestCase):
         )
         self.assertEqual(first_response.context["back_url"], list_url)
         self.assertEqual(second_response.context["back_url"], list_url)
+
+    # После перехода на другую страницу история поступлений раскрыта.
+    # Истории назначений и Invoice самостоятельно не раскрываются.
+    def test_receipt_history_stays_expanded_on_page_change(self):
+        self._create_receipts(20)
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+            {"payments_page": 2},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.context["payments"].number, 2)
+        self.assertEqual(len(response.context["payments"]), 1)
+
+        self.assertContains(
+            response,
+            '<div class="collapse show" id="receipt-history">',
+        )
+        self.assertContains(
+            response,
+            """
+            <button
+                class="btn btn-outline-secondary btn-sm"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#receipt-history"
+                aria-expanded="true"
+                aria-controls="receipt-history"
+            >
+                Receipt history
+            </button>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="assignment-history">',
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="invoice-history">',
+        )
+
+    # Ссылка на платёж со второй страницы истории сохраняет
+    # адрес заказа, страницы историй и исходный список заказов.
+    def test_receipt_history_links_to_payment_with_order_context(self):
+        self._create_receipts(20)
+        self.client.force_login(self.manager)
+
+        list_url = (
+            self.get_manager_order_list_url()
+            + "?"
+            + urlencode({"status": "processing", "page": 2})
+        )
+        order_url = (
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            )
+            + "?"
+            + urlencode(
+                {
+                    "next": list_url,
+                    "payments_page": 2,
+                    "assignments_page": 1,
+                    "invoices_page": 1,
+                }
+            )
+        )
+        payment_url = (
+            reverse(
+                "payments:manager_payment_detail",
+                kwargs={"pk": self.payment.pk},
+            )
+            + "?"
+            + urlencode({"next": order_url})
+        )
+
+        response = self.client.get(order_url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [self.payment],
+        )
+        self.assertContains(
+            response,
+            f'href="{escape(payment_url)}"',
+        )
+        self.assertContains(response, "Open payment")
+
+    # Из платежа возвращаемся на прежнюю страницу истории заказа.
+    # История остаётся раскрытой, возврат к списку сохраняет фильтр.
+    def test_payment_back_returns_to_order_history_page(self):
+        self._create_receipts(20)
+        self.client.force_login(self.manager)
+
+        list_url = (
+            self.get_manager_order_list_url()
+            + "?"
+            + urlencode({"status": "processing", "page": 2})
+        )
+        order_url = (
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            )
+            + "?"
+            + urlencode(
+                {
+                    "next": list_url,
+                    "payments_page": 2,
+                    "assignments_page": 1,
+                    "invoices_page": 1,
+                }
+            )
+        )
+
+        payment_response = self.client.get(
+            reverse(
+                "payments:manager_payment_detail",
+                kwargs={"pk": self.payment.pk},
+            ),
+            {"next": order_url},
+        )
+
+        self.assertEqual(payment_response.status_code, 200)
+        self.assertEqual(
+            payment_response.context["back_url"],
+            order_url,
+        )
+        self.assertContains(
+            payment_response,
+            f'href="{escape(order_url)}"',
+        )
+
+        order_response = self.client.get(
+            payment_response.context["back_url"],
+        )
+
+        self.assertEqual(order_response.status_code, 200)
+        self.assertEqual(
+            order_response.context["payments"].number,
+            2,
+        )
+        self.assertEqual(
+            order_response.context["back_url"],
+            list_url,
+        )
+        self.assertContains(
+            order_response,
+            '<div class="collapse show" id="receipt-history">',
+        )
+
+    # История поступлений заказа показывает автора регистрации.
+    # Просматривающий менеджер может отличаться от автора.
+    def test_receipt_history_shows_original_receipt_author(self):
+        self._create_receipts(1)
+
+        viewer = create_test_manager()
+        self.client.force_login(viewer)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f"""
+            <p class="mb-1">
+                <strong>Registered by:</strong>
+                {escape(self.manager.username)}
+            </p>
+            """,
+            html=True,
+        )

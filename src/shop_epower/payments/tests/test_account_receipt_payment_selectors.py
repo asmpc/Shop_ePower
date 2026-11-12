@@ -3,10 +3,14 @@ from decimal import Decimal
 from django.test import TestCase
 
 from shop_epower.accounts.tests.helpers import (
+    create_test_legal_profile,
     create_test_manager,
     create_test_user,
 )
-from shop_epower.finance.services import create_personal_customer_account
+from shop_epower.finance.services import (
+    create_legal_customer_account,
+    create_personal_customer_account,
+)
 from shop_epower.payments.models import PaymentMethod
 from shop_epower.payments.selectors import get_payments_for_manager
 from shop_epower.payments.services import record_manual_account_payment
@@ -64,3 +68,42 @@ class TestsAccountReceiptPaymentSelectors(TestCase):
         )
 
         self.assertEqual(list(payments), [payment])
+
+    # Фильтр по ID счёта разделяет личные и юридические поступления
+    # одного клиента, даже при одинаковых сумме и способе оплаты.
+    def test_account_filter_separates_personal_and_legal_receipts(self):
+        profile = create_test_legal_profile(user=self.user)
+        legal_account = create_legal_customer_account(
+            legal_profile=profile,
+        )
+
+        receipt_data = {
+            "amount": Decimal("100.00"),
+            "method": PaymentMethod.ON_RECEIPT,
+            "created_by": self.manager,
+        }
+
+        personal_payment = record_manual_account_payment(
+            account=self.account,
+            operation_key="account-filter:personal:receipt",
+            **receipt_data,
+        )
+        legal_payment = record_manual_account_payment(
+            account=legal_account,
+            operation_key="account-filter:legal:receipt",
+            **receipt_data,
+        )
+
+        for account, expected_payment in (
+            (self.account, personal_payment),
+            (legal_account, legal_payment),
+        ):
+            with self.subTest(account_id=account.pk):
+                payments = get_payments_for_manager(
+                    account_id=account.pk,
+                )
+
+                self.assertEqual(
+                    list(payments),
+                    [expected_payment],
+                )

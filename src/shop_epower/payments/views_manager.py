@@ -18,17 +18,26 @@ from shop_epower.orders.navigation import (
     get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
-from shop_epower.payments.forms import ManualPaymentReceiptForm
+from shop_epower.payments.forms import (
+    ManualPaymentReceiptForm,
+    ManualReceiptCancellationForm,
+)
 from shop_epower.payments.models import (
     Invoice,
     Payment,
+    PaymentProvider,
+    PaymentStatus,
 )
-from shop_epower.payments.navigation import get_safe_manager_payment_list_url
+from shop_epower.payments.navigation import (
+    get_safe_manager_payment_detail_url,
+    get_safe_manager_payment_return_url,
+)
 from shop_epower.payments.selectors import (
     get_payments_for_manager,
 )
 from shop_epower.payments.services import (
     cancel_invoice,
+    cancel_manual_order_payment,
     create_invoice_for_order,
     generate_invoice_pdf,
     record_manual_account_payment,
@@ -53,16 +62,14 @@ class ManagerPaymentListView(
     def get_queryset(self):
         user = self.request.user
 
-        if user.role not in [
-            "manager",
-            "admin",
-        ]:
+        if user.role not in ["manager", "admin"]:
             raise PermissionDenied("Manager or admin access required.")
 
         status = self.request.GET.get("status", "").strip()
         method = self.request.GET.get("method", "").strip()
         provider = self.request.GET.get("provider", "").strip()
         order_id = self.request.GET.get("order_id", "").strip()
+        account_id = self.request.GET.get("account_id", "").strip()
         transaction_id = self.request.GET.get("transaction_id", "").strip()
         customer_email = self.request.GET.get("customer_email", "").strip()
 
@@ -71,12 +78,14 @@ class ManagerPaymentListView(
                 or method
                 or provider
                 or order_id
+                or account_id
                 or transaction_id
                 or customer_email
         ):
             return Payment.objects.none()
 
         parsed_order_id = None
+        parsed_account_id = None
 
         if order_id:
             try:
@@ -87,11 +96,21 @@ class ManagerPaymentListView(
             if not 1 <= parsed_order_id <= 2 ** 63 - 1:
                 return Payment.objects.none()
 
+        if account_id:
+            try:
+                parsed_account_id = int(account_id)
+            except ValueError:
+                return Payment.objects.none()
+
+            if not 1 <= parsed_account_id <= 2 ** 63 - 1:
+                return Payment.objects.none()
+
         return get_payments_for_manager(
             status=status,
             method=method,
             provider=provider,
             order_id=parsed_order_id,
+            account_id=parsed_account_id,
             transaction_id=transaction_id or None,
             customer_email=customer_email or None,
         )
@@ -131,6 +150,11 @@ class ManagerPaymentListView(
             "",
         ).strip()
 
+        context["selected_account_id"] = self.request.GET.get(
+            "account_id",
+            "",
+        ).strip()
+
         return context
 
 
@@ -161,6 +185,7 @@ class ManagerPaymentDetailView(
                 "order",
                 "order__user",
                 "deposit_transaction__account__user",
+                "deposit_transaction__created_by",
             )
             .prefetch_related(
                 "history",
@@ -192,11 +217,91 @@ class ManagerPaymentDetailView(
 
         context["invoice"] = invoice
 
-        context["back_url"] = get_safe_manager_payment_list_url(
+        context["back_url"] = get_safe_manager_payment_return_url(
             self.request.GET.get("next"),
+            payment=payment,
         )
 
         return context
+
+
+class ManagerCancelReceiptView(LoginRequiredMixin, DetailView):
+    model = Payment
+    template_name = "payments/manage/receipt_cancellation_form.html"
+    context_object_name = "payment"
+
+    def get_queryset(self):
+        if self.request.user.role not in ["manager", "admin"]:
+            raise PermissionDenied("Manager or admin access required.")
+
+        return (
+            super()
+            .get_queryset()
+            .filter(
+                provider=PaymentProvider.MANUAL,
+                status__in=(
+                    PaymentStatus.PAID,
+                    PaymentStatus.CANCELLED,
+                ),
+                deposit_transaction__isnull=False,
+            )
+            .select_related("deposit_transaction__account__user")
+        )
+
+    def get_return_url(self):
+        return get_safe_manager_payment_detail_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            payment=self.object,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = ManualReceiptCancellationForm(
+                initial={
+                    "operation_key": (
+                        f"manual-receipt-cancellation:{uuid4()}"
+                    ),
+                },
+            )
+
+        context["customer_email"] = (
+            self.object.deposit_transaction.account.user.email
+        )
+        context["return_url"] = self.get_return_url()
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = ManualReceiptCancellationForm(request.POST)
+
+        if form.is_valid():
+            try:
+                cancel_manual_order_payment(
+                    payment=self.object,
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Receipt cancelled. The deposit has been reversed.",
+                )
+
+                return redirect(self.get_return_url())
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
 
 
 class ManagerRecordReceiptView(

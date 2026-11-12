@@ -764,9 +764,10 @@ Ruff and diff checks passing. Covered cases include unassigned receipt cancellat
 Payment history/reason, active-assignment rejection and cancellation after release,
 same-key retries, changed-reason/new-key conflicts, customer/inactive-manager denial,
 administrator bank-receipt correction and atomic rollback on history-creation failure.
-The website/API action is not connected. Matching the payment to its credited
-transaction, post-shipment preservation and independent concurrency checks remain
-before treating this workflow as complete. At that correction-service checkpoint,
+At that initial checkpoint, website/API cancellation was not connected, and
+payment/credit consistency, post-shipment preservation and independent concurrency
+checks remained open. Updated service/website results appear in the current plan.
+At that correction-service checkpoint,
 the latest full regression was 920 tests; the later account-funding checkpoint
 is recorded in the current work plan below.
 
@@ -862,6 +863,49 @@ page changes. The user confirmed 8 form tests, 7 account-detail tests, related
 checks and Ruff, plus manual summary, search-return and history-toggle checks.
 The user then confirmed the full run of **1002 tests in 1215.051 seconds on
 2026-11-11**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+
+Order financial UI follow-up (2026-11-11): all three histories retain expansion
+on their own page changes. Open payment and Back preserve the order history
+pages and original list filters; unrelated orders and external returns are rejected.
+Duplicate assignment-test preparation was removed. Summary boundaries cover other
+orders on the same account, another order's debt, cancelled assignments, full
+settlement and prepayment before shipment. The user confirmed **99 related tests
+in 123.751 seconds**, **6 summary-selector tests**, Ruff and git diff --check.
+Steps 5 and 6 are implemented: order financial UI and service/website/API
+receipt correction. The full run on 2026-11-12 passed 1047 tests;
+next review the staged diff and create the checkpoint commit.
+
+As of 2026-11-11, cancellation validates payment/deposit amount, currency and order
+account consistency. Orderless and post-shipment cases, explicit assignment release
+and preservation of COMPLETED/debt are covered. The website form requires a reason
+and operation key, preserves return context, displays service errors and enforces
+staff permissions and retry safety. Legacy payments without deposits have no action
+and return 404 on the form. Account now has Cancel receipt... → Payments filtered
+by account_id/paid/manual; personal/legal accounts stay separate and invalid IDs
+return no results. The user confirmed 56 related tests in 59.639 seconds and
+**29 final checks in 38.584 seconds: 18 service and 11 website tests**.
+Ruff and git diff --check passed (LF/CRLF warnings only). The API was not connected
+at that checkpoint.
+
+As of 2026-11-12, `POST /api/payments/manage/{payment_id}/receipts/cancel/`
+(`api-payments:manager-cancel-receipt`) uses the same cancellation service.
+Reason and key are required. Covered responses are 200/400/401/403/404, both staff
+roles, bank receipts, retries/conflicts, assignment dependencies, missing/legacy
+payments, balances and history. The user confirmed **11 API tests in 9.371 seconds**,
+API Ruff and diff. Confirmed modules contain 18 service, 13 website and 11 API tests.
+
+Following manual feedback on 2026-11-12, payment detail and order receipt history
+show Registered by — the original deposit author's username
+(`deposit_transaction.created_by`). Changed by separately identifies the staff
+member who cancelled the receipt; registration authorship is retained. System
+is shown for system operations without a user, and Unknown for missing authorship.
+Authors are loaded with select_related; 20-entry history pagination is retained.
+The user confirmed **49 related tests in 79.340 seconds**, Ruff and diff.
+After the author-display fix, the full run passed on 2026-11-12: **1047 tests
+in 938.154 seconds**, project-wide Ruff and diff (LF/CRLF warnings only).
+A separate post-fix visual confirmation of the author labels has not been reported. Independent concurrency and final
+reconciliation remain in step 9; actual payouts remain in step 7.
+
 A customer may have a financial account and pay before placing any order.
 
 - From `Finances → Customer accounts → account`, a manager or administrator
@@ -954,9 +998,9 @@ Single work order as of 2026-11-11. This list defines the immediate sequence;
 earlier dated sections retain the history of decisions and validation.
 PHASE 23 remains open. Full shipment, debt creation, fund assignment/removal,
 customer balances and the staff shipped-unpaid list are implemented.
-Receipt correction has a basic service and 12 passing tests; interfaces and
-additional checks remain. Order UI was improved, but preserving expanded
-history after pagination is unfinished.
+Receipt correction is connected to the service, website and API; 18 service,
+13 website and 11 API tests pass. Order financial UI is complete: histories retain
+expansion when paging, and payment/order return links retain context.
 
 Current point: the user committed the model checkpoint.
 `record_manual_account_payment` is implemented with 17 passing tests and Ruff;
@@ -968,8 +1012,16 @@ Step 4 is implemented: staff account summary, orderless receipt form, safe
 search/account return context, amount validation, retries, customer denial and
 collapsed transaction paging. The user confirmed focused tests, related modules,
 Ruff, manual navigation/history checks and the website migration check.
-Finish the account-funding checkpoint before step 5 (remaining order-history UI).
-Full checkpoint validation passed on 2026-11-11: 1002 tests in 1215.051 seconds,
+The account-funding checkpoint is committed. Step 5 (order financial UI) is complete:
+99 related tests, 6 summary-selector tests, Ruff and git diff --check passed.
+Step 6 is implemented across service, website and API. The user confirmed
+29 tests in 38.584 seconds (18 service, 11 website), then 11 API tests in
+9.371 seconds on 2026-11-12. Receipt-author display was then added to payment
+detail/order history; 49 related tests in 79.340 seconds, Ruff and diff pass.
+Current website correction module: 13 tests. The full regression passed;
+before committing, check the staged diff and visually confirm the author labels.
+Then proceed to step 7; independent concurrency checks remain in step 9.
+Full checkpoint validation passed on 2026-11-12: 1047 tests in 938.154 seconds,
 project-wide Ruff and git diff --check (LF/CRLF warnings only).
 
 1. **Payment model protection — complete.** Records with neither an order nor
@@ -987,26 +1039,37 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    Order links/Invoice cards are conditional. Legacy validators reject Invoice
    creation without an order; the separate own-history API test is restored.
    Related service/API/Invoice modules and Ruff pass.
-4. **Staff account page — implemented; checkpoint next.** Customer details and
+4. **Staff account page — implemented; checkpoint committed.** Customer details and
    three balances, Register receipt and the office/bank form are connected.
    Account/search/filter context survives Back and successful POST. External
    returns are rejected, repeated submissions do not double-credit funds,
    customer GET/POST is forbidden, and amount precision matches Payment.
    Transactions start collapsed, keep 20-entry pagination inside and remain
    expanded when paging. Focused/related tests, Ruff, manual UI checks and the
-   website migration check are confirmed. Before committing, verify an actual
-   receipt for a customer with no orders: only available funds increase.
-   Update documentation and make a separate account-funding checkpoint commit.
-5. **Close the remaining order financial UI work.** Receipts, assignments and
-   invoices retain expansion on their own page changes while preserving other
-   histories and return-list parameters. Verify Back to a payment from another
-   history page and bounded selection. Cover summary boundaries: other orders
-   on the shared account, reversed records, no shipment and full settlement.
-6. **Complete correction of erroneous receipts.** Add payment/credit consistency,
-   orderless and post-shipment cases to the existing service. Explicitly remove
-   dependent assignments first; then reverse the receipt with required reason,
-   history and CANCELLED status. Connect website/API actions. Keep confirmed
-   shipment COMPLETED and restore the appropriate debt independently.
+   website migration check are confirmed. The account-funding checkpoint was
+   committed by the user. An actual orderless receipt increases only available
+   funds; it does not create an order, assignment or debt.
+5. **Order financial UI — complete.** Receipts, assignments and invoices retain
+   expansion on their own page changes and keep other history/list parameters.
+   Open payment and Back retain the order history context; only the linked order
+   is accepted. Existing 20-entry pagination remains. Summary boundaries cover
+   other orders/debt on the shared account, cancelled assignments, no shipment
+   and full settlement. Confirmed: 99 related tests in 123.751 seconds, 6 summary
+   tests, Ruff and git diff --check. No subsequent full-suite run is claimed.
+6. **Receipt correction — service, website and API implemented.** Amount,
+   currency and order-account consistency, orderless/post-shipment cases,
+   explicit dependency release and COMPLETED/debt preservation pass 18 service
+   tests. The form, reason, errors, safe return context, roles, retries and
+   legacy exclusion and authorship pass 13 website tests. Account links to paid manual receipts
+   through an exact account-ID filter. The shared-service API passes 11 tests
+   covering 200/400/401/403/404, required fields, roles, retries/conflicts and
+   financial/history effects. Registered by and Changed by retain distinct
+   staff usernames in payment detail/order history; 49 related tests, Ruff
+   and diff pass. Full regression: 1047 tests in 938.154 seconds on 2026-11-12;
+   project-wide Ruff and diff pass. Before committing: visual author checks
+   and staged-diff review.
+   Actual payout is separate;
+   independent concurrency verification remains in step 9.
 7. **Implement actual office/bank payouts.** Agree funding links, methods and
    payout confirmation before code. Record a separate outgoing movement from
    available funds with reason, actor, history, limits and retry safety.

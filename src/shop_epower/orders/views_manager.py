@@ -166,7 +166,10 @@ class ManagerOrderDetailView(
             order=self.object,
         )
 
-        payments = self.object.payments.order_by("-created_at", "-pk")
+        payments = self.object.payments.select_related(
+            "deposit_transaction__created_by",
+        ).order_by("-created_at", "-pk")
+
         payment_paginator = Paginator(payments, 20)
         invoice = get_active_invoice_for_order(
             order=self.object,

@@ -383,24 +383,33 @@
         <span>Payments</span>
 
         <button
-            class="btn btn-outline-secondary btn-sm collapsed"
+            class="btn btn-outline-secondary btn-sm{% if not request.GET.payments_page %} collapsed{% endif %}"
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#receipt-history"
-            aria-expanded="false"
+            aria-expanded="{% if request.GET.payments_page %}true{% else %}false{% endif %}"
             aria-controls="receipt-history"
         >
             Receipt history
         </button>
     </div>
 
-    <div class="collapse" id="receipt-history">
+    <div class="collapse{% if request.GET.payments_page %} show{% endif %}" id="receipt-history">
         <div class="card-body">
             {% for payment in payments %}
                 <div class="border rounded p-3 mb-3">
-                    <h5 class="mb-3">
-                        Payment #{{ payment.pk }}
-                    </h5>
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-2 mb-3">
+                        <h5 class="mb-0">
+                            Payment #{{ payment.pk }}
+                        </h5>
+
+                        <a
+                            href="{% url 'payments:manager_payment_detail' payment.pk %}?next={{ request.get_full_path|urlencode:'' }}"
+                            class="btn btn-outline-secondary btn-sm"
+                        >
+                            Open payment
+                        </a>
+                    </div>
 
                     <p class="mb-1">
                         <strong>Method:</strong>
@@ -430,6 +439,18 @@
                     <p class="mb-1">
                         <strong>Provider payment ID:</strong>
                         {{ payment.provider_payment_id|default:"-" }}
+                    </p>
+
+                    <p class="mb-1">
+                        <strong>Registered by:</strong>
+
+                        {% if payment.deposit_transaction.created_by %}
+                            {{ payment.deposit_transaction.created_by.username }}
+                        {% elif payment.deposit_transaction.actor_type == "system" %}
+                            System
+                        {% else %}
+                            Unknown
+                        {% endif %}
                     </p>
 
                     <p class="mb-0">
@@ -486,18 +507,18 @@
         <span>Fund assignments</span>
 
         <button
-            class="btn btn-outline-secondary btn-sm collapsed"
+            class="btn btn-outline-secondary btn-sm{% if not request.GET.assignments_page %} collapsed{% endif %}"
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#assignment-history"
-            aria-expanded="false"
+            aria-expanded="{% if request.GET.assignments_page %}true{% else %}false{% endif %}"
             aria-controls="assignment-history"
         >
             Assignment history
         </button>
     </div>
 
-    <div class="collapse" id="assignment-history">
+    <div class="collapse{% if request.GET.assignments_page %} show{% endif %}" id="assignment-history">
         <div class="card-body">
             {% for assignment in fund_assignments %}
                 <div class="border rounded p-3 mb-3">
@@ -1056,18 +1077,18 @@
         <span>Invoices</span>
 
         <button
-            class="btn btn-outline-secondary btn-sm collapsed"
+            class="btn btn-outline-secondary btn-sm{% if not request.GET.invoices_page %} collapsed{% endif %}"
             type="button"
             data-bs-toggle="collapse"
             data-bs-target="#invoice-history"
-            aria-expanded="false"
+            aria-expanded="{% if request.GET.invoices_page %}true{% else %}false{% endif %}"
             aria-controls="invoice-history"
         >
             Invoice history
         </button>
     </div>
 
-    <div class="collapse" id="invoice-history">
+    <div class="collapse{% if request.GET.invoices_page %} show{% endif %}" id="invoice-history">
         <div class="card-body">
             {% for entry in invoice_history %}
                 <div class="border-bottom py-3">

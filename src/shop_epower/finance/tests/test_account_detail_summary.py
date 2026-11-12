@@ -12,7 +12,11 @@ from shop_epower.accounts.tests.helpers import (
 from shop_epower.finance.services import create_personal_customer_account
 from shop_epower.orders.services import assign_order_funds
 from shop_epower.orders.tests.helpers import create_test_order
-from shop_epower.payments.models import PaymentMethod
+from shop_epower.payments.models import (
+    PaymentMethod,
+    PaymentProvider,
+    PaymentStatus,
+)
 from shop_epower.payments.services import record_manual_account_payment
 
 
@@ -341,3 +345,35 @@ class TestsManagerAccountSummaryViews(TestCase):
             """,
             html=True,
         )
+
+    # Из карточки счёта можно выбрать поступление для отмены.
+    # Ссылка ограничивает Payments счётом, статусом PAID
+    # и ручным провайдером.
+    def test_account_detail_links_to_paid_manual_receipts(self):
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "finance:manager_account_detail",
+                kwargs={"pk": self.account.pk},
+            ),
+        )
+
+        payments_url = (
+            reverse("payments:manager_payment_list")
+            + "?"
+            + urlencode(
+                {
+                    "account_id": self.account.pk,
+                    "status": PaymentStatus.PAID,
+                    "provider": PaymentProvider.MANUAL,
+                }
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'href="{escape(payments_url)}"',
+        )
+        self.assertContains(response, "Cancel receipt...")

@@ -61,6 +61,13 @@
         >
             Register receipt
         </a>
+
+        <a
+            href="{% url 'payments:manager_payment_list' %}?account_id={{ account.pk }}&amp;status=paid&amp;provider=manual"
+            class="btn btn-outline-danger btn-sm"
+        >
+            Cancel receipt...
+        </a>
     </div>
 </div>
 

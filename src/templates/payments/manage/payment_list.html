@@ -18,10 +18,23 @@
 
     <div class="card-body">
         <p class="text-muted mb-3">
-            Enter an order ID, transaction ID, customer email, or choose a filter to find payments.
+            Enter an account ID, order ID, transaction ID, customer email, or choose a filter to find payments.
         </p>
         <form method="get" class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6 col-xl-3">
+                <label for="payment-account-id" class="form-label">
+                    Account ID
+                </label>
+                <input
+                    id="payment-account-id"
+                    name="account_id"
+                    type="text"
+                    inputmode="numeric"
+                    class="form-control"
+                    value="{{ selected_account_id }}"
+                >
+            </div>
+            <div class="col-md-6 col-xl-3">
                 <label for="payment-order-id" class="form-label">
                     Order ID
                 </label>
@@ -35,7 +48,7 @@
                     placeholder="e.g. 42"
                 >
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6 col-xl-3">
                 <label for="transaction-id" class="form-label">Transaction ID</label>
                 <input
                     id="transaction-id"
@@ -45,7 +58,7 @@
                     class="form-control"
                 >
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6 col-xl-3">
                 <label for="customer-email" class="form-label">Customer email</label>
                 <input
                     id="customer-email"
@@ -202,7 +215,7 @@
         </div>
     </div>
 {% empty %}
-    {% if selected_status or selected_method or selected_provider or selected_order_id or selected_transaction_id or selected_customer_email %}
+    {% if selected_status or selected_method or selected_provider or selected_order_id or selected_account_id or selected_transaction_id or selected_customer_email %}
         <div class="alert alert-light border">
             No payments found.
         </div>

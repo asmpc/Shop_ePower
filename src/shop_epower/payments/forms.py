@@ -43,3 +43,20 @@ class ManualPaymentReceiptForm(forms.Form):
         max_length=255,
         widget=forms.HiddenInput(),
     )
+
+
+class ManualReceiptCancellationForm(forms.Form):
+    comment = forms.CharField(
+        label="Cancellation reason",
+        required=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+            },
+        ),
+    )
+    operation_key = forms.CharField(
+        max_length=255,
+        widget=forms.HiddenInput(),
+    )

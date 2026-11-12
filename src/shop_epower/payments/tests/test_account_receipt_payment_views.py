@@ -188,3 +188,95 @@ class TestsAccountReceiptPaymentViews(TestCase):
             self.user.email,
         )
         self.assertNotContains(response, other_user.email)
+
+    # ID счёта самостоятельно запускает поиск.
+    # Страница показывает только поступления выбранного счёта
+    # и сохраняет введённый ID для формы фильтрации.
+    def test_staff_account_filter_returns_only_selected_account_receipts(self):
+        other_user = create_test_user()
+        other_account = create_personal_customer_account(
+            user=other_user,
+        )
+
+        receipt_data = {
+            "amount": Decimal("100.00"),
+            "method": PaymentMethod.ON_RECEIPT,
+            "created_by": self.manager,
+        }
+
+        payment = record_manual_account_payment(
+            account=self.account,
+            operation_key="account:receipt:list-account:own",
+            **receipt_data,
+        )
+        record_manual_account_payment(
+            account=other_account,
+            operation_key="account:receipt:list-account:other",
+            **receipt_data,
+        )
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse("payments:manager_payment_list"),
+            {"account_id": self.account.pk},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            list(response.context["payments"]),
+            [payment],
+        )
+        self.assertEqual(
+            response.context["selected_account_id"],
+            str(self.account.pk),
+        )
+
+        self.assertContains(
+            response,
+            f"""
+            <input
+                id="payment-account-id"
+                name="account_id"
+                type="text"
+                inputmode="numeric"
+                class="form-control"
+                value="{self.account.pk}"
+            >
+            """,
+            html=True,
+        )
+
+    # Ошибочный ID счёта не расширяет поиск до всех поступлений.
+    # Страница возвращает пустой результат без ошибки сервера.
+    def test_invalid_account_id_returns_no_payments(self):
+        record_manual_account_payment(
+            account=self.account,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="account:receipt:invalid-filter",
+            created_by=self.manager,
+        )
+
+        self.client.force_login(self.manager)
+
+        for account_id in ("abc", "0", "-1", str(2**63)):
+            with self.subTest(account_id=account_id):
+                response = self.client.get(
+                    reverse("payments:manager_payment_list"),
+                    {
+                        "account_id": account_id,
+                        "status": "paid",
+                        "provider": "manual",
+                    },
+                )
+
+                self.assertEqual(response.status_code, 200)
+                self.assertEqual(
+                    list(response.context["payments"]),
+                    [],
+                )
+                self.assertContains(
+                    response,
+                    "No payments found.",
+                )

@@ -591,15 +591,6 @@ class TestsManagerOrderFundAssignmentViews(TestCase):
     def test_assignment_history_is_paginated(self):
         assignments = self._create_assignments(21)
 
-        for index in range(21):
-            assignment = assign_order_funds(
-                order=self.order,
-                amount=Decimal("1.00"),
-                operation_key=f"assignment:view:page:{index}",
-                created_by=self.manager,
-            )
-            assignments.append(assignment)
-
         self.client.force_login(self.manager)
         detail_url = reverse(
             "orders:manager_order_detail",
@@ -671,4 +662,57 @@ class TestsManagerOrderFundAssignmentViews(TestCase):
         self.assertContains(
             second_response,
             f'href="?{escape(previous_query)}"',
+        )
+
+    # После перехода на другую страницу история назначений раскрыта.
+    # Истории поступлений и Invoice самостоятельно не раскрываются.
+    def test_assignment_history_stays_expanded_on_page_change(self):
+        self._create_assignments(21)
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "orders:manager_order_detail",
+                kwargs={"pk": self.order.pk},
+            ),
+            {"assignments_page": 2},
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(
+            response.context["fund_assignments"].number,
+            2,
+        )
+        self.assertEqual(
+            len(response.context["fund_assignments"]),
+            1,
+        )
+
+        self.assertContains(
+            response,
+            '<div class="collapse show" id="assignment-history">',
+        )
+        self.assertContains(
+            response,
+            """
+            <button
+                class="btn btn-outline-secondary btn-sm"
+                type="button"
+                data-bs-toggle="collapse"
+                data-bs-target="#assignment-history"
+                aria-expanded="true"
+                aria-controls="assignment-history"
+            >
+                Assignment history
+            </button>
+            """,
+            html=True,
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="receipt-history">',
+        )
+        self.assertContains(
+            response,
+            '<div class="collapse" id="invoice-history">',
         )

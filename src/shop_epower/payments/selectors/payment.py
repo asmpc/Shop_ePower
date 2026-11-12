@@ -46,6 +46,7 @@ def get_payments_for_manager(
     method=None,
     provider=None,
     order_id=None,
+    account_id=None,
     transaction_id=None,
     customer_email=None,
 ):
@@ -76,6 +77,11 @@ def get_payments_for_manager(
 
     if order_id is not None:
         queryset = queryset.filter(order_id=order_id)
+
+    if account_id is not None:
+        queryset = queryset.filter(
+            deposit_transaction__account_id=account_id,
+        )
 
     if transaction_id is not None:
         queryset = queryset.filter(transaction_id=transaction_id)

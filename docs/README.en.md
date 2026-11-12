@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-1002-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-1047-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -869,9 +869,9 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **1002 tests in 1215.051 seconds on
-2026-11-11**, including orderless receipts, website/API payment compatibility,
-account detail, retained search context and transaction history. Project-wide
+The latest verified full run passed **1047 tests in 938.154 seconds on
+2026-11-12**, including website/API receipt correction, account-based search,
+registration/cancellation authorship and financial-history navigation. Project-wide
 Ruff and git diff --check passed, with only LF/CRLF warnings. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
@@ -911,6 +911,49 @@ page changes. The user confirmed 8 form tests, 7 account-detail tests, related
 checks and Ruff, plus manual summary, search-return and history-toggle checks.
 The user then confirmed the full run of **1002 tests in 1215.051 seconds on
 2026-11-11**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+
+Order financial UI follow-up (2026-11-11): all three histories retain expansion
+on their own page changes. Open payment and Back preserve the order history
+pages and original list filters; unrelated orders and external returns are rejected.
+Duplicate assignment-test preparation was removed. Summary boundaries cover other
+orders on the same account, another order's debt, cancelled assignments, full
+settlement and prepayment before shipment. The user confirmed **99 related tests
+in 123.751 seconds**, **6 summary-selector tests**, Ruff and git diff --check.
+Steps 5 and 6 are implemented: order financial UI and service/website/API
+receipt correction. The full run on 2026-11-12 passed 1047 tests;
+next review the staged diff and create the checkpoint commit.
+
+As of 2026-11-11, cancellation validates payment/deposit amount, currency and order
+account consistency. Orderless and post-shipment cases, explicit assignment release
+and preservation of COMPLETED/debt are covered. The website form requires a reason
+and operation key, preserves return context, displays service errors and enforces
+staff permissions and retry safety. Legacy payments without deposits have no action
+and return 404 on the form. Account now has Cancel receipt... → Payments filtered
+by account_id/paid/manual; personal/legal accounts stay separate and invalid IDs
+return no results. The user confirmed 56 related tests in 59.639 seconds and
+**29 final checks in 38.584 seconds: 18 service and 11 website tests**.
+Ruff and git diff --check passed (LF/CRLF warnings only). The API was not connected
+at that checkpoint.
+
+As of 2026-11-12, `POST /api/payments/manage/{payment_id}/receipts/cancel/`
+(`api-payments:manager-cancel-receipt`) uses the same cancellation service.
+Reason and key are required. Covered responses are 200/400/401/403/404, both staff
+roles, bank receipts, retries/conflicts, assignment dependencies, missing/legacy
+payments, balances and history. The user confirmed **11 API tests in 9.371 seconds**,
+API Ruff and diff. Confirmed modules contain 18 service, 13 website and 11 API tests.
+
+Following manual feedback on 2026-11-12, payment detail and order receipt history
+show Registered by — the original deposit author's username
+(`deposit_transaction.created_by`). Changed by separately identifies the staff
+member who cancelled the receipt; registration authorship is retained. System
+is shown for system operations without a user, and Unknown for missing authorship.
+Authors are loaded with select_related; 20-entry history pagination is retained.
+The user confirmed **49 related tests in 79.340 seconds**, Ruff and diff.
+After the author-display fix, the full run passed on 2026-11-12: **1047 tests
+in 938.154 seconds**, project-wide Ruff and diff (LF/CRLF warnings only).
+A separate post-fix visual confirmation of the author labels has not been reported. Independent concurrency and final
+reconciliation remain in step 9; actual payouts remain in step 7.
+
 
 As of 2026-11-04, the user confirmed targeted customer-balance checks: 10 selector
 tests, 6 profile tests and the existing frontend-auth module. Scoped Ruff,
@@ -1072,7 +1115,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 1002 tests passed in 1215.051 seconds on 2026-11-11
+- Full suite of 1047 tests passed in 938.154 seconds on 2026-11-12
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually

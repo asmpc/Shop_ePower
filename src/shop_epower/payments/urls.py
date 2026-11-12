@@ -7,6 +7,7 @@ from shop_epower.payments.views import (
 )
 from shop_epower.payments.views_manager import (
     ManagerCancelInvoiceView,
+    ManagerCancelReceiptView,
     ManagerGenerateInvoiceView,
     ManagerInvoicePdfView,
     ManagerPaymentDetailView,
@@ -59,6 +60,12 @@ urlpatterns = [
         "manage/orders/<int:pk>/receipts/new/",
         ManagerRecordReceiptView.as_view(),
         name="manager_record_receipt",
+    ),
+
+    path(
+        "manage/<int:pk>/receipts/cancel/",
+        ManagerCancelReceiptView.as_view(),
+        name="manager_cancel_receipt",
     ),
 
     path(
