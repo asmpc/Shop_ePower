@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-920-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-1107-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -46,7 +46,8 @@ forms and the corresponding API actions are connected. Customers can view
 available funds, assigned prepayment and debt separately for their own accounts
 on the profile page and through the API. The staff shipped-unpaid list now
 provides per-order debt, search, pagination and retained return links.
-Actual cash/bank refunds remain in progress.
+Cash/bank payouts are implemented on the website and visible in the combined
+Payments journal; payout API work remains next.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -307,7 +308,8 @@ The staff website receipt form records actual office/bank funds without
 automatic assignment. Assignment/cancellation forms and paginated history are
 connected, together with the corresponding API actions. Customer balances are
 available on the website profile and through the API. Actual manual cash/bank
-refunds remain PHASE 23 work.
+payouts are connected to the website and combined Payments journal with author
+and Returned status; payout API actions remain PHASE 23 work.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -316,11 +318,46 @@ The core refund service is not a real money-out payout workflow.
 
 ---
 
+### Manual payouts: website and service — 2026-11-17
+
+Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
+`record_manual_account_payout()`. Partial cash/bank payouts use free deposit
+portions in LIFO order. Active order assignments, previous payouts and reversed
+deposits are excluded. Order assignments retain FIFO and now subtract paid-out
+portions. A receipt used for a payout cannot be cancelled as erroneous.
+Required reason, actor, zero-debt rule, balance limits, replay protection and
+atomic rollback are covered by the user's scoped tests; related modules and
+Ruff passed. The user applied the migrations to the website database.
+Website payouts are implemented with amount, cash/bank method, required reason,
+stable operation key and preserved return context. Staff Payments combines
+receipts and payouts with author, Paid / Returned / Cancelled status filtering,
+search-first loading and shared chronological pagination (20 entries).
+The redundant Movement type input and selector argument are removed.
+On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
+checks passed, including mixed pagination and the initially hidden history.
+Manual success and debt-refusal checks passed. Payout API work remains pending.
+Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
+Project-wide Ruff passed. Payout API implementation remains pending.
+
+```mermaid
+flowchart LR
+    A[CustomerAccount] --> D[AccountTransaction: DEPOSIT]
+    A --> T[AccountTransaction: PAYOUT]
+    T -->|1:1| P[CustomerPayout]
+    P -->|1:N| S[CustomerPayoutSource]
+    S -->|N:1| D
+```
+
+The outgoing transaction retains author, reason, currency and balance snapshots.
+The payout records its amount and actual cash/bank method; each source records
+the portion taken from a deposit. Original receipts retain their historical method
+and status. A payout may use several deposits; a deposit may fund several payouts.
+
 <a id="order-funds-models"></a>
 
 ## Order Funds and Shipment Models
 
-Status as of 2026-11-09. The model links and settlement services below are
+Status as of 2026-11-11. The model links and settlement services below are
 implemented. Staff receipt registration and assignment/cancellation are connected
 to the website and API; customer balances are available on the profile and API.
 Independent concurrency checks remain open.
@@ -339,7 +376,7 @@ flowchart TB
     T["AccountTransaction<br/>Financial ledger entry"]
     C["CustomerAccount<br/>Available funds and debt"]
 
-    P -->|"order"| O
+    P -->|"order · optional"| O
     P -->|"deposit_transaction · 1:1, optional"| T
     A -->|"order"| O
     A -->|"account_transaction · 1:1"| T
@@ -352,6 +389,16 @@ flowchart TB
 - `Payment` records a confirmed receipt in the new manual receipt workflow.
   Its deposit link is optional in the schema for legacy records; legacy
   pending payments are not proof that money was received.
+- `Payment.order` is now optional. The database constraint
+  `payment_requires_order_or_deposit` requires at least one populated reference:
+  `order` or `deposit_transaction`; both are allowed.
+  An orderless receipt identifies its account through `deposit_transaction.account`.
+  `record_manual_account_payment` is implemented; its module passes 18 tests,
+  including rejection of Invoice creation without an order.
+  Pages and receipt read/registration APIs support orderless receipts.
+  Staff account detail now shows the three balances and Register receipt.
+  Account/search return context is retained; transactions start collapsed and
+  remain expanded when paging through their existing 20-entry history.
 - `OrderFundAssignment` records which amount was explicitly assigned to an
   order. `Payment.order` alone does not assign money or settle that order.
 - `OrderFundAssignmentSource` records the deposit portions used. For deposits
@@ -859,12 +906,91 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **920 tests in 941.617 seconds on
-2026-11-09**, including the staff shipped-unpaid order list, search, pagination
-and retained return links. Tests run
+The latest verified full run passed **1107 tests in 1293.752 seconds on
+2026-11-17**, including website payouts, LIFO sources, the combined receipt/payout
+journal, authorship, filtering and mixed pagination. Project-wide
+Ruff and git diff --check passed, with only LF/CRLF warnings. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
 targeting `main`.
+
+On 2026-11-10 the user confirmed **14 payment/history model tests** in
+11.231 seconds, scoped Ruff and `makemigrations --check --dry-run`.
+They cover a linked orderless receipt, rejection when both references are absent,
+and compatibility with existing order-linked payments. Model migrations exist;
+the user confirmed the website database migration check on 2026-11-11.
+A subsequent run passed **86 related tests** in **138.452 seconds**, covering
+receipt/correction services, the summary, order/unpaid-list views and invoices.
+Ruff for orders/payments passed; git diff --check reported only LF/CRLF warnings.
+`record_manual_account_payment` is implemented: office/bank funds without an order,
+one PAID Payment and one credit, with no automatic assignment or debt.
+The user confirmed 17 new-module tests and scoped Ruff; related receipt/correction
+modules also passed during refactoring. Shared validation and Payment creation use
+internal helpers.
+Payment pages and email search support orderless receipts.
+The client API identifies ownership through the account and returns
+`customer_account_id`; the staff API also returns the customer email.
+`POST /api/payments/manage/accounts/{account_id}/receipts/` is implemented:
+staff permissions, office/bank funds, key retries/conflicts and
+400/401/403/404 responses without extra credits. Input precision now matches
+Payment: 12 total digits and 2 decimal places. The user confirmed related API
+modules, Ruff and git diff --check. Both follow-ups are complete: legacy Invoice
+validators reject receipts without orders, and the separate client-own-history
+read test is restored. The user confirmed the 18-test receipt-service module,
+7-test client module, related Invoice modules and Ruff.
+As of 2026-11-11, staff account detail and the orderless receipt form are implemented.
+The summary reuses the available-funds, assigned-prepayment and debt computation.
+Form Back, successful POST and return to account search retain their parameters;
+external return URLs are rejected. Repeating a form does not double-credit funds,
+customers receive 403 on GET/POST, and form precision matches Payment (12, 2).
+Transactions start collapsed, contain 20-entry pagination and stay expanded on
+page changes. The user confirmed 8 form tests, 7 account-detail tests, related
+checks and Ruff, plus manual summary, search-return and history-toggle checks.
+The user then confirmed the full run of **1002 tests in 1215.051 seconds on
+2026-11-11**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+
+Order financial UI follow-up (2026-11-11): all three histories retain expansion
+on their own page changes. Open payment and Back preserve the order history
+pages and original list filters; unrelated orders and external returns are rejected.
+Duplicate assignment-test preparation was removed. Summary boundaries cover other
+orders on the same account, another order's debt, cancelled assignments, full
+settlement and prepayment before shipment. The user confirmed **99 related tests
+in 123.751 seconds**, **6 summary-selector tests**, Ruff and git diff --check.
+Steps 5 and 6 are implemented: order financial UI and service/website/API
+receipt correction. The full run on 2026-11-12 passed 1047 tests;
+next review the staged diff and create the checkpoint commit.
+
+As of 2026-11-11, cancellation validates payment/deposit amount, currency and order
+account consistency. Orderless and post-shipment cases, explicit assignment release
+and preservation of COMPLETED/debt are covered. The website form requires a reason
+and operation key, preserves return context, displays service errors and enforces
+staff permissions and retry safety. Legacy payments without deposits have no action
+and return 404 on the form. Account now has Cancel receipt... → Payments filtered
+by account_id/paid/manual; personal/legal accounts stay separate and invalid IDs
+return no results. The user confirmed 56 related tests in 59.639 seconds and
+**29 final checks in 38.584 seconds: 18 service and 11 website tests**.
+Ruff and git diff --check passed (LF/CRLF warnings only). The API was not connected
+at that checkpoint.
+
+As of 2026-11-12, `POST /api/payments/manage/{payment_id}/receipts/cancel/`
+(`api-payments:manager-cancel-receipt`) uses the same cancellation service.
+Reason and key are required. Covered responses are 200/400/401/403/404, both staff
+roles, bank receipts, retries/conflicts, assignment dependencies, missing/legacy
+payments, balances and history. The user confirmed **11 API tests in 9.371 seconds**,
+API Ruff and diff. Confirmed modules contain 18 service, 13 website and 11 API tests.
+
+Following manual feedback on 2026-11-12, payment detail and order receipt history
+show Registered by — the original deposit author's username
+(`deposit_transaction.created_by`). Changed by separately identifies the staff
+member who cancelled the receipt; registration authorship is retained. System
+is shown for system operations without a user, and Unknown for missing authorship.
+Authors are loaded with select_related; 20-entry history pagination is retained.
+The user confirmed **49 related tests in 79.340 seconds**, Ruff and diff.
+After the author-display fix, the full run passed on 2026-11-12: **1047 tests
+in 938.154 seconds**, project-wide Ruff and diff (LF/CRLF warnings only).
+A separate post-fix visual confirmation of the author labels has not been reported. Independent concurrency and final
+reconciliation remain in step 9; actual payouts remain in step 7.
+
 
 As of 2026-11-04, the user confirmed targeted customer-balance checks: 10 selector
 tests, 6 profile tests and the existing frontend-auth module. Scoped Ruff,
@@ -1026,7 +1152,8 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 920 tests passed in 941.617 seconds on 2026-11-09
+- Full suite of 1107 tests passed in 1293.752 seconds on 2026-11-17
+- Manual cash/bank payouts: LIFO sources, staff website form and combined receipt/payout journal
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually

@@ -74,6 +74,14 @@ def _apply_account_transaction(
         )
 
     if (
+        operation_type == AccountTransactionType.PAYOUT
+        and locked_account.debt_balance > Decimal("0.00")
+    ):
+        raise ValidationError(
+            "Customer account debt must be settled before payout."
+        )
+
+    if (
         locked_account.status == CustomerAccountStatus.INACTIVE
         and operation_type == AccountTransactionType.DEBT_INCREASE
     ):
@@ -242,6 +250,30 @@ def record_customer_refund(
         comment=comment,
     )
 
+def record_customer_payout(
+    *,
+    account,
+    amount,
+    operation_key,
+    actor_type,
+    created_by=None,
+    comment="",
+):
+    _validate_positive_amount(amount)
+
+    if not isinstance(comment, str) or not comment.strip():
+        raise ValidationError("Payout reason is required.")
+
+    return _apply_account_transaction(
+        account=account,
+        operation_type=AccountTransactionType.PAYOUT,
+        available_delta=-amount,
+        debt_delta=Decimal("0.00"),
+        operation_key=operation_key,
+        actor_type=actor_type,
+        created_by=created_by,
+        comment=comment,
+    )
 
 @transaction.atomic
 def reverse_customer_transaction(

@@ -8,9 +8,12 @@ implemented. Full shipment is connected to website/API completion; receipt
 registration, explicit assignment and whole-assignment cancellation are connected
 to the staff website and API. Customer balances are available on the profile and
 through the read-only API. The staff shipped-unpaid list is implemented with
-search, pagination and preserved return context. Receipt correction, manual
-payouts and pre-shipment item editing remain open.
+search, pagination and preserved return context. Receipt correction is connected
+to the website/API. Manual payout models, service and website are implemented;
+payout API and pre-shipment item editing remain open.
 PHASE 23 is not complete.
+
+Current work order (updated 2026-11-17): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -280,8 +283,9 @@ the required related data in one SQL query. Models and migrations are unchanged;
 the pages are read-only. The full regression after this list passed on
 **2026-11-09: 920 tests in 941.617 seconds**.
 
-Next: commit the shipped-unpaid list, then agree on receipt correction and
-actual manual cash/bank refunds.
+The shipped-unpaid list was committed and published as `c7abdc5`.
+Next: improve the order financial summary and collapsible histories as described
+below, then finish receipt-correction validation/interfaces and actual cash/bank refunds.
 Pre-shipment item editing also remains open.
 Existing staff `Finances` account pages display balances/history read-only.
 No shipment correction/reopening is added. Independent concurrency coverage
@@ -291,7 +295,7 @@ for the new financial workflows remains open.
 
 ## Order Funds and Shipment Model Map
 
-Model relationships and website/API/service implementation status as of 2026-11-09.
+Model relationships and website/API/service implementation status as of 2026-11-11.
 Keep this section synchronized with the main README and published Russian version.
 
 ### Receipts and assignment — implemented
@@ -308,7 +312,7 @@ flowchart TB
     T["AccountTransaction<br/>Financial ledger entry"]
     C["CustomerAccount<br/>Available funds and debt"]
 
-    P -->|"order"| O
+    P -->|"order · optional"| O
     P -->|"deposit_transaction · 1:1, optional"| T
     A -->|"order"| O
     A -->|"account_transaction · 1:1"| T
@@ -321,6 +325,16 @@ flowchart TB
 - `Payment` records a confirmed receipt in the new manual receipt workflow.
   Its deposit link is optional in the schema for legacy records; legacy
   pending payments are not proof that money was received.
+- `Payment.order` is now optional. The database constraint
+  `payment_requires_order_or_deposit` requires at least one populated reference:
+  `order` or `deposit_transaction`; both are allowed.
+  An orderless receipt identifies its account through `deposit_transaction.account`.
+  `record_manual_account_payment` is implemented; its module passes 18 tests,
+  including rejection of Invoice creation without an order.
+  Pages and receipt read/registration APIs support orderless receipts.
+  Staff account detail now shows the three balances and Register receipt.
+  Account/search return context is retained; transactions start collapsed and
+  remain expanded when paging through their existing 20-entry history.
 - `OrderFundAssignment` records which amount was explicitly assigned to an
   order. `Payment.order` alone does not assign money or settle that order.
 - `OrderFundAssignmentSource` records the deposit portions used. For deposits
@@ -743,23 +757,240 @@ used for the new line before accepting the edit.
 The links explain *why* a balance changed. Account balances alone do not
 identify the source of funds or the order being settled.
 
+## Agreed Receipt-Correction Rule — 2026-11-09
+
+The basic `cancel_manual_order_payment()` service is implemented. The user reports
+all 12 correction-service tests, the existing receipt-registration module, scoped
+Ruff and diff checks passing. Covered cases include unassigned receipt cancellation,
+Payment history/reason, active-assignment rejection and cancellation after release,
+same-key retries, changed-reason/new-key conflicts, customer/inactive-manager denial,
+administrator bank-receipt correction and atomic rollback on history-creation failure.
+At that initial checkpoint, website/API cancellation was not connected, and
+payment/credit consistency, post-shipment preservation and independent concurrency
+checks remained open. Updated service/website results appear in the current plan.
+At that correction-service checkpoint,
+the latest full regression was 920 tests; the later account-funding checkpoint
+is recorded in the current work plan below.
+
+- A manager or administrator may cancel an erroneously registered manual receipt
+  with a required reason. Its original `Payment` changes from `PAID` to
+  `CANCELLED`; it is not reset to `PENDING`.
+- Reverse the linked deposit through an additional financial operation.
+  Keep the original receipt and credit, the reversal link, reason, actor and time.
+  The financial reversal and Payment status/history update must be atomic.
+- First case: 100 BYN was recorded but never received, and no funds were assigned.
+  Cancelling the receipt subtracts 100 BYN from available funds without changing debt
+  or fulfillment status. This correction is not a cash or bank payout.
+- Dependent assignments must be safely undone before cancelling their source
+  receipt. Keep their history and any required debt restoration; do not reopen shipment.
+- A later valid receipt is a new `Payment`. Preserve legacy `PENDING`/mock
+  workflows without fictitious account credits; the existing
+  `reset_payment_to_pending()` guard for deposit-linked receipts remains in place.
+- Implement the service incrementally through TDD, starting with cancellation
+  of an unassigned receipt. Verify history, required reason, authorization,
+  dependencies, retry safety, rollback and concurrency in subsequent steps.
+
+## Order Financial UI — In Progress
+
+The user requested this UI improvement before continuing receipt-correction work.
+
+Progress on 2026-11-10: available account funds are shown in the shipped-unpaid list.
+Staff order detail has a financial summary, separate action rows and collapsed
+receipt, assignment and invoice histories. The user confirmed the order/invoice
+view modules and manual UI checks after template repairs. Receipt pagination
+(20 + 1 entries), page-independent receipt totals and links retaining return/other
+history parameters passed focused tests. Keeping histories expanded after page
+changes remains unfinished. No new full regression or UI Ruff result is claimed.
+
+- In `Unpaid shipped orders`, show the customer account's available funds for
+  assignment in green. A receipt of 150 and assignment of 90 leaves 60 if there
+  are no other account movements. This is the shared account balance, not an
+  order-specific receipt-minus-assignment calculation. Reuse the account already
+  loaded with each shipment; do not fetch transaction history per row.
+- On staff order detail, place a compact financial summary before the receipt
+  and assignment action buttons: active confirmed receipts registered through
+  this order, active funds assigned to it, its shipment debt and the customer
+  account's funds available to assign. Order debt starts at shipment, not checkout.
+  Exclude cancelled/reversed records and derive totals independently of history pages.
+- Start receipt and assignment histories collapsed; expanding each shows its list.
+  Keep assignment pagination and add receipt pagination, 20 entries per page.
+  Collapsing content alone does not limit the database selection.
+- Preserve list filters, Back links and independent history page parameters.
+  Opening a history page through pagination must keep that history visible.
+- Implement through the agreed teaching/TDD workflow. Application/template
+  changes and test/Ruff runs remain manual user work.
+- Next prioritize account receipts without orders as agreed below. Then finish
+  history expansion on page changes and resume receipt-to-credit consistency,
+  post-shipment tests, cancellation interfaces, real payouts and concurrency.
+  This UI request does not change receipt/assignment/shipment financial rules.
+
+## Account Receipts Without Orders — Agreed 2026-11-10
+
+This is required in PHASE 23. The model step is complete:
+`Payment.order` is nullable and the `payment_requires_order_or_deposit`
+database constraint rejects a record with neither reference. Migrations
+`0012_allow_payment_without_order` and `0013_require_payment_order_or_deposit`
+exist. The user confirmed **14 payment/history model tests** in **11.231 seconds**,
+scoped Ruff and `makemigrations --check --dry-run`. Both new cases and existing
+order-linked payments pass. The user confirmed the website database migration
+check on 2026-11-11; the full checkpoint run passed 1002 tests in 1215.051 seconds.
+The subsequent checkpoint passed **86 related tests in 138.452 seconds**:
+receipt/correction services, the financial summary, manager order/unpaid-list views
+and invoice views. Ruff for orders/payments passed; git diff --check reported only
+LF/CRLF warnings. This was a scoped checkpoint, not a new full-suite run.
+`record_manual_account_payment` is implemented: office/bank funds without an order,
+one PAID Payment and one credit, with no automatic assignment or debt.
+The user confirmed 17 new-module tests and scoped Ruff; related receipt/correction
+modules also passed during refactoring. Shared validation and Payment creation use
+internal helpers.
+Payment pages and email search support orderless receipts.
+The client API identifies ownership through the account and returns
+`customer_account_id`; the staff API also returns the customer email.
+`POST /api/payments/manage/accounts/{account_id}/receipts/` is implemented:
+staff permissions, office/bank funds, key retries/conflicts and
+400/401/403/404 responses without extra credits. Input precision now matches
+Payment: 12 total digits and 2 decimal places. The user confirmed related API
+modules, Ruff and git diff --check. Both follow-ups are complete: legacy Invoice
+validators reject receipts without orders, and the separate client-own-history
+read test is restored. The user confirmed the 18-test receipt-service module,
+7-test client module, related Invoice modules and Ruff.
+As of 2026-11-11, staff account detail and the orderless receipt form are implemented.
+The summary reuses the available-funds, assigned-prepayment and debt computation.
+Form Back, successful POST and return to account search retain their parameters;
+external return URLs are rejected. Repeating a form does not double-credit funds,
+customers receive 403 on GET/POST, and form precision matches Payment (12, 2).
+Transactions start collapsed, contain 20-entry pagination and stay expanded on
+page changes. The user confirmed 8 form tests, 7 account-detail tests, related
+checks and Ruff, plus manual summary, search-return and history-toggle checks.
+The user then confirmed the full run of **1002 tests in 1215.051 seconds on
+2026-11-11**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+
+Order financial UI follow-up (2026-11-11): all three histories retain expansion
+on their own page changes. Open payment and Back preserve the order history
+pages and original list filters; unrelated orders and external returns are rejected.
+Duplicate assignment-test preparation was removed. Summary boundaries cover other
+orders on the same account, another order's debt, cancelled assignments, full
+settlement and prepayment before shipment. The user confirmed **99 related tests
+in 123.751 seconds**, **6 summary-selector tests**, Ruff and git diff --check.
+Steps 5 and 6 are implemented: order financial UI and service/website/API
+receipt correction. The full run on 2026-11-12 passed 1047 tests;
+next review the staged diff and create the checkpoint commit.
+
+As of 2026-11-11, cancellation validates payment/deposit amount, currency and order
+account consistency. Orderless and post-shipment cases, explicit assignment release
+and preservation of COMPLETED/debt are covered. The website form requires a reason
+and operation key, preserves return context, displays service errors and enforces
+staff permissions and retry safety. Legacy payments without deposits have no action
+and return 404 on the form. Account now has Cancel receipt... → Payments filtered
+by account_id/paid/manual; personal/legal accounts stay separate and invalid IDs
+return no results. The user confirmed 56 related tests in 59.639 seconds and
+**29 final checks in 38.584 seconds: 18 service and 11 website tests**.
+Ruff and git diff --check passed (LF/CRLF warnings only). The API was not connected
+at that checkpoint.
+
+As of 2026-11-12, `POST /api/payments/manage/{payment_id}/receipts/cancel/`
+(`api-payments:manager-cancel-receipt`) uses the same cancellation service.
+Reason and key are required. Covered responses are 200/400/401/403/404, both staff
+roles, bank receipts, retries/conflicts, assignment dependencies, missing/legacy
+payments, balances and history. The user confirmed **11 API tests in 9.371 seconds**,
+API Ruff and diff. Confirmed modules contain 18 service, 13 website and 11 API tests.
+
+Following manual feedback on 2026-11-12, payment detail and order receipt history
+show Registered by — the original deposit author's username
+(`deposit_transaction.created_by`). Changed by separately identifies the staff
+member who cancelled the receipt; registration authorship is retained. System
+is shown for system operations without a user, and Unknown for missing authorship.
+Authors are loaded with select_related; 20-entry history pagination is retained.
+The user confirmed **49 related tests in 79.340 seconds**, Ruff and diff.
+After the author-display fix, the full run passed on 2026-11-12: **1047 tests
+in 938.154 seconds**, project-wide Ruff and diff (LF/CRLF warnings only).
+A separate post-fix visual confirmation of the author labels has not been reported. Independent concurrency and final
+reconciliation remain in step 9; actual payouts remain in step 7.
+
+A customer may have a financial account and pay before placing any order.
+
+- From `Finances → Customer accounts → account`, a manager or administrator
+  records actually received office cash or bank-transfer money. Create one
+  confirmed `Payment` and its linked deposit atomically; increase available
+  funds only. No order, Invoice, assignment or debt is created automatically.
+- Make the order link optional for such a receipt while keeping the account
+  identifiable through `Payment.deposit_transaction.account`. An orderless
+  Payment must have a linked financial receipt; reject records with neither
+  an order nor a deposit. Existing order receipts remain supported.
+- The optional order is registration context. Later assignment uses the
+  existing assignment/source/application links; do not attach a previously
+  orderless receipt to one order or confuse the receipt with settlement.
+- Before exposing the action, adapt payment lists/details, customer ownership
+  checks, API output and legacy invoice paths for `order=None`. Account-linked
+  receipts must stay visible to their owner/staff; order-dependent actions
+  need an actual order. Preserve legacy pending/mock flows without fictitious
+  credits. Keep amount/currency/account checks, permissions, retry safety and
+  atomic history/correction rules.
+- Account detail shows customer information and three agreed figures:
+  **freely available funds**, **prepayment assigned before shipment**, and
+  **debt from shipped orders**. Use these explicit labels instead of an
+  ambiguous debit figure. Assigned prepayment excludes applied/reversed amounts.
+- Place `Register receipt` beside the account summary. Keep transactions
+  initially collapsed with their existing 20-entry pagination inside; preserve
+  account-search filters, return links, independent history pages and expansion
+  when paging. The same customer may have separate personal and legal accounts.
+- Start through TDD with a linked receipt for a customer with zero orders,
+  then reject an orphan Payment, implement the account service and adapt its
+  consumers before the staff form. Application code/migrations/checks remain
+  user work; documentation is maintained by the assistant.
+- After this block, return to the unfinished order-history expansion behavior,
+  receipt-to-credit consistency/post-shipment checks, cancellation interfaces,
+  real manual payouts and concurrency. Update implemented model diagrams in
+  both READMEs/plans when the schema change has actually been made.
+
+### Manual payouts: website and service — 2026-11-17
+
+Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
+`record_manual_account_payout()`. Partial cash/bank payouts use free deposit
+portions in LIFO order. Active order assignments, previous payouts and reversed
+deposits are excluded. Order assignments retain FIFO and now subtract paid-out
+portions. A receipt used for a payout cannot be cancelled as erroneous.
+Required reason, actor, zero-debt rule, balance limits, replay protection and
+atomic rollback are covered by the user's scoped tests; related modules and
+Ruff passed. The user applied the migrations to the website database.
+Website payouts are implemented with amount, cash/bank method, required reason,
+stable operation key and preserved return context. Staff Payments combines
+receipts and payouts with author, Paid / Returned / Cancelled status filtering,
+search-first loading and shared chronological pagination (20 entries).
+The redundant Movement type input and selector argument are removed.
+On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
+checks passed, including mixed pagination and the initially hidden history.
+Manual success and debt-refusal checks passed. Payout API work remains pending.
+Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
+Project-wide Ruff passed. Payout API implementation remains pending.
+
+```mermaid
+flowchart LR
+    A[CustomerAccount] --> D[AccountTransaction: DEPOSIT]
+    A --> T[AccountTransaction: PAYOUT]
+    T -->|1:1| P[CustomerPayout]
+    P -->|1:N| S[CustomerPayoutSource]
+    S -->|N:1| D
+```
+
+The outgoing transaction retains author, reason, currency and balance snapshots.
+The payout records its amount and actual cash/bank method; each source records
+the portion taken from a deposit. Original receipts retain their historical method
+and status. A payout may use several deposits; a deposit may fund several payouts.
+
 ## Remaining Decisions Before Further Financial Migrations
 
 - Receipt registration already uses a stable `operation_key` and linked
   account credit. What additional evidence of office payment or bank
   receipt should be stored when connecting the staff interface?
-- Which final status and permissions are required to correct a receipt after
-  safely reversing its credit? Preserve legacy `PENDING` and mock scenarios
-  without fictitious credits; do not assume a reset-to-`PENDING` workflow.
 - Preserve the implemented prepayment application and post-shipment
   assignment/removal when connecting staff interfaces and receipt correction.
   Available 100 -> assign 100 before shipment -> zero available/zero debt ->
   release back to 100 remains valid. Do not substitute debt allocation or
   receipt totals for assignments or deduct prepayment twice.
-- Define actual manual cash/bank refund records, funding links, permitted
-  methods, staff permissions, amount, mandatory reason, and retry key.
-  Choose a public money-out operation rather than the positive-delta
-  `record_customer_refund()` service.
+- Connect the implemented manual payout service and LIFO sources to website/API
+  actions under the step 7 rules. Preserve required reasons, actor and retry key;
+  use `record_customer_payout()`, not positive-delta `record_customer_refund()`.
 - Before order-item editing, define invoice-item snapshots: a historical
   PDF must not start showing revised order lines. The current PDF reads
   `Order.items`; preserving the document number and amount is insufficient.
@@ -794,89 +1025,158 @@ identify the source of funds or the order being settled.
 Record the chosen rules with numerical examples and expected account deltas
 before writing migrations.
 
+<a id="current-work-order"></a>
+
 ## Incremental TDD Work Plan
 
-Execution order agreed on 2026-10-20; website/API/service progress updated on 2026-11-09.
-Full shipment and post-shipment assignment/removal are implemented, not the
-whole phase. Each completed step must have a visible acceptance result.
-The user edits application code, tests and migrations and runs all checks.
-Run only the new test in a small TDD step; run related modules at a behavior
-milestone and the full suite at a meaningful checkpoint. Explain targeted
-permission regressions. Start each step with the user's scenario, the problem
-being solved and the expected visible result, then explain the code.
-Shared test data belongs in `setUp()`; scenario-specific
-preparation stays in its test. Required reasons are validated in services,
-not only forms. Do not defer office/bank refunds with online withdrawals.
+Single work order as of 2026-11-11. This list defines the immediate sequence;
+earlier dated sections retain the history of decisions and validation.
+PHASE 23 remains open. Full shipment, debt creation, fund assignment/removal,
+customer balances and the staff shipped-unpaid list are implemented.
+Receipt correction is connected to the service, website and API; 18 service,
+13 website and 11 API tests pass. Order financial UI is complete: histories retain
+expansion when paging, and payment/order return links retain context.
 
-1. **Full shipment — implemented and verified.** Models, snapshots, obligation
-   and prepayment application are connected to existing website/API completion.
-   Website confirmation and staff-only POST are in place. The 19 service tests,
-   related modules, full 796-test run, Ruff, migration drift and manual unpaid
-   shipment check passed. Runtime migrations were applied. Confirm the browser
-   cancellation branch manually if it has not yet been checked. Independent
-   concurrent-request tests remain open. No shipment undo/reopening is planned.
-2. **Assign/remove funds after shipment — service milestone implemented.**
-   Explicit assignment debits available funds and applies them to a matching
-   shipment within the order's remaining amount. Whole selected removal requires
-   a reason, restores funds/debt and preserves `COMPLETED`, receipts and history.
-   Same-key retries, limits with unrelated account debt, missing shipment,
-   rollback of both flows and reassignment after cancellation are tested.
-   The user reports the assignment-service module and scoped Ruff passing on
-   2026-10-22. Independent concurrent-request coverage remains open.
-3. **Working money pages and balances — in progress.** Staff website receipt
-   registration is implemented and tested: a `PAID` Payment and one account
-   deposit, with no automatic assignment. Assignment/cancellation forms and
-   paginated history are implemented and module-tested as of 2026-10-25;
-   required reasons, staff permissions, retries and list-return context are
-   covered. Manual assignment/cancellation and filter preservation were checked.
-   The full 846-test run passed on 2026-10-25, before the API milestone.
-   Receipt/assignment/cancellation API and 25 new tests are implemented as of
-   2026-10-28; related API/service modules, Ruff and diff checks passed.
-   The full 871-test run passed on 2026-10-28; independent concurrency checks
-   remain open.
-   Do not reuse legacy pending payment actions as this flow.
-   Customer-only balances are available on the website profile as of 2026-11-04:
-   available funds, unused assigned prepayment and debt, separate by account and
-   currency. The one-query selector, profile navigation, ownership and missing
-   accounts are covered by targeted tests; related modules, Ruff and diff checks
-   passed, and the website was checked manually. The read-only balance API now
-   uses the same selector; eight new API tests, the full accounts API module,
-   scoped Ruff and diff checks passed. No account is created implicitly.
-   The full 895-test regression passed in 787.610 seconds on 2026-11-04;
-   diff checks reported only LF/CRLF warnings. The user committed the balance milestone.
-   The staff shipped-unpaid list is implemented as of 2026-11-09: customer,
-   order, shipment, applied funds and remaining debt, with email/order-number
-   search and 20 rows per page. It initially shows unpaid shipments for daily
-   control; settled history is excluded. Navbar access and filtered return links
-   are in place, including a fallback after settlement removes the final page.
-   The 11 selector and 14 page tests, related modules, scoped Ruff and diff checks
-   passed; the website was checked manually. The full regression passed on
-   2026-11-09: 920 tests in 941.617 seconds. This list milestone is ready to commit.
-   Staff account/history pages remain read-only.
-4. **Receipt correction and real cash/bank refunds.** Agree on corrected receipt
-   status and permissions. Undo dependent assignments, reverse the credited
-   receipt and retain audit history, with dependency guards, retries, rollback
-   and concurrency tests. Actual payout is a separate confirmed outgoing operation
-   decreasing available funds, with reason, funding links, authorization and
-   excess/retry protection. Assignment removal is not a payout; correcting a
-   fictitious receipt is not a real refund. None reopens shipment.
-5. **Order-item edits before shipment.** First add invoice-item snapshots so old
-   PDFs do not read revised `Order.items`. Require explicit cancellation of an
-   issued invoice before editing, then permit replacement. Recalculate totals
-   and reservations atomically without changing confirmed receipts/balances.
-   New quantities use a new price-batch line even for the same product; display
-   and confirm the current selling price before adding. Quantity reduction must
-   select the exact line and release that line's reservations in the agreed
-   reverse order. Every successful edit needs a staff-only reason and append-only
-   history of actor, date, selected line, before/after values and order total,
-   in the same transaction. No edits after shipment and no in-app customer
-   approval workflow.
-6. **Close PHASE 23.** Verify independent concurrent financial flows and invoice
-   numbering, reconcile order/shipment/account totals, run the complete regression
-   and manual end-to-end scenario, and synchronize documentation. Define the
-   narrow order, shipment and money facts for minimal 1C exchange in PHASE 24.
-   Only after that move to PHASE 25's controlled internet test pilot, with no
-   real sales or live payments.
+Current point: the user committed the model checkpoint.
+`record_manual_account_payment` is implemented with 17 passing tests and Ruff;
+related receipt/correction modules passed during refactoring.
+Step 3 is complete: page/API support and account-receipt POST pass related checks.
+Invoice rejection without an order is covered and the own-history API test is restored;
+receipt service (18 tests), client API (7 tests), Invoice modules and Ruff pass.
+Step 4 is implemented: staff account summary, orderless receipt form, safe
+search/account return context, amount validation, retries, customer denial and
+collapsed transaction paging. The user confirmed focused tests, related modules,
+Ruff, manual navigation/history checks and the website migration check.
+The account-funding checkpoint is committed. Step 5 (order financial UI) is complete:
+99 related tests, 6 summary-selector tests, Ruff and git diff --check passed.
+Step 6 is implemented across service, website and API. The user confirmed
+29 tests in 38.584 seconds (18 service, 11 website), then 11 API tests in
+9.371 seconds on 2026-11-12. Receipt-author display was then added to payment
+detail/order history; 49 related tests in 79.340 seconds, Ruff and diff pass.
+Current website correction module: 13 tests. The full regression passed;
+before committing, check the staged diff and visually confirm the author labels.
+Then proceed to step 7; independent concurrency checks remain in step 9.
+Full checkpoint validation passed on 2026-11-12: 1047 tests in 938.154 seconds,
+project-wide Ruff and git diff --check (LF/CRLF warnings only).
+
+1. **Payment model protection — complete.** Records with neither an order nor
+   a linked deposit are rejected; existing order-linked payments remain valid.
+   Both new cases and related models pass: 14 tests, Ruff and the migration check.
+   Diagrams/documentation are current. First checkpoint: logical intermediate
+   commits of the accumulated validated work.
+2. **Direct account receipt — service implemented.** The customer may have no
+   orders; office/bank receipts atomically create a PAID Payment and one credit.
+   Only available funds increase. Roles, separate accounts, amount/currency,
+   keys/retries, conflicts and rollback pass 17 tests and Ruff. Validation and
+   Payment creation are shared with receipt registration through an order.
+3. **Consumer/API adaptation — complete.** Payment lists/details, email search,
+   account identification, client ownership and staff receipt POST pass checks.
+   Order links/Invoice cards are conditional. Legacy validators reject Invoice
+   creation without an order; the separate own-history API test is restored.
+   Related service/API/Invoice modules and Ruff pass.
+4. **Staff account page — implemented; checkpoint committed.** Customer details and
+   three balances, Register receipt and the office/bank form are connected.
+   Account/search/filter context survives Back and successful POST. External
+   returns are rejected, repeated submissions do not double-credit funds,
+   customer GET/POST is forbidden, and amount precision matches Payment.
+   Transactions start collapsed, keep 20-entry pagination inside and remain
+   expanded when paging. Focused/related tests, Ruff, manual UI checks and the
+   website migration check are confirmed. The account-funding checkpoint was
+   committed by the user. An actual orderless receipt increases only available
+   funds; it does not create an order, assignment or debt.
+5. **Order financial UI — complete.** Receipts, assignments and invoices retain
+   expansion on their own page changes and keep other history/list parameters.
+   Open payment and Back retain the order history context; only the linked order
+   is accepted. Existing 20-entry pagination remains. Summary boundaries cover
+   other orders/debt on the shared account, cancelled assignments, no shipment
+   and full settlement. Confirmed: 99 related tests in 123.751 seconds, 6 summary
+   tests, Ruff and git diff --check. No subsequent full-suite run is claimed.
+6. **Receipt correction — service, website and API implemented.** Amount,
+   currency and order-account consistency, orderless/post-shipment cases,
+   explicit dependency release and COMPLETED/debt preservation pass 18 service
+   tests. The form, reason, errors, safe return context, roles, retries and
+   legacy exclusion and authorship pass 13 website tests. Account links to paid manual receipts
+   through an exact account-ID filter. The shared-service API passes 11 tests
+   covering 200/400/401/403/404, required fields, roles, retries/conflicts and
+   financial/history effects. Registered by and Changed by retain distinct
+   staff usernames in payment detail/order history; 49 related tests, Ruff
+   and diff pass. Full regression: 1047 tests in 938.154 seconds on 2026-11-12;
+   project-wide Ruff and diff pass. Before committing: visual author checks
+   and staged-diff review.
+   Actual payout is separate;
+   independent concurrency verification remains in step 9.
+7. **Finish actual office/bank payout API.** Website and service are implemented.
+   Record a separate outgoing movement from
+   available funds with reason, actor, history, limits and retry safety.
+   Agreed on 2026-11-12: partial payouts from available funds are allowed;
+   the amount is positive and cannot exceed the available balance. A payout
+   is forbidden while the account being paid out has shipment debt. Staff must
+   first explicitly assign funds to settle that debt; payouts do not automatically
+   settle it. Example: available 100, debt 60 → assign 60 → available 40, debt 0;
+   then a payout up to 40 is allowed. Managers and administrators may both
+   confirm actual payouts; retain the confirming user and show their username.
+   Cash and bank transfer are both available payout methods; staff select the
+   actual method independently of the original receipt method. Keep the original
+   receipt method unchanged and record the actual payout method separately.
+   Payout funding uses LIFO: consume the newest deposit's free portion first,
+   then older deposits as needed, ordered by created_at and primary key descending.
+   Order assignments retain FIFO. Exclude reversed deposits and portions already
+   assigned or paid out. Prior payouts also reduce sources available for new
+   assignments. A receipt used for an actual payout cannot be cancelled as
+   erroneous. Models/service and website flow are implemented; migrations are
+   applied to the website database. Website submission and return context passed
+   tests; success and debt refusal were checked manually. Account history and
+   Payments show the author's username. The combined list uses database union,
+   shared chronological pagination (20), search-first loading and the existing
+   filters. Mixed pagination and the initially hidden history are verified.
+   Payment and CustomerPayout remain separate models; kind identifies result
+   rows, while the redundant kind search argument/control and tests are removed.
+   Journal status clarification: Paid for confirmed receipts, Returned for
+   completed payouts, Cancelled for cancelled receipts. Returned is projected
+   from CustomerPayout without a new stored status field. Exclude Pending
+   entries/options from this working journal; retain model/service support
+   used by the existing mock-provider and legacy payment flows.
+   Checkpoint 2026-11-17: all 73 related tests, scoped Ruff and whitespace checks
+   passed. The prior run (73 tests in 77.754 seconds, 9 failures) is resolved:
+   legacy assertions now use (kind, entry_id), and journal scenarios use Paid
+   fixtures without changing the Pending setup needed by legacy action tests.
+   Method/reference captions are aligned. Full-project regression passed on
+   2026-11-17: 1107 tests in 1293.752 seconds; project-wide Ruff passed.
+   Next: review/stage the checkpoint commit, then implement payout API through
+   record_manual_account_payout.
+   Preserve permissions, reason/actor, operation key, LIFO sources and replay safety.
+   The latest full-project run is 1107; PHASE 23 remains in progress.
+   Agreed on 2026-11-16: after website/API payout completion and verification,
+   unify payment website routes under `/shop/payments/` as a separate step.
+   Preserve the `payments` namespace and `/api/payments/` API routes; verify
+   hard-coded paths, mock-payment flows and preserved return context.
+   Assignment removal or correction of fictitious credit is not actual payout.
+   Office/bank refunds belong in PHASE 23; online withdrawal remains deferred.
+8. **Invoice snapshots and pre-shipment item edits.** First make issued invoice
+   lines independent of current Order.items. Then allow the agreed staff edits
+   with reason/history. New quantity at a new price is a separate line; update
+   totals/reservations atomically. Explicitly cancel an issued invoice before
+   editing; reject post-shipment edits. No partial-shipment interface or reversal
+   of confirmed shipment is added.
+9. **Close PHASE 23.** Audit Pending and its model default, the old
+   create_payment_for_order/reset_payment_to_pending services and website/API
+   actions, and the mock provider. Remove obsolete manual-payment paths; decide
+   whether Pending remains necessary for actual online payment attempts.
+   Record that decision and update affected model choices/defaults, existing
+   data, migrations and tests as needed. Preserve financial history.
+   Independently test concurrent financial actions and invoice
+   numbering, reconcile amounts/sources, run the full suite and a manual
+   end-to-end scenario. Synchronize both READMEs, diagrams and plans; prepare
+   the minimal 1C exchange contract. Only then PHASE 24 (minimal 1C integration)
+   and PHASE 25 (controlled internet pilot without real sales/live external payments).
+
+For each small step: explain the scenario → one new test → user result →
+implementation → repeat that test. Run related modules after completing behavior
+and the full suite at substantial milestones. Shared fixtures belong in setUp;
+money-specific setup stays in the test or a small helper. The user edits/runs
+application code, migrations, tests and Ruff; the assistant explains, reads and
+maintains documentation. Record the current point and unfinished step before
+changing the sequence for a new request.
 
 ## Verification Gates
 

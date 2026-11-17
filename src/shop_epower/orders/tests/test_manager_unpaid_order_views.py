@@ -483,3 +483,40 @@ class TestsManagerUnpaidOrderListViews(TestCase):
             after,
             f'value="{self.user.email}"',
         )
+
+    # Список долгов показывает доступные средства счёта зелёным.
+    # Поступило 150, заказу назначено 90 — свободно осталось 60.
+    def test_list_shows_available_account_funds_in_green(self):
+        record_manual_order_payment(
+            order=self.order,
+            amount=Decimal("150.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="unpaid:view:available:receipt",
+            created_by=self.manager,
+        )
+
+        assign_order_funds(
+            order=self.order,
+            amount=Decimal("90.00"),
+            operation_key="unpaid:view:available:assignment",
+            created_by=self.manager,
+        )
+
+        complete_order_shipment(
+            order=self.order,
+            created_by=self.manager,
+        )
+        self.client.force_login(self.manager)
+
+        response = self.client.get(self.url)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            (
+                '<span class="text-success fw-semibold">'
+                f"Available to assign: 60.00 {self.account.currency}"
+                "</span>"
+            ),
+            html=True,
+        )

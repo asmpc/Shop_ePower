@@ -2,7 +2,7 @@ from decimal import Decimal
 
 from django.core.exceptions import ValidationError
 from django.db import transaction
-from django.db.models import Q, Sum
+from django.db.models import OuterRef, Q, Subquery, Sum
 
 from shop_epower.accounts.models import Role
 from shop_epower.accounts.services.profile import (
@@ -36,6 +36,7 @@ from shop_epower.orders.models import (
     OrderStatus,
     OrderStockReservation,
 )
+from shop_epower.payments.models import CustomerPayoutSource
 from shop_epower.suppliers.models import SupplierProduct
 
 
@@ -548,6 +549,16 @@ def assign_order_funds(
             "Assignment exceeds the remaining order amount."
         )
 
+    previous_payouts = (
+        CustomerPayoutSource.objects.filter(
+            deposit_transaction_id=OuterRef("pk"),
+        )
+        .order_by()
+        .values("deposit_transaction_id")
+        .annotate(total=Sum("amount"))
+        .values("total")
+    )
+
     # Источники выбираем от старых поступлений к новым.
     deposits = (
         account.transactions.filter(
@@ -562,6 +573,7 @@ def assign_order_funds(
                     order_fund_assignment_sources__assignment__account_transaction__reversal__isnull=True,
                 ),
             ),
+            paid_out_amount=Subquery(previous_payouts),
         )
         .order_by("created_at", "pk")
     )
@@ -570,8 +582,14 @@ def assign_order_funds(
     source_parts = []
 
     for deposit in deposits.iterator(chunk_size=100):
-        used_amount = deposit.assigned_amount or Decimal("0.00")
-        available_amount = deposit.available_delta - used_amount
+        assigned_amount = deposit.assigned_amount or Decimal("0.00")
+        paid_out_amount = deposit.paid_out_amount or Decimal("0.00")
+
+        available_amount = (
+            deposit.available_delta
+            - assigned_amount
+            - paid_out_amount
+        )
 
         if available_amount <= Decimal("0.00"):
             continue

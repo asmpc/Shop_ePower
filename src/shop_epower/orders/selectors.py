@@ -9,6 +9,7 @@ from django.db.models import (
 )
 from django.db.models.functions import Coalesce
 
+from shop_epower.finance.models import AccountTransactionType
 from shop_epower.orders.models import (
     Order,
     OrderFundApplication,
@@ -16,6 +17,7 @@ from shop_epower.orders.models import (
     OrderShipment,
     OrderStatus,
 )
+from shop_epower.payments.models import PaymentStatus
 
 
 def get_new_orders_count_for_manager():
@@ -110,3 +112,56 @@ def get_unpaid_order_shipments_for_staff(
         )
 
     return shipments
+
+def get_order_financial_summary(*, order):
+    """Возвращает денежную сводку заказа со связанным финансовым счётом."""
+
+    saved_order = (
+        Order.objects.select_related("customer_account")
+        .get(pk=order.pk)
+    )
+
+    if saved_order.customer_account_id is None:
+        return None
+
+    account = saved_order.customer_account
+
+    received_amount = (
+        saved_order.payments.filter(
+            status=PaymentStatus.PAID,
+            currency_snapshot=account.currency,
+            deposit_transaction__account_id=account.pk,
+            deposit_transaction__operation_type=AccountTransactionType.DEPOSIT,
+            deposit_transaction__reversal__isnull=True,
+        ).aggregate(
+            total=Sum("amount"),
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    assigned_amount = (
+        saved_order.fund_assignments.filter(
+            account_transaction__account_id=account.pk,
+            account_transaction__reversal__isnull=True,
+        ).aggregate(
+            total=Sum("amount"),
+        )["total"]
+        or Decimal("0.00")
+    )
+
+    remaining_debt = (
+        get_unpaid_order_shipments_for_staff(
+            order_id=saved_order.pk,
+        )
+        .values_list("remaining_debt", flat=True)
+        .first()
+        or Decimal("0.00")
+    )
+
+    return {
+        "received_amount": received_amount,
+        "assigned_amount": assigned_amount,
+        "remaining_debt": remaining_debt,
+        "available_balance": account.available_balance,
+        "currency": account.currency,
+    }

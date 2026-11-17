@@ -2,10 +2,11 @@ from shop_epower.finance.models import AccountTransaction
 
 
 def get_account_transactions(*, account):
-    return AccountTransaction.objects.filter(account=account).order_by(
-        "-created_at", "-pk"
+    return (
+        AccountTransaction.objects.filter(account=account)
+        .select_related("created_by")
+        .order_by("-created_at", "-pk")
     )
-
 
 def get_financial_transactions_for_staff(*, operation_key=None):
     transactions = AccountTransaction.objects.select_related(

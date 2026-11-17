@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+
+{% block content %}
+
+<div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+    <h1 class="mb-0">Register payout</h1>
+
+    <a href="{{ return_url }}" class="btn btn-outline-secondary">
+        Back to account
+    </a>
+</div>
+
+<div class="card mb-4">
+    <div class="card-header">
+        Account #{{ account.pk }}
+    </div>
+
+    <div class="card-body">
+        <p class="mb-1">Customer: {{ account.user.email }}</p>
+        <p class="mb-1">Type: {{ account.get_account_type_display }}</p>
+
+        <p class="mb-1">
+            Available funds:
+            <span class="text-success">
+                {{ account.available_balance|floatformat:2 }}
+                {{ account.currency }}
+            </span>
+        </p>
+
+        <p class="mb-0">
+            Shipped debt:
+            {{ account.debt_balance|floatformat:2 }}
+            {{ account.currency }}
+        </p>
+    </div>
+</div>
+
+<div class="alert alert-info">
+    Confirm only money actually returned to the customer.
+    A payout reduces available funds.
+    Any shipped debt must be settled first.
+</div>
+
+<form method="post" class="card">
+    <div class="card-header">Payout details</div>
+
+    <div class="card-body">
+        {% csrf_token %}
+
+        <input type="hidden" name="next" value="{{ return_url }}">
+
+        {{ form.as_p }}
+
+        <button type="submit" class="btn btn-danger">
+            Confirm payout
+        </button>
+    </div>
+</form>
+
+{% endblock %}

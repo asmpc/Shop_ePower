@@ -6,6 +6,7 @@ from api.payments.views import (
     ClientPaymentDetailAPIView,
     ClientPaymentHistoryAPIView,
     ClientPaymentListAPIView,
+    ManagerCancelReceiptAPIView,
     ManagerInvoiceCancelAPIView,
     ManagerInvoiceCreateAPIView,
     ManagerInvoiceDetailAPIView,
@@ -16,6 +17,7 @@ from api.payments.views import (
     ManagerPaymentMarkCancelledAPIView,
     ManagerPaymentMarkPaidAPIView,
     ManagerPaymentResetToPendingAPIView,
+    ManagerRecordAccountReceiptAPIView,
     ManagerRecordReceiptAPIView,
 )
 
@@ -42,9 +44,21 @@ urlpatterns = [
     ),
 
     path(
+        "manage/accounts/<int:account_id>/receipts/",
+        ManagerRecordAccountReceiptAPIView.as_view(),
+        name="manager-record-account-receipt",
+    ),
+
+    path(
         "manage/orders/<int:order_id>/receipts/",
         ManagerRecordReceiptAPIView.as_view(),
         name="manager-record-receipt",
+    ),
+
+    path(
+        "manage/<int:payment_id>/receipts/cancel/",
+        ManagerCancelReceiptAPIView.as_view(),
+        name="manager-cancel-receipt",
     ),
 
     path(

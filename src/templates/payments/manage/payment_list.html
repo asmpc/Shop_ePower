@@ -18,10 +18,23 @@
 
     <div class="card-body">
         <p class="text-muted mb-3">
-            Enter an order ID, transaction ID, customer email, or choose a filter to find payments.
+            Enter an account ID, order ID, transaction ID, customer email, or choose a filter to find payments.
         </p>
         <form method="get" class="row g-3">
-            <div class="col-md-4">
+            <div class="col-md-6 col-xl-3">
+                <label for="payment-account-id" class="form-label">
+                    Account ID
+                </label>
+                <input
+                    id="payment-account-id"
+                    name="account_id"
+                    type="text"
+                    inputmode="numeric"
+                    class="form-control"
+                    value="{{ selected_account_id }}"
+                >
+            </div>
+            <div class="col-md-6 col-xl-3">
                 <label for="payment-order-id" class="form-label">
                     Order ID
                 </label>
@@ -35,8 +48,10 @@
                     placeholder="e.g. 42"
                 >
             </div>
-            <div class="col-md-4">
-                <label for="transaction-id" class="form-label">Transaction ID</label>
+            <div class="col-md-6 col-xl-3">
+               <label for="transaction-id" class="form-label">
+                    Transaction ID / Payout key
+                </label>
                 <input
                     id="transaction-id"
                     type="text"
@@ -45,7 +60,7 @@
                     class="form-control"
                 >
             </div>
-            <div class="col-md-4">
+            <div class="col-md-6 col-xl-3">
                 <label for="customer-email" class="form-label">Customer email</label>
                 <input
                     id="customer-email"
@@ -63,8 +78,8 @@
                 <select name="status" class="form-select">
                     <option value="">All statuses</option>
 
-                    <option value="pending" {% if selected_status == "pending" %}selected{% endif %}>
-                        Pending
+                    <option value="returned" {% if selected_status == "returned" %}selected{% endif %}>
+                        Returned
                     </option>
 
                     <option value="paid" {% if selected_status == "paid" %}selected{% endif %}>
@@ -86,11 +101,11 @@
                     <option value="">All methods</option>
 
                     <option value="on_receipt" {% if selected_method == "on_receipt" %}selected{% endif %}>
-                        On receipt
+                        Office cash
                     </option>
 
                     <option value="invoice" {% if selected_method == "invoice" %}selected{% endif %}>
-                        By invoice
+                        Bank transfer
                     </option>
 
                     <option value="online" {% if selected_method == "online" %}selected{% endif %}>
@@ -132,65 +147,112 @@
     </div>
 </div>
 
-{% for payment in payments %}
+{% for movement in payments %}
     <div class="card mb-3">
         <div class="card-body">
             <div class="row align-items-center g-3">
 
                 <div class="col-md-2">
                     <div class="d-flex flex-wrap align-items-center gap-2">
-                        <span class="h5 mb-0">Payment #{{ payment.id }}</span>
+                        {% if movement.kind == "payout" %}
+                            <span class="h5 mb-0">Payout #{{ movement.entry_id }}</span>
+                        {% else %}
+                            <span class="h5 mb-0">Receipt #{{ movement.entry_id }}</span>
+                        {% endif %}
 
-                        {% if payment.status == "pending" %}
-                            <span class="badge bg-warning text-dark">PENDING</span>
-                        {% elif payment.status == "paid" %}
+                        {% if movement.status == "paid" %}
                             <span class="badge bg-success">PAID</span>
-                        {% elif payment.status == "cancelled" %}
+                        {% elif movement.status == "returned" %}
+                            <span class="badge bg-warning text-dark">RETURNED</span>
+                        {% elif movement.status == "cancelled" %}
                             <span class="badge bg-secondary">CANCELLED</span>
                         {% endif %}
                     </div>
+
                     <div class="text-muted small mt-1">
-                        {{ payment.created_at }}
+                        {{ movement.created_at }}
+                    </div>
+
+                    <div class="small mt-1">
+                        Performed by: {{ movement.performed_by }}
                     </div>
                 </div>
 
                 <div class="col-md-3 border-start">
                     <div class="text-muted">Customer</div>
-                    <div class="text-break">{{ payment.order.customer_email }}</div>
-                    <div class="text-muted mt-1">Order</div>
-                    <div>#{{ payment.order.id }}</div>
+                    <div class="text-break">{{ movement.customer_email }}</div>
+
+                    {% if movement.account_id %}
+                        <div class="small text-muted mt-1">
+                            Account #{{ movement.account_id }}
+                        </div>
+                    {% endif %}
+
+                    {% if movement.order_id %}
+                        <div class="text-muted mt-1">Order</div>
+                        <div>#{{ movement.order_id }}</div>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-2 border-start">
                     <div class="text-muted">Method</div>
-                    <div>{{ payment.get_method_display }}</div>
+                    <div>
+                        {% if movement.method == "on_receipt" %}
+                            Office payment
+                        {% elif movement.method == "cash" %}
+                            Cash
+                        {% elif movement.method == "invoice" or movement.method == "bank_transfer" %}
+                            Bank transfer
+                        {% elif movement.method == "online" %}
+                            Online payment
+                        {% else %}
+                            Unknown
+                        {% endif %}
+                    </div>
+
                     <div class="text-muted mt-1">Provider</div>
-                    <div>{{ payment.get_provider_display }}</div>
+                    <div>{{ movement.provider|title }}</div>
                 </div>
 
                 <div class="col-md-2 border-start">
                     <div class="text-muted">Amount</div>
-                    <div>{{ payment.amount }} {{ payment.currency_snapshot }}</div>
+                    <div class="{% if movement.kind == 'payout' %}text-danger{% endif %}">
+                        {{ movement.amount|floatformat:2 }} {{ movement.currency }}
+                    </div>
                 </div>
 
                 <div class="col-md-3 text-md-end">
-                    <div class="d-flex flex-wrap gap-2 justify-content-md-end">
-                        <a href="{% url 'payments:manager_payment_detail' payment.id %}?next={{ request.get_full_path|urlencode }}"
-                           class="btn btn-outline-secondary btn-sm">
-                            Open payment
-                        </a>
-                        <a href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
-                           class="btn btn-outline-primary btn-sm">
-                            Open order
-                        </a>
-                    </div>
+                    {% if movement.kind == "receipt" %}
+                        <div class="d-flex flex-wrap gap-2 justify-content-md-end">
+                            <a
+                                href="{% url 'payments:manager_payment_detail' movement.entry_id %}?next={{ request.get_full_path|urlencode }}"
+                                class="btn btn-outline-secondary btn-sm"
+                            >
+                                Open payment
+                            </a>
+
+                            {% if movement.order_id %}
+                                <a
+                                    href="{% url 'orders:manager_order_detail' movement.order_id %}?next={{ request.get_full_path|urlencode }}"
+                                    class="btn btn-outline-primary btn-sm"
+                                >
+                                    Open order
+                                </a>
+                            {% endif %}
+                        </div>
+                    {% else %}
+                        <div class="small text-muted">Reference</div>
+                        <div class="small text-break">
+                            {{ movement.transaction_id }}
+                        </div>
+                    {% endif %}
                 </div>
 
             </div>
         </div>
     </div>
 {% empty %}
-    {% if selected_status or selected_method or selected_provider or selected_order_id or selected_transaction_id or selected_customer_email %}
+    {% if selected_status or selected_method or selected_provider or selected_order_id or selected_account_id or selected_transaction_id or selected_customer_email %}
         <div class="alert alert-light border">
             No payments found.
         </div>

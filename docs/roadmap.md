@@ -100,6 +100,79 @@ Django checks, and migration-state check passed at phase closure.
 
 ## PHASE 23 --- Order Funds & Full-Shipment Settlement
 
+Current work order (2026-11-11): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
+Payment model protection is complete: nullable order, the at-least-one-reference
+constraint and migrations 0012/0013. The user confirmed 14 model/history tests,
+scoped Ruff and no outstanding model migrations. Both-language diagrams are updated;
+the user confirmed the website database migration check on 2026-11-11.
+The checkpoint also passed 86 related tests in 138.452 seconds, orders/payments
+Ruff and git diff --check (LF/CRLF warnings only); that model checkpoint preceded
+the full account-funding regression below.
+The model checkpoint is committed. The account receipt service is implemented:
+17 new-module tests and Ruff pass; related services passed during refactoring.
+Page/API compatibility and staff account-receipt POST passed related checks.
+Compatibility step 3 is complete: no-order Invoice guards and own-history API
+coverage pass; receipt-service/client modules now contain 18/7 tests respectively.
+Step 4 is implemented: account summary, orderless receipt form, preserved search
+and safe return links, retry/amount/permission checks and collapsed transaction paging.
+The user confirmed focused tests, related modules, Ruff and manual navigation/history checks.
+The full account-funding checkpoint passed on 2026-11-11: **1002 tests in
+1215.051 seconds**, project-wide Ruff and git diff --check (LF/CRLF warnings only).
+The account-funding checkpoint is committed. Step 5 is complete: histories retain
+expansion, payment/order return context is preserved, and summary boundaries are covered.
+The user confirmed 99 related tests in 123.751 seconds, 6 summary tests, Ruff and
+git diff --check. At that order-UI checkpoint, the latest full run was 1002.
+Receipt correction services and website are implemented: amount/currency/account
+consistency, orderless/post-shipment behavior, reason/history, permissions, retries
+and return context. Account links to paid/manual receipts filtered by account ID.
+Confirmed: 56 related tests in 59.639 seconds; 29 service/website tests in
+38.584 seconds (18 + 11), Ruff and git diff --check (LF/CRLF warnings only).
+On 2026-11-12, the receipt-cancellation API passed 11 tests in 9.371 seconds,
+API Ruff and diff. Step 6 is implemented at service/website/API level.
+Registered by now shows the deposit author's username in payment detail/order
+receipt history; Changed by retains the cancellation author. Related data are
+loaded with select_related. Confirmed: 49 related tests in 79.340 seconds,
+Ruff and diff; the website correction module now has 13 tests.
+Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
+project-wide Ruff and git diff --check (LF/CRLF warnings only).
+Before committing: visually confirm author labels and review the staged diff.
+Next: actual cash/bank payouts → invoice snapshots/item edits → final verification.
+Agreed on 2026-11-12: partial payouts from available funds are allowed, up to
+that balance. This is an agreed rule; the payout workflow is not implemented yet.
+Payouts are forbidden while the selected account has shipment debt. Staff must
+explicitly settle that debt by assigning funds before paying out the remainder;
+there is no automatic debt settlement. Managers and administrators may both
+confirm actual payouts; retain the author and display their username.
+Staff may choose cash or bank transfer independently of the receipt method;
+retain the original receipt method and record the actual payout method separately.
+Payout sources use LIFO: newest free deposit portions first; order assignments
+retain FIFO. Paid-out portions cannot fund new assignments or payouts. A receipt
+used for an actual payout cannot be cancelled as erroneous.
+Checkpoint 2026-11-16: PAYOUT, CustomerPayout, CustomerPayoutSource and the manual
+payout service are implemented. Scoped and related tests, Ruff and migration
+checks passed; the user applied migrations to the website database.
+Website payouts and return context passed scoped/manual checks; account history
+and Payments show the author. The combined receipt/payout list uses status filtering,
+shared database pagination (20) and search-first loading. Redundant Movement type
+and its selector argument are removed. All 73 related tests, scoped Ruff and
+whitespace checks passed on 2026-11-17. Captions are aligned. Full regression:
+1107 tests in 1293.752 seconds on 2026-11-17; project-wide Ruff passed.
+Next: checkpoint commit, then payout API and complete-flow verification.
+Journal statuses are Paid / Returned / Cancelled. Returned is a payout projection;
+Pending entries/options are excluded here, while mock/legacy model support remains.
+Step 9 includes an explicit Pending/default and legacy-payment audit: review
+create/reset services, their website/API actions and the mock provider; remove
+obsolete manual flows, decide the online-attempt status model and update data,
+migrations and tests as needed without losing financial history.
+The nine legacy-test failures are resolved; mixed pagination and the initially
+hidden history are verified. The full-project regression checkpoint passed.
+After website/API payouts are complete and verified, unify payment website
+routes under `/shop/payments/`. Preserve `payments` namespace and API paths;
+check hard-coded links, mock-payment flows and return context (agreed 2026-11-16).
+Independent concurrency coverage remains in step 9; the latest full run is 1107.
+Checkpoint commits follow model protection and the complete account-funding flow.
+This sequence preserves all unfinished work and does not mark PHASE 23 complete.
+
 Status: implementation started; remaining architecture decisions are being refined.
 
 Completed first step (2026-10-13): new orders record their owner's matching
@@ -322,8 +395,36 @@ the required related data in one SQL query. Models and migrations are unchanged;
 the pages are read-only. The full regression after this list passed on
 **2026-11-09: 920 tests in 941.617 seconds**.
 
-Next: commit the shipped-unpaid list, then agree on receipt correction and
-actual manual cash/bank refunds.
+The shipped-unpaid list is published in commit `c7abdc5`.
+Agreed on 2026-11-09: a manager or administrator cancels an erroneous manual
+receipt with a required reason, reversing its credit and changing the original
+Payment from `PAID` to `CANCELLED` with history retained atomically. First undo
+any dependent assignments. No reset to `PENDING` and no actual payout occur.
+A later valid receipt is a new Payment. The basic cancellation service now has
+12 passing tests; the existing receipt module, scoped Ruff and diff also pass.
+Coverage includes dependency/retry guards, history, roles and atomic rollback.
+Credit-link consistency, post-shipment and concurrency tests and cancellation
+interfaces remain open; no new full-suite result is claimed.
+At the user's request, first improve staff financial UI: green available account
+funds on the unpaid-shipment list; a compact order summary before money actions;
+collapsed receipt/assignment histories with independent 20-entry pagination and
+preserved filters/Back links. Summary totals must not depend on the history page.
+Available funds belong to the shared customer account; debt is shipment-specific.
+As of 2026-11-10 the order summary/action rows and three collapsed histories are
+implemented; the user confirmed order/invoice modules and manual checks. Receipt
+paging (20 entries), independent totals and preserved context passed focused
+tests; expansion after page changes remains open. No new full regression claimed.
+The next agreed PHASE 23 priority is an actual receipt into a customer account
+with no order: optional Payment order, mandatory linked deposit for an orderless
+receipt, atomic credit, no automatic assignment/debt, office/bank methods and
+staff-only confirmation. Adapt payment UI/API ownership and order-dependent
+paths before exposing the account action. Account detail must show customer
+information, freely available funds, assigned prepayment and shipped debt,
+a receipt button and collapsed/paginated transactions with safe return context.
+Keep personal/legal accounts separate. Then finish history expansion and the
+remaining correction/payout/concurrency work. Application changes/checks remain
+user-run; diagrams are updated when the schema is actually changed.
+Actual manual cash/bank refunds remain a separate subsequent workflow.
 Follow with safe receipt correction/manual refunds,
 invoice snapshots and pre-shipment editing, independent concurrency, full
 regression and the minimal 1C contract. PHASE 23 is not complete.

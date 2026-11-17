@@ -28,26 +28,58 @@
     </div>
 
     <div class="card-body">
-        <p class="mb-1">
-            <strong>Order:</strong>
+        {% if payment.order_id %}
+            <p class="mb-1">
+                <strong>Order:</strong>
 
-            <a href="{% url 'orders:manager_order_detail' payment.order.id %}">
-                #{{ payment.order.id }}
-            </a>
+                <a href="{% url 'orders:manager_order_detail' payment.order_id %}">
+                    #{{ payment.order_id }}
+                </a>
+            </p>
+        {% endif %}
+
+        <p class="mb-1">
+            <strong>Customer:</strong> {{ customer_email }}
         </p>
-        <p class="mb-1"><strong>Customer:</strong> {{ payment.order.customer_email }}</p>
         <p class="mb-1"><strong>Method:</strong> {{ payment.get_method_display }}</p>
         <p class="mb-1"><strong>Status:</strong> {{ payment.get_status_display }}</p>
         <p class="mb-1"><strong>Provider:</strong> {{ payment.get_provider_display }}</p>
         <p class="mb-1"><strong>Amount:</strong> {{ payment.amount }} {{ payment.currency_snapshot }}</p>
         <p class="mb-1"><strong>Transaction ID:</strong> {{ payment.transaction_id }}</p>
         <p class="mb-1"><strong>Provider payment ID:</strong> {{ payment.provider_payment_id|default:"-" }}</p>
+        <p class="mb-1">
+            <strong>Registered by:</strong>
+
+            {% if payment.deposit_transaction.created_by %}
+                {{ payment.deposit_transaction.created_by.username }}
+            {% elif payment.deposit_transaction.actor_type == "system" %}
+                System
+            {% else %}
+                Unknown
+            {% endif %}
+        </p>
         <p class="mb-1"><strong>Manager comment:</strong> {{ payment.manager_comment|default:"-" }}</p>
         <p class="mb-1"><strong>Created:</strong> {{ payment.created_at }}</p>
         <p class="mb-0"><strong>Updated:</strong> {{ payment.updated_at }}</p>
     </div>
 </div>
 
+{% if payment.status == "paid" and payment.provider == "manual" and payment.deposit_transaction_id %}
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <span>Payment actions</span>
+
+            <a
+                href="{% url 'payments:manager_cancel_receipt' payment.pk %}?next={{ request.get_full_path|urlencode:'' }}"
+                class="btn btn-outline-danger btn-sm"
+            >
+                Cancel receipt
+            </a>
+        </div>
+    </div>
+{% endif %}
+
+{% if payment.order_id %}
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center">
         <span>Invoice</span>
@@ -212,6 +244,7 @@
         {% endif %}
     </div>
 </div>
+{% endif %}
 
 <div class="card mb-4">
     <div class="card-header">
@@ -262,11 +295,13 @@
     </div>
 </div>
 
-<a
-    href="{% url 'orders:manager_order_detail' payment.order.id %}?next={{ request.get_full_path|urlencode }}"
-    class="btn btn-outline-primary"
->
-    Open order
-</a>
+{% if payment.order_id %}
+    <a
+        href="{% url 'orders:manager_order_detail' payment.order_id %}?next={{ request.get_full_path|urlencode }}"
+        class="btn btn-outline-primary"
+    >
+        Open order
+    </a>
+{% endif %}
 
 {% endblock %}

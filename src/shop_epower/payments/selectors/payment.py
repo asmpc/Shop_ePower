@@ -1,17 +1,24 @@
+from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from shop_epower.payments.models import Payment
 
 
 def get_payments_for_user(user):
-
     return (
         Payment.objects
         .filter(
-            order__user=user,
+            Q(
+                deposit_transaction__account__user=user,
+            )
+            | Q(
+                deposit_transaction__isnull=True,
+                order__user=user,
+            )
         )
         .select_related(
             "order",
+            "deposit_transaction",
         )
         .order_by(
             "-created_at",
@@ -39,6 +46,7 @@ def get_payments_for_manager(
     method=None,
     provider=None,
     order_id=None,
+    account_id=None,
     transaction_id=None,
     customer_email=None,
 ):
@@ -47,6 +55,7 @@ def get_payments_for_manager(
         .select_related(
             "order",
             "order__user",
+            "deposit_transaction__account__user",
         )
         .order_by("-created_at", "-pk")
     )
@@ -69,12 +78,20 @@ def get_payments_for_manager(
     if order_id is not None:
         queryset = queryset.filter(order_id=order_id)
 
+    if account_id is not None:
+        queryset = queryset.filter(
+            deposit_transaction__account_id=account_id,
+        )
+
     if transaction_id is not None:
         queryset = queryset.filter(transaction_id=transaction_id)
 
     if customer_email is not None:
         queryset = queryset.filter(
-            order__customer_email__iexact=customer_email,
+            Q(order__customer_email__iexact=customer_email)
+            | Q(
+                deposit_transaction__account__user__email__iexact=customer_email,
+            )
         )
 
     return queryset

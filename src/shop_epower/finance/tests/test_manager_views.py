@@ -1,8 +1,10 @@
 from decimal import Decimal
+from urllib.parse import urlencode
 
 from django.core.paginator import Page
 from django.test import TestCase
 from django.urls import reverse
+from django.utils.html import escape
 
 from shop_epower.accounts.tests.helpers import (
     create_test_admin,
@@ -446,11 +448,22 @@ class TestsManagerFinanceViews(TestCase):
             {"account_id": str(account.pk)},
         )
 
-        detail_url = reverse(
-            "finance:manager_account_detail",
-            args=[account.pk],
+        detail_url = (
+            reverse(
+                "finance:manager_account_detail",
+                args=[account.pk],
+            )
+            + "?"
+            + urlencode(
+                {
+                    "next": response.wsgi_request.get_full_path(),
+                }
+            )
         )
-        self.assertContains(response, f'href="{detail_url}"')
+        self.assertContains(
+            response,
+            f'href="{escape(detail_url)}"',
+        )
 
     # Страница показывает постраничную историю только выбранного счёта.
     def test_account_detail_shows_only_its_transactions(self):
@@ -507,8 +520,14 @@ class TestsManagerFinanceViews(TestCase):
 
         self.assertEqual(len(first_page.context["transactions"]), 20)
         self.assertEqual(len(second_page.context["transactions"]), 1)
-        self.assertContains(first_page, 'href="?transactions_page=2">')
-        self.assertContains(second_page, 'href="?transactions_page=1">')
+        self.assertContains(
+            first_page,
+            'href="?transactions_page=2"',
+        )
+        self.assertContains(
+            second_page,
+            'href="?transactions_page=1"',
+        )
 
     # В истории видны изменения и остатки после операции.
     def test_account_detail_shows_transaction_amounts(self):
