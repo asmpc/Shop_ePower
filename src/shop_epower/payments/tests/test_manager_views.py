@@ -296,16 +296,22 @@ class TestsManagerPaymentViews(TestCase):
             PaymentStatus.PAID,
         )
 
-    # При 21 платеже менеджер видит 20 на первой странице
-    # и один оставшийся платёж — на второй.
+    # При 21 подтверждённом поступлении первая страница содержит 20,
+    # вторая — оставшееся поступление.
+    # Ссылка перехода сохраняет поиск по email.
     def test_manager_payment_list_is_paginated(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         for _ in range(20):
             order = create_test_order(user=self.client_user)
-            create_test_payment(order=order)
+            create_test_payment(
+                order=order,
+                status=PaymentStatus.PAID,
+            )
 
         self.client.force_login(self.manager)
         url = reverse("payments:manager_payment_list")
-
         email = self.order.customer_email
 
         first_page = self.client.get(
@@ -317,33 +323,55 @@ class TestsManagerPaymentViews(TestCase):
             {"customer_email": email, "page": 2},
         )
 
+        self.assertEqual(first_page.status_code, 200)
+        self.assertEqual(second_page.status_code, 200)
         self.assertEqual(len(first_page.context["payments"]), 20)
         self.assertEqual(len(second_page.context["payments"]), 1)
+
+        self.assertEqual(
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in second_page.context["payments"]
+            ],
+            [
+                ("receipt", self.payment.pk),
+            ],
+        )
         self.assertContains(
             first_page,
             'href="?customer_email=client%40test.com&amp;page=2"',
         )
 
-    # Ссылка на следующую страницу сохраняет все три фильтра платежей.
+    # Ссылка на следующую страницу сохраняет статус,
+    # способ операции и провайдера.
+    # Для пагинации подготовлено 21 подтверждённое поступление.
     def test_payment_pagination_preserves_filters(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         for _ in range(20):
             order = create_test_order(user=self.client_user)
-            create_test_payment(order=order)
+            create_test_payment(
+                order=order,
+                status=PaymentStatus.PAID,
+            )
 
         self.client.force_login(self.manager)
 
         response = self.client.get(
             reverse("payments:manager_payment_list"),
             {
-                "status": "pending",
-                "method": "invoice",
-                "provider": "manual",
+                "status": PaymentStatus.PAID,
+                "method": PaymentMethod.INVOICE,
+                "provider": PaymentProvider.MANUAL,
             },
         )
 
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(len(response.context["payments"]), 20)
         self.assertContains(
             response,
-            'href="?status=pending&amp;method=invoice&amp;provider=manual&amp;page=2"',
+            'href="?status=paid&amp;method=invoice&amp;provider=manual&amp;page=2"',
         )
 
     # Внешний адрес из параметра next не должен попадать в кнопку Back.
@@ -451,10 +479,18 @@ class TestsManagerPaymentViews(TestCase):
         )
         self.assertNotContains(blank_response, "No payments found.")
 
-    # Менеджер находит платёж по точному номеру заказа.
+    # Менеджер находит подтверждённое поступление по номеру заказа.
+    # Оба платежа имеют статус Paid, поэтому исключение второго
+    # подтверждает работу фильтра заказа.
     def test_manager_can_find_payment_by_order_id(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         other_order = create_test_order(user=self.client_user)
-        create_test_payment(order=other_order)
+        create_test_payment(
+            order=other_order,
+            status=PaymentStatus.PAID,
+        )
 
         self.client.force_login(self.manager)
 
@@ -465,8 +501,13 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["payments"]),
-            [self.payment],
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", self.payment.pk),
+            ],
         )
 
     # Форма показывает поиск по заказу и сохраняет введённый номер.
@@ -497,12 +538,20 @@ class TestsManagerPaymentViews(TestCase):
         self.assertEqual(list(response.context["payments"]), [])
         self.assertContains(response, "No payments found.")
 
-    # Менеджер находит платёж по точному ID операции.
+    # Менеджер находит подтверждённое поступление по точному ID операции.
+    # Другой подтверждённый платёж не попадает в результат.
     def test_manager_can_find_payment_by_transaction_id(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         other_order = create_test_order(user=self.client_user)
-        create_test_payment(order=other_order)
+        create_test_payment(
+            order=other_order,
+            status=PaymentStatus.PAID,
+        )
 
         self.client.force_login(self.manager)
+
         response = self.client.get(
             reverse("payments:manager_payment_list"),
             {"transaction_id": self.payment.transaction_id},
@@ -510,8 +559,13 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["payments"]),
-            [self.payment],
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", self.payment.pk),
+            ],
         )
 
     # Форма показывает поиск по ID операции
@@ -530,15 +584,24 @@ class TestsManagerPaymentViews(TestCase):
             f'value="{self.payment.transaction_id}"',
         )
 
-    # Менеджер находит платёж по email, сохранённому в заказе.
+    # Менеджер находит подтверждённое поступление по email заказа.
+    # Регистр букв не влияет на поиск.
+    # Поступление другого заказа с иным контактным email исключается.
     def test_manager_can_find_payment_by_customer_email(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         other_order = create_test_order(
             user=self.client_user,
             customer_email="another@example.com",
         )
-        create_test_payment(order=other_order)
+        create_test_payment(
+            order=other_order,
+            status=PaymentStatus.PAID,
+        )
 
         self.client.force_login(self.manager)
+
         response = self.client.get(
             reverse("payments:manager_payment_list"),
             {"customer_email": self.order.customer_email.upper()},
@@ -546,8 +609,13 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["payments"]),
-            [self.payment],
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", self.payment.pk),
+            ],
         )
 
     # Форма содержит поиск по email и сохраняет введённый адрес.
@@ -582,8 +650,12 @@ class TestsManagerPaymentViews(TestCase):
             "Select at least one filter before searching.",
         )
 
-    # Администратор тоже может искать платежи по email клиента.
+    # Администратор находит подтверждённое поступление по email клиента.
+    # Результат представлен строкой общего журнала.
     def test_admin_can_find_payment_by_customer_email(self):
+        self.payment.status = PaymentStatus.PAID
+        self.payment.save(update_fields=["status"])
+
         self.client.force_login(self.admin)
 
         response = self.client.get(
@@ -593,8 +665,13 @@ class TestsManagerPaymentViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["payments"]),
-            [self.payment],
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", self.payment.pk),
+            ],
         )
 
     # Адрес другого заказа не принимается для возврата из платежа.

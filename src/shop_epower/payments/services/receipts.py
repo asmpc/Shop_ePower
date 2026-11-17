@@ -324,8 +324,8 @@ def cancel_manual_order_payment(
             "Payment order account does not match its deposit account."
         )
 
-    # Назначение средств тоже блокирует этот счёт.
-    # Берём блокировку до проверки зависимых назначений.
+    # Назначения и выплаты тоже блокируют этот счёт.
+    # Берём блокировку до проверки использования поступления.
     CustomerAccount.objects.select_for_update().get(
         pk=deposit.account_id,
     )
@@ -345,6 +345,11 @@ def cancel_manual_order_payment(
     ).exists():
         raise ValidationError(
             "Cancel dependent fund assignments before cancelling the receipt."
+        )
+
+    if deposit.customer_payout_sources.exists():
+        raise ValidationError(
+            "Payment deposit has already been used for a payout."
         )
 
     actor_type = (

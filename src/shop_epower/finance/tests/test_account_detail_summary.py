@@ -16,8 +16,12 @@ from shop_epower.payments.models import (
     PaymentMethod,
     PaymentProvider,
     PaymentStatus,
+    PayoutMethod,
 )
-from shop_epower.payments.services import record_manual_account_payment
+from shop_epower.payments.services import (
+    record_manual_account_payment,
+    record_manual_account_payout,
+)
 
 
 class TestsManagerAccountSummaryViews(TestCase):
@@ -377,3 +381,82 @@ class TestsManagerAccountSummaryViews(TestCase):
             f'href="{escape(payments_url)}"',
         )
         self.assertContains(response, "Cancel receipt...")
+
+    # Проверяем ссылку на форму фактического возврата:
+    # переход сохраняет адрес карточки и исходные фильтры поиска.
+    def test_account_detail_links_to_payout_form(self):
+        list_url = (
+            reverse("finance:manager_account_list")
+            + "?"
+            + urlencode(
+                {
+                    "q": self.user.email,
+                    "status": self.account.status,
+                }
+            )
+        )
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "finance:manager_account_detail",
+                kwargs={"pk": self.account.pk},
+            ),
+            {"next": list_url},
+        )
+
+        payout_url = (
+            reverse(
+                "payments:manager_record_account_payout",
+                kwargs={"pk": self.account.pk},
+            )
+            + "?"
+            + urlencode(
+                {"next": response.wsgi_request.get_full_path()}
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Return funds...")
+        self.assertContains(
+            response,
+            f'href="{escape(payout_url)}"',
+        )
+
+    # Проверяем автора фактического возврата в истории счёта:
+    # показывается сотрудник, подтвердивший выплату,
+    # даже если карточку просматривает другой менеджер.
+    def test_account_history_shows_payout_author(self):
+        record_manual_account_payment(
+            account=self.account,
+            amount=Decimal("100.00"),
+            method=PaymentMethod.ON_RECEIPT,
+            operation_key="account:summary:payout-author:receipt",
+            created_by=self.manager,
+            comment="Money received in the office.",
+        )
+
+        payout_author = create_test_manager()
+
+        record_manual_account_payout(
+            account=self.account,
+            amount=Decimal("40.00"),
+            method=PayoutMethod.CASH,
+            operation_key="account:summary:payout-author:payout",
+            created_by=payout_author,
+            comment="Money returned to the customer.",
+        )
+
+        self.client.force_login(self.manager)
+
+        response = self.client.get(
+            reverse(
+                "finance:manager_account_detail",
+                kwargs={"pk": self.account.pk},
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Performed by:")
+        self.assertContains(response, escape(payout_author.username))

@@ -142,7 +142,15 @@ class TestsAccountReceiptPaymentViews(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["payments"]), [payment])
+        self.assertEqual(
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", payment.pk),
+            ],
+        )
         self.assertContains(response, self.user.email)
         self.assertContains(response, "Open payment")
         self.assertNotContains(response, "Open order")
@@ -182,7 +190,15 @@ class TestsAccountReceiptPaymentViews(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(list(response.context["payments"]), [payment])
+        self.assertEqual(
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", payment.pk),
+            ],
+        )
         self.assertEqual(
             response.context["selected_customer_email"],
             self.user.email,
@@ -224,8 +240,13 @@ class TestsAccountReceiptPaymentViews(TestCase):
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            list(response.context["payments"]),
-            [payment],
+            [
+                (movement["kind"], movement["entry_id"])
+                for movement in response.context["payments"]
+            ],
+            [
+                ("receipt", payment.pk),
+            ],
         )
         self.assertEqual(
             response.context["selected_account_id"],

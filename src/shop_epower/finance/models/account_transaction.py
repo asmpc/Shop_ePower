@@ -13,6 +13,7 @@ class AccountTransactionType(models.TextChoices):
     FUNDS_ASSIGNMENT = "funds_assignment", "Funds assignment"
     FUNDS_APPLICATION = "funds_application", "Funds application"
     REFUND = "refund", "Refund"
+    PAYOUT = "payout", "Payout"
     REVERSAL = "reversal", "Reversal"
 
 

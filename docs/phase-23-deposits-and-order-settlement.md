@@ -8,11 +8,12 @@ implemented. Full shipment is connected to website/API completion; receipt
 registration, explicit assignment and whole-assignment cancellation are connected
 to the staff website and API. Customer balances are available on the profile and
 through the read-only API. The staff shipped-unpaid list is implemented with
-search, pagination and preserved return context. Receipt correction, manual
-payouts and pre-shipment item editing remain open.
+search, pagination and preserved return context. Receipt correction is connected
+to the website/API. Manual payout models, service and website are implemented;
+payout API and pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
-Current work order (2026-11-11): [nine steps and checkpoints](#current-work-order).
+Current work order (updated 2026-11-17): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -942,6 +943,41 @@ A customer may have a financial account and pay before placing any order.
   real manual payouts and concurrency. Update implemented model diagrams in
   both READMEs/plans when the schema change has actually been made.
 
+### Manual payouts: website and service — 2026-11-17
+
+Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
+`record_manual_account_payout()`. Partial cash/bank payouts use free deposit
+portions in LIFO order. Active order assignments, previous payouts and reversed
+deposits are excluded. Order assignments retain FIFO and now subtract paid-out
+portions. A receipt used for a payout cannot be cancelled as erroneous.
+Required reason, actor, zero-debt rule, balance limits, replay protection and
+atomic rollback are covered by the user's scoped tests; related modules and
+Ruff passed. The user applied the migrations to the website database.
+Website payouts are implemented with amount, cash/bank method, required reason,
+stable operation key and preserved return context. Staff Payments combines
+receipts and payouts with author, Paid / Returned / Cancelled status filtering,
+search-first loading and shared chronological pagination (20 entries).
+The redundant Movement type input and selector argument are removed.
+On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
+checks passed, including mixed pagination and the initially hidden history.
+Manual success and debt-refusal checks passed. Payout API work remains pending.
+Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
+Project-wide Ruff passed. Payout API implementation remains pending.
+
+```mermaid
+flowchart LR
+    A[CustomerAccount] --> D[AccountTransaction: DEPOSIT]
+    A --> T[AccountTransaction: PAYOUT]
+    T -->|1:1| P[CustomerPayout]
+    P -->|1:N| S[CustomerPayoutSource]
+    S -->|N:1| D
+```
+
+The outgoing transaction retains author, reason, currency and balance snapshots.
+The payout records its amount and actual cash/bank method; each source records
+the portion taken from a deposit. Original receipts retain their historical method
+and status. A payout may use several deposits; a deposit may fund several payouts.
+
 ## Remaining Decisions Before Further Financial Migrations
 
 - Receipt registration already uses a stable `operation_key` and linked
@@ -952,10 +988,9 @@ A customer may have a financial account and pay before placing any order.
   Available 100 -> assign 100 before shipment -> zero available/zero debt ->
   release back to 100 remains valid. Do not substitute debt allocation or
   receipt totals for assignments or deduct prepayment twice.
-- Define actual manual cash/bank refund records, funding links, permitted
-  methods, staff permissions, amount, mandatory reason, and retry key.
-  Choose a public money-out operation rather than the positive-delta
-  `record_customer_refund()` service.
+- Connect the implemented manual payout service and LIFO sources to website/API
+  actions under the step 7 rules. Preserve required reasons, actor and retry key;
+  use `record_customer_payout()`, not positive-delta `record_customer_refund()`.
 - Before order-item editing, define invoice-item snapshots: a historical
   PDF must not start showing revised order lines. The current PDF reads
   `Order.items`; preserving the document number and amount is insufficient.
@@ -1070,9 +1105,51 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    and staged-diff review.
    Actual payout is separate;
    independent concurrency verification remains in step 9.
-7. **Implement actual office/bank payouts.** Agree funding links, methods and
-   payout confirmation before code. Record a separate outgoing movement from
+7. **Finish actual office/bank payout API.** Website and service are implemented.
+   Record a separate outgoing movement from
    available funds with reason, actor, history, limits and retry safety.
+   Agreed on 2026-11-12: partial payouts from available funds are allowed;
+   the amount is positive and cannot exceed the available balance. A payout
+   is forbidden while the account being paid out has shipment debt. Staff must
+   first explicitly assign funds to settle that debt; payouts do not automatically
+   settle it. Example: available 100, debt 60 → assign 60 → available 40, debt 0;
+   then a payout up to 40 is allowed. Managers and administrators may both
+   confirm actual payouts; retain the confirming user and show their username.
+   Cash and bank transfer are both available payout methods; staff select the
+   actual method independently of the original receipt method. Keep the original
+   receipt method unchanged and record the actual payout method separately.
+   Payout funding uses LIFO: consume the newest deposit's free portion first,
+   then older deposits as needed, ordered by created_at and primary key descending.
+   Order assignments retain FIFO. Exclude reversed deposits and portions already
+   assigned or paid out. Prior payouts also reduce sources available for new
+   assignments. A receipt used for an actual payout cannot be cancelled as
+   erroneous. Models/service and website flow are implemented; migrations are
+   applied to the website database. Website submission and return context passed
+   tests; success and debt refusal were checked manually. Account history and
+   Payments show the author's username. The combined list uses database union,
+   shared chronological pagination (20), search-first loading and the existing
+   filters. Mixed pagination and the initially hidden history are verified.
+   Payment and CustomerPayout remain separate models; kind identifies result
+   rows, while the redundant kind search argument/control and tests are removed.
+   Journal status clarification: Paid for confirmed receipts, Returned for
+   completed payouts, Cancelled for cancelled receipts. Returned is projected
+   from CustomerPayout without a new stored status field. Exclude Pending
+   entries/options from this working journal; retain model/service support
+   used by the existing mock-provider and legacy payment flows.
+   Checkpoint 2026-11-17: all 73 related tests, scoped Ruff and whitespace checks
+   passed. The prior run (73 tests in 77.754 seconds, 9 failures) is resolved:
+   legacy assertions now use (kind, entry_id), and journal scenarios use Paid
+   fixtures without changing the Pending setup needed by legacy action tests.
+   Method/reference captions are aligned. Full-project regression passed on
+   2026-11-17: 1107 tests in 1293.752 seconds; project-wide Ruff passed.
+   Next: review/stage the checkpoint commit, then implement payout API through
+   record_manual_account_payout.
+   Preserve permissions, reason/actor, operation key, LIFO sources and replay safety.
+   The latest full-project run is 1107; PHASE 23 remains in progress.
+   Agreed on 2026-11-16: after website/API payout completion and verification,
+   unify payment website routes under `/shop/payments/` as a separate step.
+   Preserve the `payments` namespace and `/api/payments/` API routes; verify
+   hard-coded paths, mock-payment flows and preserved return context.
    Assignment removal or correction of fictitious credit is not actual payout.
    Office/bank refunds belong in PHASE 23; online withdrawal remains deferred.
 8. **Invoice snapshots and pre-shipment item edits.** First make issued invoice
@@ -1081,7 +1158,13 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    totals/reservations atomically. Explicitly cancel an issued invoice before
    editing; reject post-shipment edits. No partial-shipment interface or reversal
    of confirmed shipment is added.
-9. **Close PHASE 23.** Independently test concurrent financial actions and invoice
+9. **Close PHASE 23.** Audit Pending and its model default, the old
+   create_payment_for_order/reset_payment_to_pending services and website/API
+   actions, and the mock provider. Remove obsolete manual-payment paths; decide
+   whether Pending remains necessary for actual online payment attempts.
+   Record that decision and update affected model choices/defaults, existing
+   data, migrations and tests as needed. Preserve financial history.
+   Independently test concurrent financial actions and invoice
    numbering, reconcile amounts/sources, run the full suite and a manual
    end-to-end scenario. Synchronize both READMEs, diagrams and plans; prepare
    the minimal 1C exchange contract. Only then PHASE 24 (minimal 1C integration)

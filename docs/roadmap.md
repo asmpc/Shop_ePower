@@ -137,7 +137,39 @@ Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
 project-wide Ruff and git diff --check (LF/CRLF warnings only).
 Before committing: visually confirm author labels and review the staged diff.
 Next: actual cash/bank payouts → invoice snapshots/item edits → final verification.
-Independent concurrency coverage remains in step 9; the latest full run is 1047.
+Agreed on 2026-11-12: partial payouts from available funds are allowed, up to
+that balance. This is an agreed rule; the payout workflow is not implemented yet.
+Payouts are forbidden while the selected account has shipment debt. Staff must
+explicitly settle that debt by assigning funds before paying out the remainder;
+there is no automatic debt settlement. Managers and administrators may both
+confirm actual payouts; retain the author and display their username.
+Staff may choose cash or bank transfer independently of the receipt method;
+retain the original receipt method and record the actual payout method separately.
+Payout sources use LIFO: newest free deposit portions first; order assignments
+retain FIFO. Paid-out portions cannot fund new assignments or payouts. A receipt
+used for an actual payout cannot be cancelled as erroneous.
+Checkpoint 2026-11-16: PAYOUT, CustomerPayout, CustomerPayoutSource and the manual
+payout service are implemented. Scoped and related tests, Ruff and migration
+checks passed; the user applied migrations to the website database.
+Website payouts and return context passed scoped/manual checks; account history
+and Payments show the author. The combined receipt/payout list uses status filtering,
+shared database pagination (20) and search-first loading. Redundant Movement type
+and its selector argument are removed. All 73 related tests, scoped Ruff and
+whitespace checks passed on 2026-11-17. Captions are aligned. Full regression:
+1107 tests in 1293.752 seconds on 2026-11-17; project-wide Ruff passed.
+Next: checkpoint commit, then payout API and complete-flow verification.
+Journal statuses are Paid / Returned / Cancelled. Returned is a payout projection;
+Pending entries/options are excluded here, while mock/legacy model support remains.
+Step 9 includes an explicit Pending/default and legacy-payment audit: review
+create/reset services, their website/API actions and the mock provider; remove
+obsolete manual flows, decide the online-attempt status model and update data,
+migrations and tests as needed without losing financial history.
+The nine legacy-test failures are resolved; mixed pagination and the initially
+hidden history are verified. The full-project regression checkpoint passed.
+After website/API payouts are complete and verified, unify payment website
+routes under `/shop/payments/`. Preserve `payments` namespace and API paths;
+check hard-coded links, mock-payment flows and return context (agreed 2026-11-16).
+Independent concurrency coverage remains in step 9; the latest full run is 1107.
 Checkpoint commits follow model protection and the complete account-funding flow.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.
 

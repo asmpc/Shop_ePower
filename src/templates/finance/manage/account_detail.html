@@ -63,6 +63,13 @@
         </a>
 
         <a
+            href="{% url 'payments:manager_record_account_payout' account.pk %}?next={{ request.get_full_path|urlencode:'' }}"
+            class="btn btn-warning btn-sm"
+        >
+            Return funds...
+        </a>
+
+        <a
             href="{% url 'payments:manager_payment_list' %}?account_id={{ account.pk }}&amp;status=paid&amp;provider=manual"
             class="btn btn-outline-danger btn-sm"
         >
@@ -111,6 +118,17 @@
                         <div class="col-md-6">
                             Debt after: {{ transaction.debt_balance_after }} {{ transaction.currency_snapshot }}
                         </div>
+                    </div>
+
+                    <div class="small mt-2">
+                        Performed by:
+                        {% if transaction.created_by_id %}
+                            {{ transaction.created_by.username }}
+                        {% elif transaction.actor_type == "system" %}
+                            System
+                        {% else %}
+                            Unknown
+                        {% endif %}
                     </div>
 
                     {% if transaction.comment %}

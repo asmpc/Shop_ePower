@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-1047-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-1107-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -46,7 +46,8 @@ forms and the corresponding API actions are connected. Customers can view
 available funds, assigned prepayment and debt separately for their own accounts
 on the profile page and through the API. The staff shipped-unpaid list now
 provides per-order debt, search, pagination and retained return links.
-Actual cash/bank refunds remain in progress.
+Cash/bank payouts are implemented on the website and visible in the combined
+Payments journal; payout API work remains next.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -307,7 +308,8 @@ The staff website receipt form records actual office/bank funds without
 automatic assignment. Assignment/cancellation forms and paginated history are
 connected, together with the corresponding API actions. Customer balances are
 available on the website profile and through the API. Actual manual cash/bank
-refunds remain PHASE 23 work.
+payouts are connected to the website and combined Payments journal with author
+and Returned status; payout API actions remain PHASE 23 work.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -315,6 +317,41 @@ The core refund service is not a real money-out payout workflow.
 </table>
 
 ---
+
+### Manual payouts: website and service — 2026-11-17
+
+Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
+`record_manual_account_payout()`. Partial cash/bank payouts use free deposit
+portions in LIFO order. Active order assignments, previous payouts and reversed
+deposits are excluded. Order assignments retain FIFO and now subtract paid-out
+portions. A receipt used for a payout cannot be cancelled as erroneous.
+Required reason, actor, zero-debt rule, balance limits, replay protection and
+atomic rollback are covered by the user's scoped tests; related modules and
+Ruff passed. The user applied the migrations to the website database.
+Website payouts are implemented with amount, cash/bank method, required reason,
+stable operation key and preserved return context. Staff Payments combines
+receipts and payouts with author, Paid / Returned / Cancelled status filtering,
+search-first loading and shared chronological pagination (20 entries).
+The redundant Movement type input and selector argument are removed.
+On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
+checks passed, including mixed pagination and the initially hidden history.
+Manual success and debt-refusal checks passed. Payout API work remains pending.
+Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
+Project-wide Ruff passed. Payout API implementation remains pending.
+
+```mermaid
+flowchart LR
+    A[CustomerAccount] --> D[AccountTransaction: DEPOSIT]
+    A --> T[AccountTransaction: PAYOUT]
+    T -->|1:1| P[CustomerPayout]
+    P -->|1:N| S[CustomerPayoutSource]
+    S -->|N:1| D
+```
+
+The outgoing transaction retains author, reason, currency and balance snapshots.
+The payout records its amount and actual cash/bank method; each source records
+the portion taken from a deposit. Original receipts retain their historical method
+and status. A payout may use several deposits; a deposit may fund several payouts.
 
 <a id="order-funds-models"></a>
 
@@ -869,9 +906,9 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **1047 tests in 938.154 seconds on
-2026-11-12**, including website/API receipt correction, account-based search,
-registration/cancellation authorship and financial-history navigation. Project-wide
+The latest verified full run passed **1107 tests in 1293.752 seconds on
+2026-11-17**, including website payouts, LIFO sources, the combined receipt/payout
+journal, authorship, filtering and mixed pagination. Project-wide
 Ruff and git diff --check passed, with only LF/CRLF warnings. Tests run
 against an isolated PostgreSQL test database. GitHub Actions is configured
 to execute the full suite on pushes to `dev` and `main`, and on pull requests
@@ -1115,7 +1152,8 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 1047 tests passed in 938.154 seconds on 2026-11-12
+- Full suite of 1107 tests passed in 1293.752 seconds on 2026-11-17
+- Manual cash/bank payouts: LIFO sources, staff website form and combined receipt/payout journal
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually

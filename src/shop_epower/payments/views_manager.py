@@ -19,6 +19,7 @@ from shop_epower.orders.navigation import (
     redirect_to_manager_order_detail,
 )
 from shop_epower.payments.forms import (
+    ManualAccountPayoutForm,
     ManualPaymentReceiptForm,
     ManualReceiptCancellationForm,
 )
@@ -33,7 +34,7 @@ from shop_epower.payments.navigation import (
     get_safe_manager_payment_return_url,
 )
 from shop_epower.payments.selectors import (
-    get_payments_for_manager,
+    get_money_movements_for_staff,
 )
 from shop_epower.payments.services import (
     cancel_invoice,
@@ -41,6 +42,7 @@ from shop_epower.payments.services import (
     create_invoice_for_order,
     generate_invoice_pdf,
     record_manual_account_payment,
+    record_manual_account_payout,
     record_manual_order_payment,
 )
 
@@ -82,7 +84,7 @@ class ManagerPaymentListView(
                 or transaction_id
                 or customer_email
         ):
-            return Payment.objects.none()
+            return get_money_movements_for_staff()
 
         parsed_order_id = None
         parsed_account_id = None
@@ -105,7 +107,7 @@ class ManagerPaymentListView(
             if not 1 <= parsed_account_id <= 2 ** 63 - 1:
                 return Payment.objects.none()
 
-        return get_payments_for_manager(
+        return get_money_movements_for_staff(
             status=status,
             method=method,
             provider=provider,
@@ -441,6 +443,75 @@ class ManagerRecordAccountReceiptView(
                 messages.success(
                     request,
                     "Receipt registered. Funds are available for assignment.",
+                )
+
+                return redirect(self.get_return_url())
+
+        return self.render_to_response(
+            self.get_context_data(form=form),
+        )
+
+
+class ManagerRecordAccountPayoutView(
+    LoginRequiredMixin,
+    DetailView,
+):
+    model = CustomerAccount
+    template_name = "payments/manage/account_payout_form.html"
+    context_object_name = "account"
+
+    def get_queryset(self):
+        if self.request.user.role not in ["manager", "admin"]:
+            raise PermissionDenied(
+                "Manager or admin access required."
+            )
+
+        return super().get_queryset().select_related("user")
+
+    def get_return_url(self):
+        return get_safe_manager_account_detail_url(
+            self.request.POST.get(
+                "next",
+                self.request.GET.get("next"),
+            ),
+            account=self.object,
+        )
+
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        if "form" not in context:
+            context["form"] = ManualAccountPayoutForm(
+                initial={
+                    "operation_key": f"manual-account-payout:{uuid4()}",
+                },
+            )
+
+        context["return_url"] = self.get_return_url()
+
+        return context
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+        form = ManualAccountPayoutForm(request.POST)
+
+        if form.is_valid():
+            try:
+                record_manual_account_payout(
+                    account=self.object,
+                    amount=form.cleaned_data["amount"],
+                    method=form.cleaned_data["method"],
+                    operation_key=form.cleaned_data["operation_key"],
+                    created_by=request.user,
+                    comment=form.cleaned_data["comment"],
+                )
+            except ValidationError as error:
+                for message in error.messages:
+                    form.add_error(None, message)
+            else:
+                messages.success(
+                    request,
+                    "Payout registered. Available funds have been reduced.",
                 )
 
                 return redirect(self.get_return_url())
