@@ -17,6 +17,7 @@ from api.payments.views import (
     ManagerPaymentMarkCancelledAPIView,
     ManagerPaymentMarkPaidAPIView,
     ManagerPaymentResetToPendingAPIView,
+    ManagerRecordAccountPayoutAPIView,
     ManagerRecordAccountReceiptAPIView,
     ManagerRecordReceiptAPIView,
 )
@@ -59,6 +60,12 @@ urlpatterns = [
         "manage/<int:payment_id>/receipts/cancel/",
         ManagerCancelReceiptAPIView.as_view(),
         name="manager-cancel-receipt",
+    ),
+
+    path(
+        "manage/accounts/<int:account_id>/payouts/",
+        ManagerRecordAccountPayoutAPIView.as_view(),
+        name="manager-record-account-payout",
     ),
 
     path(

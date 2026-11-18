@@ -39,8 +39,6 @@ urlpatterns = [
 
     path("shop/", include("shop_epower.urls")),
 
-    path("payments/", include("shop_epower.payments.urls")),
-
     # new structured API
     path("api/", include("api.urls")),
 

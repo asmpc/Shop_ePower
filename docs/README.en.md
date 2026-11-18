@@ -46,8 +46,8 @@ forms and the corresponding API actions are connected. Customers can view
 available funds, assigned prepayment and debt separately for their own accounts
 on the profile page and through the API. The staff shipped-unpaid list now
 provides per-order debt, search, pagination and retained return links.
-Cash/bank payouts are implemented on the website and visible in the combined
-Payments journal; payout API work remains next.
+Cash/bank payouts are implemented on the website and through the API,
+with a combined Payments journal. Payment website routes use `/shop/payments/`.
 The priority path is PHASE 23 → minimal
 1C integration → a controlled online test pilot without real sales or live payments.
 
@@ -309,7 +309,7 @@ automatic assignment. Assignment/cancellation forms and paginated history are
 connected, together with the corresponding API actions. Customer balances are
 available on the website profile and through the API. Actual manual cash/bank
 payouts are connected to the website and combined Payments journal with author
-and Returned status; payout API actions remain PHASE 23 work.
+and Returned status; payout API actions are also implemented.
 The core refund service is not a real money-out payout workflow.
 
 </td>
@@ -318,7 +318,7 @@ The core refund service is not a real money-out payout workflow.
 
 ---
 
-### Manual payouts: website and service — 2026-11-17
+### Manual payouts: website, service and API — 2026-11-18
 
 Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
 `record_manual_account_payout()`. Partial cash/bank payouts use free deposit
@@ -335,9 +335,26 @@ search-first loading and shared chronological pagination (20 entries).
 The redundant Movement type input and selector argument are removed.
 On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
 checks passed, including mixed pagination and the initially hidden history.
-Manual success and debt-refusal checks passed. Payout API work remains pending.
+Manual success and debt-refusal checks passed.
 Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
-Project-wide Ruff passed. Payout API implementation remains pending.
+Project-wide Ruff passed.
+
+The payout API is implemented: `POST /api/payments/manage/accounts/{account_id}/payouts/`.
+Managers and administrators confirm payouts through the shared service; the response
+includes Returned, author, reason and operation key. Coverage includes permissions,
+required fields, debt/balance refusals, replay without duplicate debits and key conflicts.
+A missing account returns 404; invalid amounts (including precision/overflow boundaries)
+and unsupported methods return 400 without changing balances or history.
+On 2026-11-18 the user confirmed all **120 payment API tests in 150.844 seconds**,
+including 13 payout tests; Ruff `api/payments` and `git diff --check` passed
+(with LF/CRLF warnings only). This is scoped regression, not a new full-project run.
+Payment website routes now use `/shop/payments/`; the `payments` namespace
+and `/api/payments/` API routes are preserved. Three hard-coded mock paths were updated.
+On 2026-11-18 the user confirmed the existing mock-payment tests, payment/finance
+modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
+checks and `git diff --check`. The journal and return links preserving account/order
+filters were also verified manually.
+Next: invoice line snapshots, then pre-shipment order item edits.
 
 ```mermaid
 flowchart LR
@@ -1153,7 +1170,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
 - Full suite of 1107 tests passed in 1293.752 seconds on 2026-11-17
-- Manual cash/bank payouts: LIFO sources, staff website form and combined receipt/payout journal
+- Manual cash/bank payouts: LIFO sources, staff website form, API and combined receipt/payout journal
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
 - Runtime finance/order migrations applied and unpaid-shipment debt checked manually

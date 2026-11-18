@@ -46,7 +46,7 @@ class TestsPaymentProviderServices(TestCase):
         )
 
         self.assertIn(
-            "/payments/mock/",
+            "/shop/payments/mock/",
             payment_url,
         )
 

@@ -13,9 +13,11 @@ from api.payments.permissions import (
 )
 from api.payments.serializers import (
     InvoiceDetailSerializer,
+    ManagerCustomerPayoutSerializer,
     ManagerInvoiceDetailSerializer,
     ManagerPaymentDetailSerializer,
     ManagerPaymentListSerializer,
+    ManualAccountPayoutSerializer,
     ManualPaymentReceiptSerializer,
     ManualReceiptCancellationSerializer,
     PaymentDetailSerializer,
@@ -48,6 +50,7 @@ from shop_epower.payments.services import (
     mark_payment_cancelled,
     mark_payment_paid,
     record_manual_account_payment,
+    record_manual_account_payout,
     record_manual_order_payment,
     reset_payment_to_pending,
 )
@@ -560,4 +563,42 @@ class ManagerCancelReceiptAPIView(APIView):
         return Response(
             ManagerPaymentDetailSerializer(payment).data,
             status=status.HTTP_200_OK,
+        )
+
+
+class ManagerRecordAccountPayoutAPIView(APIView):
+    permission_classes = (
+        IsManagerOrAdmin,
+    )
+
+    def post(self, request, account_id):
+        account = get_object_or_404(
+            CustomerAccount,
+            pk=account_id,
+        )
+
+        serializer = ManualAccountPayoutSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            payout = record_manual_account_payout(
+                account=account,
+                amount=serializer.validated_data["amount"],
+                method=serializer.validated_data["method"],
+                operation_key=serializer.validated_data["operation_key"],
+                created_by=request.user,
+                comment=serializer.validated_data["comment"],
+            )
+        except DjangoValidationError as exc:
+            raise DRFValidationError(
+                {
+                    "detail": exc.messages[0],
+                },
+            ) from exc
+
+        return Response(
+            ManagerCustomerPayoutSerializer(payout).data,
+            status=status.HTTP_201_CREATED,
         )
