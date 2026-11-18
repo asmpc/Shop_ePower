@@ -136,7 +136,7 @@ Ruff and diff; the website correction module now has 13 tests.
 Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
 project-wide Ruff and git diff --check (LF/CRLF warnings only).
 Before committing: visually confirm author labels and review the staged diff.
-Current sequence: invoice line snapshots → pre-shipment item edits → final verification.
+Current sequence: invoice line snapshots complete → pre-shipment item edits → final verification.
 Agreed on 2026-11-12: partial payouts from available funds are allowed, up to
 that balance. The payout workflow is implemented as recorded below.
 Payouts are forbidden while the selected account has shipment debt. Staff must
@@ -178,7 +178,18 @@ On 2026-11-18 the user confirmed the existing mock-payment tests, payment/financ
 modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
 checks and `git diff --check`. The journal and return links preserving account/order
 filters were also verified manually.
-Next: invoice line snapshots, then pre-shipment order item edits.
+New invoice snapshots are implemented; 0018 is applied and a new invoice PDF
+is manually verified; 454 related tests passed. Next: pre-shipment order item edits.
+InvoiceItem, atomic line copying and PDF use of invoice.items are implemented.
+The related service/PDF modules, Ruff and migration-state checks passed;
+reissue and rollback after saving the first line passed individually on 2026-11-18.
+Agreed on 2026-11-18: skip legacy demonstration invoice backfill. The user applied
+0018 to the development database and manually verified a new order/invoice PDF.
+Older invoices without snapshots will not receive product rows automatically.
+Checkpoint 2026-11-18: **454 related tests passed in 425.268 seconds** —
+payments, payment APIs and staff order-detail tests. Project-wide Ruff and
+`git diff --check` passed (LF/CRLF warnings only). This is scoped regression;
+the latest full-project run remains 1107.
 Independent concurrency coverage remains in step 9; the latest full run is 1107.
 Checkpoint commits follow model protection and the complete account-funding flow.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.

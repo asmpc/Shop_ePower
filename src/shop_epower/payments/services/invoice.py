@@ -1,8 +1,10 @@
 from django.core.exceptions import ValidationError
+from django.db import transaction
 from django.utils import timezone
 
 from shop_epower.payments.models import (
     Invoice,
+    InvoiceItem,
     InvoiceStatus,
     PaymentMethod,
 )
@@ -60,6 +62,7 @@ def create_invoice_for_payment(
         payment=payment,
     )
 
+@transaction.atomic
 def _create_invoice_snapshot(
     *,
     order,
@@ -111,7 +114,7 @@ def _create_invoice_snapshot(
                 "Legal address is required to create invoice."
             )
 
-    return Invoice.objects.create(
+    invoice = Invoice.objects.create(
         order=order,
         payment=payment,
         invoice_number=generate_invoice_number(),
@@ -151,6 +154,22 @@ def _create_invoice_snapshot(
         amount=order.total_price,
         currency_snapshot=order.currency_snapshot,
     )
+
+    items = [
+        InvoiceItem(
+            invoice=invoice,
+            product_name=item.product_name,
+            unit_price=item.unit_price,
+            quantity=item.quantity,
+            total_price=item.total_price,
+            currency_snapshot=item.currency_snapshot,
+        )
+        for item in order.items.order_by("pk")
+    ]
+
+    InvoiceItem.objects.bulk_create(items)
+
+    return invoice
 
 def cancel_invoice(
     *,

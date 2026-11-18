@@ -1,13 +1,17 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.test import TestCase
+from reportlab.platypus import Paragraph
 
 from shop_epower.accounts.tests.helpers import (
     create_test_user,
 )
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.core.currency import get_base_currency
 from shop_epower.orders.models import (
     DeliveryMethod,
+    OrderItem,
     OrderStatus,
 )
 from shop_epower.orders.tests.helpers import create_test_order
@@ -75,6 +79,18 @@ class TestsInvoicePdfServices(TestCase):
             email="seller@test.com",
         )
 
+        self.product = create_test_product()
+
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_name="Original product",
+            unit_price=Decimal("50.00"),
+            quantity=2,
+            total_price=Decimal("100.00"),
+            currency_snapshot=self.order.currency_snapshot,
+        )
+
     # Проверяем генерацию PDF:
     # сервис должен вернуть корректный PDF.
     def test_generate_invoice_pdf(self):
@@ -93,4 +109,47 @@ class TestsInvoicePdfServices(TestCase):
 
         self.assertTrue(
             pdf.startswith(b"%PDF"),
+        )
+
+    # Проверяем содержимое PDF после изменения заказа:
+    # документ использует название, количество и цену
+    # из сохранённых строк Invoice.
+    def test_pdf_uses_invoice_items_after_order_line_changes(self):
+        invoice = create_invoice_for_payment(
+            payment=self.payment,
+        )
+
+        OrderItem.objects.filter(
+            pk=self.order_item.pk,
+        ).update(
+            product_name="Changed product",
+            unit_price=Decimal("80.00"),
+            quantity=1,
+            total_price=Decimal("80.00"),
+        )
+
+        self.order.total_price = Decimal("80.00")
+        self.order.save(
+            update_fields=["total_price"],
+        )
+
+        with patch(
+            "shop_epower.payments.services.invoice_pdf.Paragraph",
+            wraps=Paragraph,
+        ) as paragraph_spy:
+            generate_invoice_pdf(
+                invoice=invoice,
+            )
+
+        rendered_text = [
+            call.args[0]
+            for call in paragraph_spy.call_args_list
+        ]
+
+        self.assertIn("Original product", rendered_text)
+        self.assertNotIn("Changed product", rendered_text)
+        self.assertIn("2", rendered_text)
+        self.assertIn(
+            f"50.00 {invoice.currency_snapshot}",
+            rendered_text,
         )

@@ -10,8 +10,11 @@ to the staff website and API. Customer balances are available on the profile and
 through the read-only API. The staff shipped-unpaid list is implemented with
 search, pagination and preserved return context. Receipt correction is connected
 to the website/API. Manual payout models, service, website and API are implemented.
-Payment website routes use `/shop/payments/`. Invoice line snapshots and
-pre-shipment item editing remain open.
+Payment website routes use `/shop/payments/`. New invoice line snapshots and
+snapshot-based PDFs are implemented. The schema migration is applied and a new
+invoice PDF is manually verified. The 454-test related regression passed;
+pre-shipment item editing remains open.
+Legacy demonstration invoices do not require a data backfill migration.
 PHASE 23 is not complete.
 
 Current work order (updated 2026-11-18): [nine steps and checkpoints](#current-work-order).
@@ -980,7 +983,8 @@ On 2026-11-18 the user confirmed the existing mock-payment tests, payment/financ
 modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
 checks and `git diff --check`. The journal and return links preserving account/order
 filters were also verified manually.
-Next: invoice line snapshots, then pre-shipment order item edits.
+New invoice snapshots are implemented; 0018 is applied and a new invoice PDF
+is manually verified; 454 related tests passed. Next: pre-shipment order item edits.
 
 ```mermaid
 flowchart LR
@@ -996,6 +1000,38 @@ The payout records its amount and actual cash/bank method; each source records
 the portion taken from a deposit. Original receipts retain their historical method
 and status. A payout may use several deposits; a deposit may fund several payouts.
 
+### Invoice line snapshots — implemented, 2026-11-18
+
+`InvoiceItem` is implemented with an invoice reference, product name, quantity,
+unit price, line total and currency. The shared issuance service atomically saves
+the invoice and copied lines; PDFs read `invoice.items`. Order changes do not
+change these values. Cancelled invoices retain their original lines, while a
+reissued invoice receives independent snapshots of the revised order.
+
+```mermaid
+flowchart LR
+    O[Order] -->|1:N| L[OrderItem]
+    O -->|1:N| I[Invoice]
+    I -->|1:N| S[InvoiceItem]
+    L -.->|copy at issuance| S
+    S --> P[PDF]
+```
+
+The dotted arrow is data copying, not a foreign key to an order line.
+The user confirmed the related service/PDF modules, Ruff and migration-state
+checks; reissue and rollback after saving the first line also passed individually.
+Migration `0018_add_invoice_item` is applied to the development database;
+on 2026-11-18 the user confirmed issuing a new invoice and its PDF through the website.
+Agreed on the same date: all data are demonstration data; no legacy invoice
+backfill migration is needed. Old invoices without snapshots still have no product rows in
+their PDFs; they will not be populated automatically. Pre-shipment item editing
+is not implemented yet.
+
+Checkpoint 2026-11-18: **454 related tests passed in 425.268 seconds** —
+payments, payment APIs and staff order-detail tests. Project-wide Ruff and
+`git diff --check` passed (LF/CRLF warnings only). This is scoped regression;
+the latest full-project run remains 1107.
+
 ## Remaining Decisions Before Further Financial Migrations
 
 - Receipt registration already uses a stable `operation_key` and linked
@@ -1009,9 +1045,9 @@ and status. A payout may use several deposits; a deposit may fund several payout
 - The manual payout service and LIFO sources are connected to website/API
   actions under the step 7 rules. Preserve required reasons, actor and retry key;
   use `record_customer_payout()`, not positive-delta `record_customer_refund()`.
-- Before order-item editing, define invoice-item snapshots: a historical
-  PDF must not start showing revised order lines. The current PDF reads
-  `Order.items`; preserving the document number and amount is insufficient.
+- New invoices and PDFs use independent `InvoiceItem` snapshots. On 2026-11-18
+  the user confirmed applying 0018 to the development database and manually
+  verifying a new invoice PDF; legacy demonstration invoice backfill is excluded.
 - Separately verify concurrent invoice issuance and number allocation.
   The one-issued-invoice constraint does not solve all numbering races.
 - Decide how to prepare old demonstration orders without an account for
@@ -1170,7 +1206,7 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    (including precision/overflow boundaries) and unsupported method (400).
    The response includes Returned and author. Existing payment/receipt/invoice
    APIs are included in this regression; it is not a new full-project run.
-   Website route unification is complete; invoice line snapshots are next.
+   Website route unification is complete; invoice snapshot implementation is recorded in step 8.
    Preserve permissions, reason/actor, operation key, LIFO sources and replay safety.
    The latest full-project run is 1107; PHASE 23 remains in progress.
    The route unification agreed on 2026-11-16 is implemented and verified
@@ -1180,8 +1216,13 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    The user manually verified journal access and retained account/order return filters.
    Assignment removal or correction of fictitious credit is not actual payout.
    Office/bank refunds belong in PHASE 23; online withdrawal remains deferred.
-8. **Invoice snapshots and pre-shipment item edits.** First make issued invoice
-   lines independent of current Order.items. Then allow the agreed staff edits
+8. **Invoice snapshots and pre-shipment item edits.** New invoices and PDFs
+   use independent InvoiceItem snapshots. Service/PDF regression and individual
+   reissue/rollback checks passed on 2026-11-18. Legacy demonstration invoice
+   backfill was explicitly excluded on that date. The user applied 0018 to the
+   development database and manually verified a new invoice PDF on 2026-11-18.
+   All 454 related tests passed in 425.268 seconds, project-wide Ruff and
+   whitespace checks passed. Next implement the agreed staff edits
    with reason/history. New quantity at a new price is a separate line; update
    totals/reservations atomically. Explicitly cancel an issued invoice before
    editing; reject post-shipment edits. No partial-shipment interface or reversal

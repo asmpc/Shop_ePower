@@ -354,7 +354,8 @@ On 2026-11-18 the user confirmed the existing mock-payment tests, payment/financ
 modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
 checks and `git diff --check`. The journal and return links preserving account/order
 filters were also verified manually.
-Next: invoice line snapshots, then pre-shipment order item edits.
+New invoice snapshots are implemented; 0018 is applied and a new invoice PDF
+is manually verified; 454 related tests passed. Next: pre-shipment order item edits.
 
 ```mermaid
 flowchart LR
@@ -369,6 +370,38 @@ The outgoing transaction retains author, reason, currency and balance snapshots.
 The payout records its amount and actual cash/bank method; each source records
 the portion taken from a deposit. Original receipts retain their historical method
 and status. A payout may use several deposits; a deposit may fund several payouts.
+
+### Invoice line snapshots — implemented, 2026-11-18
+
+`InvoiceItem` is implemented with an invoice reference, product name, quantity,
+unit price, line total and currency. The shared issuance service atomically saves
+the invoice and copied lines; PDFs read `invoice.items`. Order changes do not
+change these values. Cancelled invoices retain their original lines, while a
+reissued invoice receives independent snapshots of the revised order.
+
+```mermaid
+flowchart LR
+    O[Order] -->|1:N| L[OrderItem]
+    O -->|1:N| I[Invoice]
+    I -->|1:N| S[InvoiceItem]
+    L -.->|copy at issuance| S
+    S --> P[PDF]
+```
+
+The dotted arrow is data copying, not a foreign key to an order line.
+The user confirmed the related service/PDF modules, Ruff and migration-state
+checks; reissue and rollback after saving the first line also passed individually.
+Migration `0018_add_invoice_item` is applied to the development database;
+on 2026-11-18 the user confirmed issuing a new invoice and its PDF through the website.
+Agreed on the same date: all data are demonstration data; no legacy invoice
+backfill migration is needed. Old invoices without snapshots still have no product rows in
+their PDFs; they will not be populated automatically. Pre-shipment item editing
+is not implemented yet.
+
+Checkpoint 2026-11-18: **454 related tests passed in 425.268 seconds** —
+payments, payment APIs and staff order-detail tests. Project-wide Ruff and
+`git diff --check` passed (LF/CRLF warnings only). This is scoped regression;
+the latest full-project run remains 1107.
 
 <a id="order-funds-models"></a>
 

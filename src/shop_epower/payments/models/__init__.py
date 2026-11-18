@@ -8,6 +8,7 @@ from shop_epower.payments.models.invoice import (
     Invoice,
     InvoiceStatus,
 )
+from shop_epower.payments.models.invoice_item import InvoiceItem
 from shop_epower.payments.models.payment import (
     Payment,
     PaymentMethod,
