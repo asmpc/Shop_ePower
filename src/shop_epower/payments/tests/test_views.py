@@ -40,7 +40,7 @@ class TestsPaymentViews(TestCase):
         )
 
         response = self.client.get(
-            f"/payments/mock/{payment.transaction_id}/"
+            f"/shop/payments/mock/{payment.transaction_id}/"
         )
 
         self.assertEqual(
@@ -61,7 +61,7 @@ class TestsPaymentViews(TestCase):
         )
 
         response = self.client.post(
-            f"/payments/mock/{payment.transaction_id}/success/"
+            f"/shop/payments/mock/{payment.transaction_id}/success/"
         )
 
         self.assertEqual(

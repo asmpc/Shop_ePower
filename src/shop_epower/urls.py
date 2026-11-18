@@ -18,4 +18,6 @@ urlpatterns = [
     path("chat/", include("shop_epower.chat.urls")),
 
     path("finance/", include("shop_epower.finance.urls")),
+
+    path("payments/", include("shop_epower.payments.urls")),
 ]

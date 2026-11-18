@@ -3,10 +3,12 @@ from decimal import Decimal
 from rest_framework import serializers
 
 from shop_epower.payments.models import (
+    CustomerPayout,
     Invoice,
     Payment,
     PaymentHistory,
     PaymentMethod,
+    PayoutMethod,
 )
 
 
@@ -207,3 +209,64 @@ class ManualReceiptCancellationSerializer(serializers.Serializer):
     operation_key = serializers.CharField(
         max_length=255,
     )
+
+
+class ManualAccountPayoutSerializer(serializers.Serializer):
+    amount = serializers.DecimalField(
+        max_digits=18,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+    method = serializers.ChoiceField(
+        choices=PayoutMethod.choices,
+    )
+    comment = serializers.CharField(
+        required=True,
+        allow_blank=False,
+    )
+    operation_key = serializers.CharField(
+        max_length=255,
+    )
+
+
+class ManagerCustomerPayoutSerializer(serializers.ModelSerializer):
+    customer_account_id = serializers.IntegerField(
+        source="account_transaction.account_id",
+        read_only=True,
+    )
+    currency_snapshot = serializers.CharField(
+        source="account_transaction.currency_snapshot",
+        read_only=True,
+    )
+    performed_by = serializers.CharField(
+        source="account_transaction.created_by.username",
+        read_only=True,
+    )
+    comment = serializers.CharField(
+        source="account_transaction.comment",
+        read_only=True,
+    )
+    operation_key = serializers.CharField(
+        source="account_transaction.operation_key",
+        read_only=True,
+    )
+    status = serializers.SerializerMethodField()
+
+    def get_status(self, _payout):
+        return "returned"
+
+    class Meta:
+        model = CustomerPayout
+        fields = (
+            "id",
+            "customer_account_id",
+            "amount",
+            "method",
+            "status",
+            "currency_snapshot",
+            "performed_by",
+            "comment",
+            "operation_key",
+            "created_at",
+        )
+        read_only_fields = fields

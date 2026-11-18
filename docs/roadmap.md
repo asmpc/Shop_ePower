@@ -100,7 +100,7 @@ Django checks, and migration-state check passed at phase closure.
 
 ## PHASE 23 --- Order Funds & Full-Shipment Settlement
 
-Current work order (2026-11-11): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
+Current work order (2026-11-18): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
 Payment model protection is complete: nullable order, the at-least-one-reference
 constraint and migrations 0012/0013. The user confirmed 14 model/history tests,
 scoped Ruff and no outstanding model migrations. Both-language diagrams are updated;
@@ -136,9 +136,9 @@ Ruff and diff; the website correction module now has 13 tests.
 Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
 project-wide Ruff and git diff --check (LF/CRLF warnings only).
 Before committing: visually confirm author labels and review the staged diff.
-Next: actual cash/bank payouts → invoice snapshots/item edits → final verification.
+Current sequence: invoice line snapshots → pre-shipment item edits → final verification.
 Agreed on 2026-11-12: partial payouts from available funds are allowed, up to
-that balance. This is an agreed rule; the payout workflow is not implemented yet.
+that balance. The payout workflow is implemented as recorded below.
 Payouts are forbidden while the selected account has shipment debt. Staff must
 explicitly settle that debt by assigning funds before paying out the remainder;
 there is no automatic debt settlement. Managers and administrators may both
@@ -157,7 +157,13 @@ shared database pagination (20) and search-first loading. Redundant Movement typ
 and its selector argument are removed. All 73 related tests, scoped Ruff and
 whitespace checks passed on 2026-11-17. Captions are aligned. Full regression:
 1107 tests in 1293.752 seconds on 2026-11-17; project-wide Ruff passed.
-Next: checkpoint commit, then payout API and complete-flow verification.
+Website checkpoint e2bfbb4 is published on dev. The payout API is implemented:
+POST /api/payments/manage/accounts/{account_id}/payouts/. On 2026-11-18 all
+120 payment API tests passed in 150.844 seconds, including 13 payout tests;
+scoped Ruff and whitespace checks passed. Permissions, author/reason, replay,
+key conflicts, debt/balance refusals, missing account and invalid amount/method
+are covered. This scoped run does not replace the latest full-project result.
+Payment website route unification is complete; invoice snapshots/item edits are next.
 Journal statuses are Paid / Returned / Cancelled. Returned is a payout projection;
 Pending entries/options are excluded here, while mock/legacy model support remains.
 Step 9 includes an explicit Pending/default and legacy-payment audit: review
@@ -166,9 +172,13 @@ obsolete manual flows, decide the online-attempt status model and update data,
 migrations and tests as needed without losing financial history.
 The nine legacy-test failures are resolved; mixed pagination and the initially
 hidden history are verified. The full-project regression checkpoint passed.
-After website/API payouts are complete and verified, unify payment website
-routes under `/shop/payments/`. Preserve `payments` namespace and API paths;
-check hard-coded links, mock-payment flows and return context (agreed 2026-11-16).
+Payment website routes now use `/shop/payments/`; the `payments` namespace
+and `/api/payments/` API routes are preserved. Three hard-coded mock paths were updated.
+On 2026-11-18 the user confirmed the existing mock-payment tests, payment/finance
+modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
+checks and `git diff --check`. The journal and return links preserving account/order
+filters were also verified manually.
+Next: invoice line snapshots, then pre-shipment order item edits.
 Independent concurrency coverage remains in step 9; the latest full run is 1107.
 Checkpoint commits follow model protection and the complete account-funding flow.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.

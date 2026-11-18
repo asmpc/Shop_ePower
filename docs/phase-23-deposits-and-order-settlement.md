@@ -9,11 +9,12 @@ registration, explicit assignment and whole-assignment cancellation are connecte
 to the staff website and API. Customer balances are available on the profile and
 through the read-only API. The staff shipped-unpaid list is implemented with
 search, pagination and preserved return context. Receipt correction is connected
-to the website/API. Manual payout models, service and website are implemented;
-payout API and pre-shipment item editing remain open.
+to the website/API. Manual payout models, service, website and API are implemented.
+Payment website routes use `/shop/payments/`. Invoice line snapshots and
+pre-shipment item editing remain open.
 PHASE 23 is not complete.
 
-Current work order (updated 2026-11-17): [nine steps and checkpoints](#current-work-order).
+Current work order (updated 2026-11-18): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -943,7 +944,7 @@ A customer may have a financial account and pay before placing any order.
   real manual payouts and concurrency. Update implemented model diagrams in
   both READMEs/plans when the schema change has actually been made.
 
-### Manual payouts: website and service — 2026-11-17
+### Manual payouts: website, service and API — 2026-11-18
 
 Implemented: `PAYOUT`, `CustomerPayout`, `CustomerPayoutSource` and
 `record_manual_account_payout()`. Partial cash/bank payouts use free deposit
@@ -960,9 +961,26 @@ search-first loading and shared chronological pagination (20 entries).
 The redundant Movement type input and selector argument are removed.
 On 2026-11-17 the user confirmed all 73 related tests, scoped Ruff and whitespace
 checks passed, including mixed pagination and the initially hidden history.
-Manual success and debt-refusal checks passed. Payout API work remains pending.
+Manual success and debt-refusal checks passed.
 Full-project regression passed on 2026-11-17: **1107 tests in 1293.752 seconds**.
-Project-wide Ruff passed. Payout API implementation remains pending.
+Project-wide Ruff passed.
+
+The payout API is implemented: `POST /api/payments/manage/accounts/{account_id}/payouts/`.
+Managers and administrators confirm payouts through the shared service; the response
+includes Returned, author, reason and operation key. Coverage includes permissions,
+required fields, debt/balance refusals, replay without duplicate debits and key conflicts.
+A missing account returns 404; invalid amounts (including precision/overflow boundaries)
+and unsupported methods return 400 without changing balances or history.
+On 2026-11-18 the user confirmed all **120 payment API tests in 150.844 seconds**,
+including 13 payout tests; Ruff `api/payments` and `git diff --check` passed
+(with LF/CRLF warnings only). This is scoped regression, not a new full-project run.
+Payment website routes now use `/shop/payments/`; the `payments` namespace
+and `/api/payments/` API routes are preserved. Three hard-coded mock paths were updated.
+On 2026-11-18 the user confirmed the existing mock-payment tests, payment/finance
+modules, staff order-detail tests and payout API tests, scoped Ruff, Django system
+checks and `git diff --check`. The journal and return links preserving account/order
+filters were also verified manually.
+Next: invoice line snapshots, then pre-shipment order item edits.
 
 ```mermaid
 flowchart LR
@@ -988,7 +1006,7 @@ and status. A payout may use several deposits; a deposit may fund several payout
   Available 100 -> assign 100 before shipment -> zero available/zero debt ->
   release back to 100 remains valid. Do not substitute debt allocation or
   receipt totals for assignments or deduct prepayment twice.
-- Connect the implemented manual payout service and LIFO sources to website/API
+- The manual payout service and LIFO sources are connected to website/API
   actions under the step 7 rules. Preserve required reasons, actor and retry key;
   use `record_customer_payout()`, not positive-delta `record_customer_refund()`.
 - Before order-item editing, define invoice-item snapshots: a historical
@@ -1105,7 +1123,7 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    and staged-diff review.
    Actual payout is separate;
    independent concurrency verification remains in step 9.
-7. **Finish actual office/bank payout API.** Website and service are implemented.
+7. **Actual office/bank payouts and website route unification: implemented.**
    Record a separate outgoing movement from
    available funds with reason, actor, history, limits and retry safety.
    Agreed on 2026-11-12: partial payouts from available funds are allowed;
@@ -1142,14 +1160,24 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    fixtures without changing the Pending setup needed by legacy action tests.
    Method/reference captions are aligned. Full-project regression passed on
    2026-11-17: 1107 tests in 1293.752 seconds; project-wide Ruff passed.
-   Next: review/stage the checkpoint commit, then implement payout API through
-   record_manual_account_payout.
+   Website checkpoint e2bfbb4 is published on dev. Payout API is implemented via
+   record_manual_account_payout at POST /api/payments/manage/accounts/{account_id}/payouts/.
+   Checkpoint 2026-11-18: all 120 payment API tests passed in 150.844 seconds,
+   including 13 payout tests; scoped Ruff and whitespace checks passed.
+   Covered: manager/admin success, actor/reason, client/anonymous refusal,
+   operation-key validation, debt/balance refusals, identical retry and changed-
+   amount conflict without new debits, missing account (404), invalid amount
+   (including precision/overflow boundaries) and unsupported method (400).
+   The response includes Returned and author. Existing payment/receipt/invoice
+   APIs are included in this regression; it is not a new full-project run.
+   Website route unification is complete; invoice line snapshots are next.
    Preserve permissions, reason/actor, operation key, LIFO sources and replay safety.
    The latest full-project run is 1107; PHASE 23 remains in progress.
-   Agreed on 2026-11-16: after website/API payout completion and verification,
-   unify payment website routes under `/shop/payments/` as a separate step.
-   Preserve the `payments` namespace and `/api/payments/` API routes; verify
-   hard-coded paths, mock-payment flows and preserved return context.
+   The route unification agreed on 2026-11-16 is implemented and verified
+   on 2026-11-18: payment website routes use `/shop/payments/`, preserving the
+   `payments` namespace and `/api/payments/`. Existing mock-payment and related
+   website/API tests, scoped Ruff, Django checks and whitespace checks passed.
+   The user manually verified journal access and retained account/order return filters.
    Assignment removal or correction of fictitious credit is not actual payout.
    Office/bank refunds belong in PHASE 23; online withdrawal remains deferred.
 8. **Invoice snapshots and pre-shipment item edits.** First make issued invoice
