@@ -338,41 +338,74 @@ class TestsManagerOrderFundAssignmentViews(TestCase):
         self.assertEqual(Payment.objects.count(), 1)
 
     # Недостаточный баланс отклоняется сервисом без списания денег.
-    # Форма показывает ошибку и сохраняет сумму и ключ операции.
+    # Форма назначения остаётся раскрытой внутри заказа.
+    # Ввод и ключ сохраняются, форма поступления остаётся свёрнутой.
     def test_insufficient_funds_preserves_assignment_form(self):
         self.order.total_price = Decimal("200.00")
         self.order.save(update_fields=["total_price"])
 
         self.client.force_login(self.manager)
-        form_response = self.client.get(self.url)
-        operation_key = (
-            form_response.context["form"].initial["operation_key"]
+
+        detail_url = reverse(
+            "orders:manager_order_detail",
+            kwargs={"pk": self.order.pk},
         )
+        list_url = (
+            reverse("orders:manager_order_list")
+            + "?status=new&page=2"
+        )
+        assignment_panel_id = f"order-assignment-form-{self.order.pk}"
+        receipt_panel_id = f"order-receipt-form-{self.order.pk}"
+
+        form_response = self.client.get(
+            detail_url,
+            {"next": list_url},
+        )
+        operation_key = (
+            form_response.context["assignment_form"].initial["operation_key"]
+        )
+        comment = "Prepayment assigned to the order."
 
         response = self.client.post(
             self.url,
             {
                 "amount": "110.00",
                 "operation_key": operation_key,
-                "comment": "Prepayment assigned to the order.",
+                "comment": comment,
+                "next": list_url,
             },
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "orders/manage/order_detail.html",
+        )
+        self.assertEqual(response.context["back_url"], list_url)
+        self.assertContains(
+            response,
+            f'<div class="collapse show" id="{assignment_panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{receipt_panel_id}">',
+        )
 
-        form = response.context["form"]
+        form = response.context["assignment_form"]
+        error = "Resulting available balance cannot be negative."
 
         self.assertTrue(form.is_bound)
         self.assertNotIn("amount", form.errors)
-        self.assertIn(
-            "Resulting available balance cannot be negative.",
-            form.non_field_errors(),
-        )
+        self.assertIn(error, form.non_field_errors())
+        self.assertContains(response, error)
         self.assertEqual(form["amount"].value(), "110.00")
+        self.assertEqual(form["comment"].value(), comment)
         self.assertEqual(
             form["operation_key"].value(),
             operation_key,
         )
+        self.assertContains(response, f'value="{operation_key}"')
+        self.assertFalse(response.context["receipt_form"].is_bound)
 
         self.account.refresh_from_db()
         self.order.refresh_from_db()
@@ -386,18 +419,22 @@ class TestsManagerOrderFundAssignmentViews(TestCase):
             Decimal("0.00"),
         )
         self.assertEqual(self.order.status, OrderStatus.NEW)
+        self.assertEqual(self.order.total_price, Decimal("200.00"))
         self.assertEqual(self.account.transactions.count(), 1)
         self.assertEqual(Payment.objects.count(), 1)
         self.assertFalse(self.order.fund_assignments.exists())
 
-    # Со страницы заказа можно открыть форму назначения денег.
-    # Ссылка сохраняет исходный список с фильтром и страницей.
-    def test_order_detail_links_to_assignment_form_with_list_context(self):
+    # Назначение средств раскрывается внутри страницы заказа.
+    # У поступления и назначения разные ключи операций и HTML ID полей.
+    # Открытие страницы сохраняет деньги, платежи и назначения.
+    def test_order_detail_contains_collapsed_assignment_form(self):
         self.client.force_login(self.manager)
+
         list_url = (
-            f"{reverse('orders:manager_order_list')}"
-            "?status=new&page=2"
+            reverse("orders:manager_order_list")
+            + "?status=new&page=2"
         )
+        panel_id = f"order-assignment-form-{self.order.pk}"
 
         response = self.client.get(
             reverse(
@@ -408,11 +445,53 @@ class TestsManagerOrderFundAssignmentViews(TestCase):
         )
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Assign funds")
+        self.assertEqual(response.context["back_url"], list_url)
         self.assertContains(
             response,
-            f'href="{self.url}?next={quote(list_url)}"',
+            f'data-bs-target="#{panel_id}"',
         )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'action="{self.url}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{self.url}?',
+        )
+
+        assignment_form = response.context["assignment_form"]
+        receipt_form = response.context["receipt_form"]
+
+        self.assertIsNotNone(assignment_form)
+        operation_key = assignment_form.initial.get("operation_key")
+
+        self.assertTrue(operation_key)
+        self.assertNotEqual(
+            operation_key,
+            receipt_form.initial["operation_key"],
+        )
+        self.assertNotEqual(
+            assignment_form["amount"].id_for_label,
+            receipt_form["amount"].id_for_label,
+        )
+        self.assertContains(
+            response,
+            f'value="{escape(operation_key)}"',
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("100.00"),
+        )
+        self.assertEqual(self.account.transactions.count(), 1)
+        self.assertEqual(Payment.objects.count(), 1)
+        self.assertFalse(self.order.fund_assignments.exists())
 
     # Форма передаёт исходный список скрытым полем.
     # После назначения заказ открывается с прежним контекстом возврата.

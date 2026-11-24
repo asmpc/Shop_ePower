@@ -8,6 +8,7 @@ from shop_epower.accounts.models import Role
 from shop_epower.accounts.services.profile import (
     is_profile_complete,
 )
+from shop_epower.catalog.models import Product
 from shop_epower.core.currency import get_base_currency
 from shop_epower.finance.models import (
     AccountTransactionActorType,
@@ -31,13 +32,19 @@ from shop_epower.orders.models import (
     OrderFundAssignment,
     OrderFundAssignmentSource,
     OrderItem,
+    OrderItemChange,
+    OrderItemChangeType,
     OrderShipment,
     OrderShipmentItem,
     OrderStatus,
     OrderStockReservation,
 )
-from shop_epower.payments.models import CustomerPayoutSource
+from shop_epower.payments.models import (
+    CustomerPayoutSource,
+    InvoiceStatus,
+)
 from shop_epower.suppliers.models import SupplierProduct
+from shop_epower.suppliers.services.pricing import recalc_product_base_price
 
 
 @transaction.atomic
@@ -922,3 +929,642 @@ def complete_order_shipment(
     )
 
     return shipment
+
+def _snapshot_order_item_reservations(reservations):
+    return [
+        {
+            "supplier_product_id": reservation.supplier_product_id,
+            "supplier_name": reservation.supplier_product.supplier.name,
+            "is_own": reservation.supplier_product.supplier.is_own,
+            "quantity": reservation.quantity,
+        }
+        for reservation in reservations
+        if reservation.quantity > 0
+    ]
+
+def _release_excess_order_funds(*, order, change):
+    active_assignments = order.fund_assignments.filter(
+        account_transaction__reversal__isnull=True,
+    )
+
+    assigned_amount = active_assignments.aggregate(
+        total=Sum("amount"),
+    )["total"] or Decimal("0.00")
+
+    if assigned_amount <= order.total_price:
+        return
+
+    account = CustomerAccount.objects.select_for_update().get(
+        pk=order.customer_account_id,
+    )
+
+    # Сначала корректируем последние назначения — LIFO.
+    assignments = list(
+        active_assignments.select_for_update(of=("self",))
+        .select_related("account_transaction")
+        .order_by("-created_at", "-pk")
+    )
+
+    assigned_amount = sum(
+        (assignment.amount for assignment in assignments),
+        Decimal("0.00"),
+    )
+    excess = assigned_amount - order.total_price
+
+    actor_type = (
+        AccountTransactionActorType.ADMIN
+        if change.changed_by.role == Role.ADMIN
+        else AccountTransactionActorType.MANAGER
+    )
+
+    for assignment in assignments:
+        if excess <= Decimal("0.00"):
+            break
+
+        released_amount = min(excess, assignment.amount)
+        retained_amount = assignment.amount - released_amount
+
+        source_parts = list(
+            assignment.sources.filter(
+                deposit_transaction__account=account,
+                deposit_transaction__operation_type=(
+                    AccountTransactionType.DEPOSIT
+                ),
+                deposit_transaction__currency_snapshot=account.currency,
+                deposit_transaction__reversal__isnull=True,
+            ).order_by(
+                "deposit_transaction__created_at",
+                "deposit_transaction_id",
+            )
+        )
+
+        sources_total = sum(
+            (part.amount for part in source_parts),
+            Decimal("0.00"),
+        )
+
+        if sources_total != assignment.amount:
+            raise ValidationError(
+                "Assignment sources do not match its amount."
+            )
+
+        # Сохраняем ранние части исходных поступлений.
+        # Поздние части освобождаются первыми.
+        retained_parts = []
+        remaining_to_keep = retained_amount
+
+        for part in source_parts:
+            if remaining_to_keep == Decimal("0.00"):
+                break
+
+            part_amount = min(part.amount, remaining_to_keep)
+            retained_parts.append(
+                (part.deposit_transaction_id, part_amount),
+            )
+            remaining_to_keep -= part_amount
+
+        key_prefix = (
+            f"order-item-change:{change.pk}:"
+            f"assignment:{assignment.pk}"
+        )
+
+        cancel_order_fund_assignment(
+            assignment=assignment,
+            operation_key=f"{key_prefix}:cancel",
+            created_by=change.changed_by,
+            comment=(
+                f"Funds released for order item change #{change.pk}."
+            ),
+        )
+
+        if retained_amount > Decimal("0.00"):
+            account_transaction = record_customer_funds_assignment(
+                account=account,
+                amount=retained_amount,
+                operation_key=f"{key_prefix}:retain",
+                actor_type=actor_type,
+                created_by=change.changed_by,
+                comment=(
+                    f"Funds retained for order item change #{change.pk}."
+                ),
+            )
+
+            replacement = OrderFundAssignment.objects.create(
+                order=order,
+                account_transaction=account_transaction,
+                amount=retained_amount,
+            )
+
+            for deposit_id, part_amount in retained_parts:
+                OrderFundAssignmentSource.objects.create(
+                    assignment=replacement,
+                    deposit_transaction_id=deposit_id,
+                    amount=part_amount,
+                )
+
+        excess -= released_amount
+
+@transaction.atomic
+def reduce_order_item_quantity(
+    *,
+    order_item,
+    new_quantity,
+    changed_by,
+    reason,
+):
+    if (
+        getattr(changed_by, "pk", None) is None
+        or not changed_by.is_active
+        or changed_by.role not in (
+            Role.MANAGER,
+            Role.ADMIN,
+        )
+    ):
+        raise ValidationError(
+            "Only managers and administrators can change order items."
+        )
+
+    order = Order.objects.select_for_update().get(
+        pk=order_item.order_id,
+    )
+
+    if order.status != OrderStatus.PROCESSING:
+        raise ValidationError(
+            "Order items can be changed only for processing orders."
+        )
+
+    if order.shipments.exists():
+        raise ValidationError(
+            "Order items cannot be changed after shipment."
+        )
+
+    if order.invoices.filter(
+        status=InvoiceStatus.ISSUED,
+    ).exists():
+        raise ValidationError(
+            "Cancel the issued invoice before changing order items."
+        )
+
+    if (
+        not isinstance(reason, str)
+        or not reason.strip()
+    ):
+        raise ValidationError(
+            "Order item change reason is required."
+        )
+
+    order_item = OrderItem.objects.select_for_update().get(
+        pk=order_item.pk,
+        order=order,
+    )
+
+    if (
+        not isinstance(new_quantity, int)
+        or isinstance(new_quantity, bool)
+        or new_quantity <= 0
+        or new_quantity >= order_item.quantity
+    ):
+        raise ValidationError(
+            "New quantity must be a positive integer "
+            "below the current quantity."
+        )
+
+    reservations = list(
+        OrderStockReservation.objects.select_for_update(of=("self",))
+        .filter(order_item=order_item)
+        .select_related("supplier_product__supplier")
+        .order_by("pk")
+    )
+
+    reserved_quantity = sum(
+        reservation.quantity
+        for reservation in reservations
+    )
+
+    if reserved_quantity != order_item.quantity:
+        raise ValidationError(
+            "Reserved quantity does not match order item quantity."
+        )
+
+    source_ids = [
+        reservation.supplier_product_id
+        for reservation in reservations
+    ]
+
+    locked_sources = list(
+        SupplierProduct.objects.select_for_update(of=("self",))
+        .filter(pk__in=source_ids)
+        .order_by("-supplier__is_own", "lead_time_days", "pk")
+    )
+
+    sources_by_id = {
+        source.pk: source
+        for source in locked_sources
+    }
+
+    old_quantity = order_item.quantity
+    old_order_total = order.total_price
+
+    reservations_before = _snapshot_order_item_reservations(
+        reservations,
+    )
+
+    remaining_to_release = old_quantity - new_quantity
+
+    for reservation in reversed(reservations):
+        if remaining_to_release == 0:
+            break
+
+        released_quantity = min(
+            reservation.quantity,
+            remaining_to_release,
+        )
+
+        source = sources_by_id[reservation.supplier_product_id]
+        source.stock_quantity += released_quantity
+        source.save(
+            update_fields=["stock_quantity", "updated_at"],
+        )
+
+        reservation.quantity -= released_quantity
+
+        if reservation.quantity == 0:
+            reservation.delete()
+        else:
+            reservation.save(
+                update_fields=["quantity"],
+            )
+
+        remaining_to_release -= released_quantity
+
+    order_item.quantity = new_quantity
+    order_item.total_price = order_item.unit_price * new_quantity
+    order_item.save(
+        update_fields=["quantity", "total_price"],
+    )
+
+    items_total = order.items.aggregate(
+        total=Sum("total_price"),
+    )["total"] or Decimal("0.00")
+
+    delivery_amount = order.delivery_cost or Decimal("0.00")
+
+    if order.delivery_paid_by_customer_on_receipt:
+        delivery_amount = Decimal("0.00")
+
+    order.total_price = items_total + delivery_amount
+    order.save(
+        update_fields=["total_price", "updated_at"],
+    )
+
+    change = OrderItemChange.objects.create(
+        order=order,
+        order_item_id_snapshot=order_item.pk,
+        change_type=OrderItemChangeType.REDUCED,
+        product_name=order_item.product_name,
+        unit_price=order_item.unit_price,
+        old_quantity=old_quantity,
+        new_quantity=new_quantity,
+        old_order_total=old_order_total,
+        new_order_total=order.total_price,
+        currency_snapshot=order_item.currency_snapshot,
+        reservations_before=reservations_before,
+        reservations_after=_snapshot_order_item_reservations(
+            reservations,
+        ),
+        changed_by=changed_by,
+        reason=reason.strip(),
+    )
+
+    _release_excess_order_funds(
+        order=order,
+        change=change,
+    )
+
+    return order_item
+
+@transaction.atomic
+def remove_order_item(
+    *,
+    order_item,
+    changed_by,
+    reason,
+):
+    if (
+        getattr(changed_by, "pk", None) is None
+        or not changed_by.is_active
+        or changed_by.role not in (
+            Role.MANAGER,
+            Role.ADMIN,
+        )
+    ):
+        raise ValidationError(
+            "Only managers and administrators can change order items."
+        )
+
+    order = Order.objects.select_for_update().get(
+        pk=order_item.order_id,
+    )
+
+    if order.status != OrderStatus.PROCESSING:
+        raise ValidationError(
+            "Order items can be changed only for processing orders."
+        )
+
+    if order.shipments.exists():
+        raise ValidationError(
+            "Order items cannot be changed after shipment."
+        )
+
+    if order.invoices.filter(
+        status=InvoiceStatus.ISSUED,
+    ).exists():
+        raise ValidationError(
+            "Cancel the issued invoice before changing order items."
+        )
+
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValidationError(
+            "Order item change reason is required."
+        )
+
+    order_item = OrderItem.objects.select_for_update().get(
+        pk=order_item.pk,
+        order=order,
+    )
+
+    if not order.items.exclude(pk=order_item.pk).exists():
+        raise ValidationError(
+            "Cannot remove the last order item."
+        )
+
+    reservations = list(
+        OrderStockReservation.objects.select_for_update(of=("self",))
+        .filter(order_item=order_item)
+        .select_related("supplier_product__supplier")
+        .order_by("pk")
+    )
+
+    reserved_quantity = sum(
+        reservation.quantity
+        for reservation in reservations
+    )
+
+    if reserved_quantity != order_item.quantity:
+        raise ValidationError(
+            "Reserved quantity does not match order item quantity."
+        )
+
+    source_ids = [
+        reservation.supplier_product_id
+        for reservation in reservations
+    ]
+
+    locked_sources = list(
+        SupplierProduct.objects.select_for_update(of=("self",))
+        .filter(pk__in=source_ids)
+        .order_by("-supplier__is_own", "lead_time_days", "pk")
+    )
+
+    sources_by_id = {
+        source.pk: source
+        for source in locked_sources
+    }
+
+    removed_item_id = order_item.pk
+    old_quantity = order_item.quantity
+    old_order_total = order.total_price
+
+    reservations_before = _snapshot_order_item_reservations(
+        reservations,
+    )
+
+    # Возвращаем всё количество выбранной строки
+    # в те источники, из которых оно было зарезервировано.
+    for reservation in reversed(reservations):
+        source = sources_by_id[reservation.supplier_product_id]
+        source.stock_quantity += reservation.quantity
+        source.save(
+            update_fields=["stock_quantity", "updated_at"],
+        )
+
+    # Связанные резервы удаляются каскадно.
+    order_item.delete()
+
+    items_total = order.items.aggregate(
+        total=Sum("total_price"),
+    )["total"] or Decimal("0.00")
+
+    delivery_amount = order.delivery_cost or Decimal("0.00")
+
+    if order.delivery_paid_by_customer_on_receipt:
+        delivery_amount = Decimal("0.00")
+
+    order.total_price = items_total + delivery_amount
+    order.save(
+        update_fields=["total_price", "updated_at"],
+    )
+
+    change = OrderItemChange.objects.create(
+        order=order,
+        order_item_id_snapshot=removed_item_id,
+        change_type=OrderItemChangeType.REMOVED,
+        product_name=order_item.product_name,
+        unit_price=order_item.unit_price,
+        old_quantity=old_quantity,
+        new_quantity=0,
+        old_order_total=old_order_total,
+        new_order_total=order.total_price,
+        currency_snapshot=order_item.currency_snapshot,
+        reservations_before=reservations_before,
+        reservations_after=[],
+        changed_by=changed_by,
+        reason=reason.strip(),
+    )
+
+    _release_excess_order_funds(
+        order=order,
+        change=change,
+    )
+
+    return change
+
+@transaction.atomic
+def add_order_item(
+    *,
+    order,
+    product,
+    quantity,
+    confirmed_unit_price,
+    changed_by,
+    reason,
+):
+    if (
+        getattr(changed_by, "pk", None) is None
+        or not changed_by.is_active
+        or changed_by.role not in (
+            Role.MANAGER,
+            Role.ADMIN,
+        )
+    ):
+        raise ValidationError(
+            "Only managers and administrators can change order items."
+        )
+
+    order = Order.objects.select_for_update().get(
+        pk=order.pk,
+    )
+
+    if order.status != OrderStatus.PROCESSING:
+        raise ValidationError(
+            "Order items can be changed only for processing orders."
+        )
+
+    if order.shipments.exists():
+        raise ValidationError(
+            "Order items cannot be changed after shipment."
+        )
+
+    if order.invoices.filter(
+        status=InvoiceStatus.ISSUED,
+    ).exists():
+        raise ValidationError(
+            "Cancel the issued invoice before changing order items."
+        )
+
+    if not isinstance(reason, str) or not reason.strip():
+        raise ValidationError(
+            "Order item change reason is required."
+        )
+
+    if (
+        not isinstance(quantity, int)
+        or isinstance(quantity, bool)
+        or quantity <= 0
+    ):
+        raise ValidationError(
+            "Quantity must be a positive integer."
+        )
+
+    if (
+        not isinstance(confirmed_unit_price, Decimal)
+        or not confirmed_unit_price.is_finite()
+        or confirmed_unit_price <= 0
+    ):
+        raise ValidationError(
+            "Confirmed unit price must be a positive decimal amount."
+        )
+
+    if order.currency_snapshot != get_base_currency():
+        raise ValidationError(
+            "Order currency must match the current base currency."
+        )
+
+    product = Product.objects.select_for_update(
+        no_key=True,
+    ).get(pk=product.pk)
+
+    if not product.is_active:
+        raise ValidationError(
+            "Only active products can be added to an order."
+        )
+
+    # Блокируем существующие активные источники товара
+    # перед пересчётом цены и резервированием.
+    price_sources = list(
+        SupplierProduct.objects.select_for_update(of=("self",))
+        .filter(
+            product=product,
+            is_active=True,
+            supplier__is_active=True,
+        )
+        .order_by("-supplier__is_own", "lead_time_days", "pk")
+    )
+
+    if not any(
+        source.supplier_price is not None
+        for source in price_sources
+    ):
+        raise ValidationError(
+            "No current supplier price is available for this product."
+        )
+
+    try:
+        recalc_product_base_price(product)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+
+    unit_price = product.get_price_for_user(order.user)
+
+    if not unit_price.is_finite() or unit_price <= 0:
+        raise ValidationError(
+            "A positive current product price is required."
+        )
+
+    if unit_price != confirmed_unit_price:
+        raise ValidationError(
+            "Product price has changed. Confirm the current price again."
+        )
+
+    old_order_total = order.total_price
+
+    reservation_parts = reserve_stock_for_order_item(
+        product=product,
+        quantity=quantity,
+    )
+
+    # Каждое добавление создаёт отдельную ценовую партию.
+    order_item = OrderItem.objects.create(
+        order=order,
+        product=product,
+        product_name=product.name,
+        unit_price=unit_price,
+        quantity=quantity,
+        total_price=unit_price * quantity,
+        currency_snapshot=order.currency_snapshot,
+    )
+
+    reservations = []
+
+    for part in reservation_parts:
+        reservation = OrderStockReservation.objects.create(
+            order_item=order_item,
+            supplier_product=part["supplier_product"],
+            quantity=part["quantity"],
+        )
+        reservations.append(reservation)
+
+    items_total = order.items.aggregate(
+        total=Sum("total_price"),
+    )["total"] or Decimal("0.00")
+
+    delivery_amount = order.delivery_cost or Decimal("0.00")
+
+    if order.delivery_paid_by_customer_on_receipt:
+        delivery_amount = Decimal("0.00")
+
+    order.total_price = items_total + delivery_amount
+    order.save(
+        update_fields=["total_price", "updated_at"],
+    )
+
+    OrderItemChange.objects.create(
+        order=order,
+        order_item_id_snapshot=order_item.pk,
+        change_type=OrderItemChangeType.ADDED,
+        product_name=order_item.product_name,
+        unit_price=order_item.unit_price,
+        old_quantity=0,
+        new_quantity=quantity,
+        old_order_total=old_order_total,
+        new_order_total=order.total_price,
+        currency_snapshot=order_item.currency_snapshot,
+        reservations_before=[],
+        reservations_after=_snapshot_order_item_reservations(
+            reservations,
+        ),
+        changed_by=changed_by,
+        reason=reason.strip(),
+    )
+
+    return order_item

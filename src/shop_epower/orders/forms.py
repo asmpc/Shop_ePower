@@ -1,6 +1,7 @@
 from decimal import Decimal
 
 from django import forms
+from django.core.validators import MaxValueValidator
 
 
 class OrderFundAssignmentForm(forms.Form):
@@ -47,4 +48,54 @@ class OrderFundAssignmentCancelForm(forms.Form):
     operation_key = forms.CharField(
         max_length=255,
         widget=forms.HiddenInput(),
+    )
+
+
+class OrderItemQuantityReductionForm(forms.Form):
+    new_quantity = forms.IntegerField(
+        label="New quantity",
+        min_value=1,
+        required=True,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "1",
+            },
+        ),
+    )
+    reason = forms.CharField(
+        label="Reason for change",
+        required=True,
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+            },
+        ),
+    )
+
+    def __init__(self, *args, order_item, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        maximum = order_item.quantity - 1
+        quantity_field = self.fields["new_quantity"]
+
+        quantity_field.max_value = maximum
+        quantity_field.validators.append(
+            MaxValueValidator(maximum),
+        )
+        quantity_field.widget.attrs["max"] = maximum
+
+
+class OrderItemRemovalForm(forms.Form):
+    reason = forms.CharField(
+        label="Reason for removal",
+        required=True,
+        help_text="Visible to staff only.",
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+            },
+        ),
     )

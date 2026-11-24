@@ -125,9 +125,10 @@ class TestsManagerAccountSummaryViews(TestCase):
             response.content.index(b"Transactions"),
         )
 
-    # Карточка счёта содержит ссылку на форму приёма денег.
-    # Действия расположены после сводки и перед историей операций.
-    def test_account_detail_links_to_receipt_form(self):
+    # Форма приёма денег находится на странице счёта и изначально свёрнута.
+    # Кнопка раскрывает её под Payment actions вместо перехода на другую страницу.
+    # Форма содержит ключ операции; чтение страницы не создаёт деньги или заказ.
+    def test_account_detail_contains_collapsed_receipt_form(self):
         self.client.force_login(self.manager)
 
         response = self.client.get(
@@ -137,23 +138,42 @@ class TestsManagerAccountSummaryViews(TestCase):
             ),
         )
 
-        receipt_url = (
-            reverse(
-                "payments:manager_record_account_receipt",
-                kwargs={"pk": self.account.pk},
-            )
-            + "?"
-            + urlencode(
-                {"next": response.wsgi_request.get_full_path()},
-            )
+        receipt_url = reverse(
+            "payments:manager_record_account_receipt",
+            kwargs={"pk": self.account.pk},
         )
+        panel_id = f"account-receipt-form-{self.account.pk}"
 
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Payment actions")
         self.assertContains(response, "Register receipt")
         self.assertContains(
             response,
-            f'href="{escape(receipt_url)}"',
+            f'data-bs-target="#{panel_id}"',
+        )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'action="{receipt_url}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{receipt_url}?',
+        )
+
+        form = response.context["receipt_form"]
+        operation_key = form.initial["operation_key"]
+
+        self.assertTrue(operation_key)
+        self.assertContains(
+            response,
+            f'value="{operation_key}"',
+        )
+        self.assertContains(
+            response,
+            'name="csrfmiddlewaretoken"',
         )
 
         self.assertLess(
@@ -164,6 +184,9 @@ class TestsManagerAccountSummaryViews(TestCase):
             response.content.index(b"Payment actions"),
             response.content.index(b"Transactions"),
         )
+
+        self.assertFalse(self.account.transactions.exists())
+        self.assertFalse(self.user.orders.exists())
 
     # Возврат из карточки сохраняет исходные параметры поиска и страницу.
     def test_account_back_link_preserves_search_context(self):
@@ -350,19 +373,32 @@ class TestsManagerAccountSummaryViews(TestCase):
             html=True,
         )
 
-    # Из карточки счёта можно выбрать поступление для отмены.
-    # Ссылка ограничивает Payments счётом, статусом PAID
-    # и ручным провайдером.
-    def test_account_detail_links_to_paid_manual_receipts(self):
+    # Из счёта открывается список оплаченных ручных поступлений для отмены.
+    # Payments содержит обратную ссылку в исходную карточку счёта.
+    # Адрес возврата сохраняет параметры поиска и передаётся в форму фильтров.
+    def test_receipt_cancellation_list_preserves_account_return_context(self):
         self.client.force_login(self.manager)
 
-        response = self.client.get(
+        list_url = (
+            reverse("finance:manager_account_list")
+            + "?"
+            + urlencode(
+                {
+                    "q": self.user.email,
+                    "account_type": self.account.account_type,
+                    "status": self.account.status,
+                    "page": 1,
+                },
+            )
+        )
+        account_url = (
             reverse(
                 "finance:manager_account_detail",
                 kwargs={"pk": self.account.pk},
-            ),
+            )
+            + "?"
+            + urlencode({"next": list_url})
         )
-
         payments_url = (
             reverse("payments:manager_payment_list")
             + "?"
@@ -371,20 +407,49 @@ class TestsManagerAccountSummaryViews(TestCase):
                     "account_id": self.account.pk,
                     "status": PaymentStatus.PAID,
                     "provider": PaymentProvider.MANUAL,
-                }
+                    "next": account_url,
+                },
             )
         )
 
-        self.assertEqual(response.status_code, 200)
+        account_response = self.client.get(account_url)
+
+        self.assertEqual(account_response.status_code, 200)
+        self.assertContains(account_response, "Cancel receipt...")
         self.assertContains(
-            response,
+            account_response,
             f'href="{escape(payments_url)}"',
         )
-        self.assertContains(response, "Cancel receipt...")
 
-    # Проверяем ссылку на форму фактического возврата:
-    # переход сохраняет адрес карточки и исходные фильтры поиска.
-    def test_account_detail_links_to_payout_form(self):
+        payments_response = self.client.get(payments_url)
+
+        self.assertEqual(payments_response.status_code, 200)
+        self.assertContains(payments_response, "Back to account")
+        self.assertContains(
+            payments_response,
+            f'href="{escape(account_url)}"',
+        )
+        self.assertContains(
+            payments_response,
+            (
+                '<input type="hidden" name="next" '
+                f'value="{escape(account_url)}">'
+            ),
+            html=True,
+        )
+
+        returned_account = self.client.get(account_url)
+
+        self.assertEqual(returned_account.status_code, 200)
+        self.assertEqual(
+            returned_account.context["back_url"],
+            list_url,
+        )
+
+    # Форма возврата находится на странице счёта и изначально свёрнута.
+    # Формы поступления и возврата имеют разные ключи операций и HTML ID.
+    # Обе сохраняют адрес карточки с исходным поиском; деньги не изменяются.
+    def test_account_detail_contains_collapsed_payout_form(self):
         list_url = (
             reverse("finance:manager_account_list")
             + "?"
@@ -392,10 +457,9 @@ class TestsManagerAccountSummaryViews(TestCase):
                 {
                     "q": self.user.email,
                     "status": self.account.status,
-                }
+                },
             )
         )
-
         self.client.force_login(self.manager)
 
         response = self.client.get(
@@ -406,23 +470,60 @@ class TestsManagerAccountSummaryViews(TestCase):
             {"next": list_url},
         )
 
-        payout_url = (
-            reverse(
-                "payments:manager_record_account_payout",
-                kwargs={"pk": self.account.pk},
-            )
-            + "?"
-            + urlencode(
-                {"next": response.wsgi_request.get_full_path()}
-            )
+        payout_url = reverse(
+            "payments:manager_record_account_payout",
+            kwargs={"pk": self.account.pk},
         )
+        panel_id = f"account-payout-form-{self.account.pk}"
+        account_url = response.wsgi_request.get_full_path()
 
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Return funds...")
         self.assertContains(
             response,
-            f'href="{escape(payout_url)}"',
+            f'data-bs-target="#{panel_id}"',
         )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'action="{payout_url}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{payout_url}?',
+        )
+
+        receipt_form = response.context["receipt_form"]
+        payout_form = response.context["payout_form"]
+        operation_key = payout_form.initial["operation_key"]
+
+        self.assertTrue(operation_key)
+        self.assertNotEqual(
+            operation_key,
+            receipt_form.initial["operation_key"],
+        )
+        self.assertNotEqual(
+            payout_form["amount"].id_for_label,
+            receipt_form["amount"].id_for_label,
+        )
+        self.assertContains(
+            response,
+            f'value="{operation_key}"',
+        )
+        self.assertContains(
+            response,
+            (
+                '<input type="hidden" name="next" '
+                f'value="{escape(account_url)}">'
+            ),
+            count=2,
+            html=True,
+        )
+
+        self.assertFalse(self.account.transactions.exists())
 
     # Проверяем автора фактического возврата в истории счёта:
     # показывается сотрудник, подтвердивший выплату,

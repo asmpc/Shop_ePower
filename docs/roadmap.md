@@ -100,7 +100,7 @@ Django checks, and migration-state check passed at phase closure.
 
 ## PHASE 23 --- Order Funds & Full-Shipment Settlement
 
-Current work order (2026-11-18): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
+Current work order (2026-11-24): [nine steps and checkpoints](phase-23-deposits-and-order-settlement.md#current-work-order).
 Payment model protection is complete: nullable order, the at-least-one-reference
 constraint and migrations 0012/0013. The user confirmed 14 model/history tests,
 scoped Ruff and no outstanding model migrations. Both-language diagrams are updated;
@@ -137,6 +137,21 @@ Full regression passed on 2026-11-12: **1047 tests in 938.154 seconds**,
 project-wide Ruff and git diff --check (LF/CRLF warnings only).
 Before committing: visually confirm author labels and review the staged diff.
 Current sequence: invoice line snapshots complete → pre-shipment item edits → final verification.
+Agreed on 2026-11-18: managers/admins may edit order items only in `PROCESSING`,
+after taking the order into work. `NEW` must first move to processing;
+editing after recorded shipment remains forbidden.
+Agreed on 2026-11-20: removal of the last line is forbidden; rejecting the entire
+order uses cancellation. The guard and selected-line removal are implemented
+and scoped-tested as of 2026-11-22.
+Agreed on 2026-11-20: order reductions automatically release assigned prepayment
+above the revised total back to available funds (700 → 500 frees 200).
+Retain actual receipts and original financial history; stock/total changes,
+partial release and linked audit records are atomic. Implemented for quantity
+reduction on 2026-11-20 through reversal and a smaller retained-source assignment,
+and connected to selected-line removal on 2026-11-22.
+LIFO is agreed: newest assignments first, then newest originally
+used receipt portions within them; retain earlier sources and do not reassign
+unrelated available funds.
 Agreed on 2026-11-12: partial payouts from available funds are allowed, up to
 that balance. The payout workflow is implemented as recorded below.
 Payouts are forbidden while the selected account has shipment debt. Staff must
@@ -179,7 +194,7 @@ modules, staff order-detail tests and payout API tests, scoped Ruff, Django syst
 checks and `git diff --check`. The journal and return links preserving account/order
 filters were also verified manually.
 New invoice snapshots are implemented; 0018 is applied and a new invoice PDF
-is manually verified; 454 related tests passed. Next: pre-shipment order item edits.
+is manually verified; 454 related tests passed. Subsequent editing progress is recorded below.
 InvoiceItem, atomic line copying and PDF use of invoice.items are implemented.
 The related service/PDF modules, Ruff and migration-state checks passed;
 reissue and rollback after saving the first line passed individually on 2026-11-18.
@@ -189,9 +204,58 @@ Older invoices without snapshots will not receive product rows automatically.
 Checkpoint 2026-11-18: **454 related tests passed in 425.268 seconds** —
 payments, payment APIs and staff order-detail tests. Project-wide Ruff and
 `git diff --check` passed (LF/CRLF warnings only). This is scoped regression;
-the latest full-project run remains 1107.
-Independent concurrency coverage remains in step 9; the latest full run is 1107.
+the full-project run reported at that checkpoint was 1107.
+Checkpoint 2026-11-22: **130 related tests in 89.038 seconds**.
+Includes 42 history/editing tests (41 service, one model), 40 assignment,
+19 shipment, eight checkout, one reservation and 20 pricing tests.
+Order-module Ruff and whitespace checks passed; migration state was checked earlier.
+Reduction, removal and addition have atomic reservations, total recalculation
+and ADDED/REDUCED/REMOVED history; the last line is protected.
+Addition always creates a new batch, recalculates supplier pricing/markup and
+the order owner's discount, compares confirmed_unit_price and requires confirmation
+again on price changes. Missing current supplier prices reject addition.
+Existing prices/reservations, assigned prepayment and available funds remain.
+Coverage includes insufficient stock, quantity/price types, permissions, status,
+invoice, reason and rollback. LIFO excess release, retained-assignment cancellation
+and shipment after an edit with repeated completion are also verified.
+Second-batch and addition-source fixtures use helpers.
+Checkpoint 2026-11-23: **52 related website tests in 61.226 seconds**,
+scoped order-module Ruff, whitespace and manual checks passed.
+Quantity reduction and removal use separate, initially collapsed forms beneath
+each order line. Errors retain the expanded selected form and input; Cancel
+closes it without submission. Source-list filters/page survive the return.
+Reduction has a minimum of 1; removal counts order lines and protects the last.
+Direct action GETs return to the order; the standalone templates are removed.
+Migration 0023 is applied to the website database in web.
+Payment actions now opens receipt/assignment forms inline, preserving input and
+operation keys on errors. Receipt and assignment remain separate actions.
+The subsequent 2026-11-23 checkpoint passed **79 tests in 88.412 seconds**;
+orders/payments Ruff and whitespace checks passed (LF/CRLF warnings only).
+The run includes the restored reduction/removal routes used by inline forms.
+Shipment confirmation now opens below Order actions and blocks other page
+interaction. Cancel/Esc close it without changing the order; confirming shipment
+sends the POST. Checkpoint 2026-11-23: 36 staff order-page tests in 77.028 seconds,
+file-scoped Ruff, whitespace and manual checks passed.
+With an issued invoice, quantity/removal buttons stay visible and expand a notice
+that the invoice must first be cancelled; cancellation makes the forms available.
+The server-side editing guard remains. Latest related run on 2026-11-23:
+53 tests in 81.790 seconds, orders Ruff, whitespace and manual checks passed.
+Account money forms are complete: errors preserve the account, submitted data,
+key and search context; only the submitted form is expanded. Successful submission
+updates balances. Payments return navigation, Apply filters/Reset and histories
+preserve the account URL. On 2026-11-24 all 62 tests passed in 86.084 seconds,
+with finance/payments Ruff and whitespace checks. The full suite then passed on
+2026-11-24: 1182 tests in 1062.406 seconds, project-wide Ruff, model/migration
+and whitespace checks. Prepare the shared commit covering order-editing services,
+history and migration 0023, then inline item addition. Staff history/customer indicator, editing
+APIs and remaining end-to-end/concurrency checks stay queued.
+The latest full-project run is 1182 on 2026-11-24.
+See [the resume plan](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
+Independent concurrency coverage remains in step 9; the latest full run is 1182.
 Checkpoint commits follow model protection and the complete account-funding flow.
+End-of-PHASE-23 task added on 2026-11-24: provide navigation from a customer
+account page to that customer's staff order list. Pre-apply the customer filter,
+retain it through pagination and preserve return to the source account/search.
 This sequence preserves all unfinished work and does not mark PHASE 23 complete.
 
 Status: implementation started; remaining architecture decisions are being refined.

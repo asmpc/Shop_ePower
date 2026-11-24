@@ -1,0 +1,115 @@
+<div class="card mt-4">
+    <div class="card-header d-flex flex-wrap align-items-center gap-2">
+        <span>Payment actions</span>
+
+        <button
+            type="button"
+            class="btn btn-success btn-sm{% if not receipt_form_open %} collapsed{% endif %}"
+            data-bs-toggle="collapse"
+            data-bs-target="#account-receipt-form-{{ account.pk }}"
+            aria-expanded="{% if receipt_form_open %}true{% else %}false{% endif %}"
+            aria-controls="account-receipt-form-{{ account.pk }}"
+        >
+            Register receipt...
+        </button>
+
+        <button
+            type="button"
+            class="btn btn-warning btn-sm{% if not payout_form_open %} collapsed{% endif %}"
+            data-bs-toggle="collapse"
+            data-bs-target="#account-payout-form-{{ account.pk }}"
+            aria-expanded="{% if payout_form_open %}true{% else %}false{% endif %}"
+            aria-controls="account-payout-form-{{ account.pk }}"
+        >
+            Return funds...
+        </button>
+
+        <a
+            href="{% url 'payments:manager_payment_list' %}?account_id={{ account.pk }}&amp;status=paid&amp;provider=manual&amp;next={{ return_url|urlencode:'' }}"
+            class="btn btn-outline-danger btn-sm"
+        >
+            Cancel receipt...
+        </a>
+    </div>
+
+    <div class="collapse{% if receipt_form_open %} show{% endif %}" id="account-receipt-form-{{ account.pk }}">
+        <div class="card-body">
+            <p class="text-muted">
+                Record only money already received.
+                Registering a receipt increases available funds.
+                Funds are assigned to orders separately.
+            </p>
+
+            <form
+                method="post"
+                action="{% url 'payments:manager_record_account_receipt' account.pk %}"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{{ return_url }}"
+                >
+
+                {{ receipt_form.as_p }}
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-success btn-sm">
+                        Confirm receipt
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#account-receipt-form-{{ account.pk }}"
+                        aria-controls="account-receipt-form-{{ account.pk }}"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="collapse{% if payout_form_open %} show{% endif %}" id="account-payout-form-{{ account.pk }}">
+        <div class="card-body">
+            <p class="text-muted">
+                Confirm only money actually returned to the customer.
+                A payout reduces available funds.
+                Any shipped debt must be settled first.
+            </p>
+
+            <form
+                method="post"
+                action="{% url 'payments:manager_record_account_payout' account.pk %}"
+            >
+                {% csrf_token %}
+
+                <input
+                    type="hidden"
+                    name="next"
+                    value="{{ return_url }}"
+                >
+
+                {{ payout_form.as_p }}
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button type="submit" class="btn btn-danger btn-sm">
+                        Confirm payout
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#account-payout-form-{{ account.pk }}"
+                        aria-controls="account-payout-form-{{ account.pk }}"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>

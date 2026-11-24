@@ -12,12 +12,23 @@ search, pagination and preserved return context. Receipt correction is connected
 to the website/API. Manual payout models, service, website and API are implemented.
 Payment website routes use `/shop/payments/`. New invoice line snapshots and
 snapshot-based PDFs are implemented. The schema migration is applied and a new
-invoice PDF is manually verified. The 454-test related regression passed;
-pre-shipment item editing remains open.
+invoice PDF is manually verified. Pre-shipment editing services are implemented;
+quantity reduction/removal and Payment actions use inline staff order forms.
+The 2026-11-23 website checkpoint passed 79 related tests in 88.412 seconds.
+Confirmation below Order actions subsequently passed 36 staff order-page tests
+in 77.028 seconds and manual checks; Esc closes confirmation without changing the order.
+The latest related editing run passed 53 tests in 81.790 seconds; buttons remain
+visible with an issued invoice and explain that it must first be cancelled.
+Account money forms are complete: receipt/payout errors stay on the account page,
+and successful submissions and Payments navigation preserve search context.
+On 2026-11-24 all 62 related tests passed in 86.084 seconds, with finance/payments
+Ruff and whitespace checks. The full suite passed on 2026-11-24:
+1182 tests in 1062.406 seconds, project-wide Ruff and model/migration checks passed.
+Next: the shared commit, then item addition.
 Legacy demonstration invoices do not require a data backfill migration.
 PHASE 23 is not complete.
 
-Current work order (updated 2026-11-18): [nine steps and checkpoints](#current-work-order).
+Current work order (updated 2026-11-24): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -618,11 +629,37 @@ This does not introduce a new post-shipment goods-return workflow.
   reject order creation with a clear error and leave the cart, stock, and
   order data unchanged. Do not create or repair an account implicitly during
   checkout; fix the missing registration/profile workflow separately.
-- PHASE 23 includes manager editing of order items before full shipment,
+- PHASE 23 includes staff editing of order items only in `PROCESSING`, after
+  moving the order into processing (agreed 2026-11-18). `NEW` orders must first
+  be taken into processing. Editing is allowed before full shipment,
   including when part of the price has already been received. Confirmed
   `Payment` amounts and account credits represent actual receipts and must
   not be rewritten when the order total changes. No order-item editing is
   allowed after shipment is recorded.
+- Agreed on 2026-11-20: if an item edit reduces the order total below its
+  active assigned prepayment, automatically release exactly the excess to
+  the same customer's available balance as part of that edit. For 700 assigned
+  and a revised order total of 500, retain 500 assigned and free 200.
+  If assignments do not exceed the revised total, release nothing. Preserve
+  actual Payment/deposit records and unrelated orders; this is release of
+  reserved funds, not a cash/bank payout or automatic settlement of other debt.
+  Stock, totals, partial release and linked audit history must commit or roll
+  back together. Preserve original financial records and funding-source traceability.
+  Implemented for quantity reduction on 2026-11-20: reverse each affected original
+  assignment and, where needed, create a smaller replacement from its retained
+  source portions. Original assignments and sources remain in history.
+  Connected to selected-line removal on 2026-11-22: 960 → 260 frees 700.
+  Release uses LIFO, newest assignment first (created_at, pk descending),
+  then newest originally used receipt portions within that assignment.
+  Retain earlier assignments/source portions and do not assign unrelated free funds.
+  Example: assignments 400 then 300, revised total 500 → release 200 from the
+  last 300, retaining the original 400 and 100 of the later assignment.
+- Agreed on 2026-11-20: do not remove the last order line. Rejecting the entire
+  order uses order cancellation. The guard and selected-line removal are
+  implemented and scoped-tested as of 2026-11-22.
+  Website rule confirmed on 2026-11-23: reduction has a minimum quantity of 1;
+  removal is a separate action governed by the total number of order lines.
+  Either of two single-unit lines may be removed; the last line must remain.
 - The manager coordinates a proposed edit with the customer outside the
   website, using an available communication channel, before saving it.
   Saving the edit means the manager takes responsibility for that agreement.
@@ -1024,13 +1061,188 @@ Migration `0018_add_invoice_item` is applied to the development database;
 on 2026-11-18 the user confirmed issuing a new invoice and its PDF through the website.
 Agreed on the same date: all data are demonstration data; no legacy invoice
 backfill migration is needed. Old invoices without snapshots still have no product rows in
-their PDFs; they will not be populated automatically. Pre-shipment item editing
-is not implemented yet.
+their PDFs; they will not be populated automatically.
 
 Checkpoint 2026-11-18: **454 related tests passed in 425.268 seconds** —
 payments, payment APIs and staff order-detail tests. Project-wide Ruff and
 `git diff --check` passed (LF/CRLF warnings only). This is scoped regression;
-the latest full-project run remains 1107.
+the full-project run reported at that checkpoint was 1107.
+
+### Item-change history and editing services — 2026-11-22
+
+`OrderItemChange` is implemented: order, employee, time, reason, change type,
+original line ID and snapshots of name, price, quantities and order totals.
+`reservations_before` and `reservations_after` store source/quantity snapshots
+as JSON. Deleting a line and its live reservations preserves the history entry.
+
+```mermaid
+flowchart LR
+    C[OrderItemChange] -->|order| O[Order]
+    C -->|changed_by| U[User]
+    L[OrderItem] -.->|line snapshot| C
+    R[OrderStockReservation] -.->|before/after JSON| C
+```
+
+Solid arrows are history foreign keys; dotted arrows are data copying.
+`order_item_id_snapshot` stores a number, so deleting the line does not remove history.
+Migration `0023_add_order_item_change` is applied to the website database in `web`;
+the user confirmed successful manual checks on 2026-11-23.
+As of 2026-11-22 three services are implemented:
+`reduce_order_item_quantity()`, `remove_order_item()` and `add_order_item()`.
+They check staff access, PROCESSING, no recorded shipment/issued invoice and
+a required reason; stock reservations, totals and history commit atomically.
+
+Addition always creates a separate price batch, even when prices match.
+Recalculate supplier pricing with currency/markup, then apply the order owner's
+price category. Compare `confirmed_unit_price` with that calculation; changed
+prices require confirmation again. Missing current supplier prices reject addition.
+Example: retain the original seven units at 100, add five at 130 with independent
+reservations, and obtain total 1350. A 10% customer discount gives new price 117
+and total 1285; the manager's category does not determine the customer's price.
+Addition preserves assigned and available funds, creates no pre-shipment debt,
+and does not assign money automatically.
+
+Reduction/removal affects only the selected line/reservations; other batches
+retain their price and quantity. The last line is protected; use order cancellation.
+Excess prepayment is released in LIFO order through reversal and a smaller
+assignment retaining original sources. Actual receipts and original history remain;
+correction keys include the OrderItemChange ID.
+ADDED/REDUCED/REMOVED history preserves snapshots, employee and reason.
+
+The user confirmed **130 related tests in 89.038 seconds on 2026-11-22**:
+42 history/editing tests (41 service, one model), 40 assignment, 19 shipment,
+eight checkout, one reservation and 20 pricing tests. Order-module Ruff and
+`git diff --check` passed; migration-state checks passed at an earlier checkpoint.
+Coverage includes edit permissions/restrictions, changed prices, customer discount,
+equal-price batches, insufficient stock, invalid quantity/confirmed price,
+missing reason/supplier prices, rollback and preservation of funds.
+Retained-assignment cancellation and repeated shipment completion after an edit
+are also verified.
+
+<a id="inline-order-item-forms"></a>
+
+### Inline order-item forms — 2026-11-23
+
+Managers/admins can reduce quantity and remove a line directly in its card on
+the staff order page. Forms are initially collapsed; an action opens its form
+below the selected line and `Cancel` closes it without submission.
+On error, the order page retains the expanded form, entered values and explanation.
+Successful POSTs return to the order while preserving the source list's filters/page.
+
+`Reduce quantity...` has a minimum quantity of 1. `Remove item...` is a separate
+confirmation with a required reason. Removal depends on the number of order lines:
+either of two single-unit lines can be removed, but the last line cannot.
+Server-side PROCESSING, recorded-shipment and issued-invoice restrictions remain.
+
+With an issued Invoice, the buttons remain visible subject to the quantity
+and line-count restrictions. Clicking `Reduce quantity...` or `Remove item...`
+expands this message below the selected line:
+`Cancel the issued invoice before changing order items.`
+After explicit invoice cancellation, the buttons open their editing forms.
+The notice sends no POST and does not cancel the invoice automatically.
+Action visibility is separate from editing permission; the server still rejects
+item changes while an issued invoice exists.
+
+Cards use `orders/manage/order_item_card.html`. Shared
+`get_manager_order_detail_context()` prepares the page and binds an error form
+only to the selected card; fields in different lines have distinct HTML IDs.
+Direct GETs of the former edit/removal addresses redirect to the order.
+The standalone `item_quantity_form.html` and `item_removal_form.html` templates
+are removed. Migration `0023_add_order_item_change` is applied to the website
+database in `web`; successful edits and history recording were verified manually.
+
+The user confirmed **53 related tests in 81.790 seconds on 2026-11-23**:
+11 quantity-form, six removal and 36 staff order-page tests.
+`ruff check shop_epower/orders` and `git diff --check` passed
+(LF/CRLF warnings only). Expansion/cancellation, errors, the last-line guard
+and issued-invoice notices were also verified manually. Editing forms become
+available after invoice cancellation. This is a scoped run.
+
+<a id="inline-order-payment-forms"></a>
+
+### Inline order payment forms — 2026-11-23
+
+The Payment actions buttons `Register receipt...` and `Assign funds...`
+expand their forms below the action row on the staff order page.
+Both forms are initially collapsed; `Cancel` closes a form without submission.
+
+Field errors and service refusals render the order page again with the submitted
+form expanded and the other form collapsed. Amount, receipt method, comment
+and `operation_key` remain in the relevant bound form. The forms have distinct
+operation keys and HTML field IDs. Successful submissions return to the order
+while preserving the source list's filters and page.
+
+A confirmed receipt increases the customer's freely available funds.
+Assigning money to an order remains a separate action; receipt registration
+does not automatically settle debt. The `orders/manage/payment_actions.html`
+partial and shared `get_manager_order_detail_context()` prepare the initial
+page and its error responses.
+
+The user confirmed **79 related tests in 88.412 seconds on 2026-11-23**:
+11 quantity-form, five removal, 36 staff order-page, 11 receipt and 16 assignment tests.
+`ruff check shop_epower/orders shop_epower/payments` and `git diff --check`
+passed, with LF/CRLF warnings only. This run includes the reduction/removal
+routes restored after manual testing exposed NoReverseMatch.
+This is a scoped run; the latest full-project result at that checkpoint was
+1107 tests on 2026-11-17.
+
+<a id="shipment-confirmation-ui"></a>
+
+### Full-shipment confirmation on the order page — 2026-11-23
+
+`Complete order` opens confirmation immediately below the Order actions header.
+The `orders/manage/shipment_confirmation.html` partial uses `<dialog>` and
+`showModal()`: other page elements are temporarily inactive and background
+scrolling is locked. Initial focus is on `Cancel`. Browser controls, including
+tab search, remain available.
+
+Opening confirmation sends no request. `Cancel` and Esc only close it, restore
+page interaction and leave the order in PROCESSING. `Confirm full shipment`
+sends the existing completion POST with CSRF, `status=completed` and the
+preserved `next`. Full-shipment recording, debt and prepayment application
+rules remain in place. The warning that shipment cannot be cancelled and
+order lines cannot be edited remains visible.
+
+The user confirmed **36 staff order-page tests in 77.028 seconds on
+2026-11-23**, Ruff for `test_manager_views.py` and `git diff --check`
+(LF/CRLF warnings only). Tests cover markup and server actions; positioning,
+page blocking, Cancel and Esc were checked manually. The user explicitly
+confirmed that Esc leaves the order in PROCESSING. This is a scoped check
+after the preceding 79-test related-module run.
+
+<a id="inline-account-money-forms"></a>
+
+### Customer account money forms — 2026-11-24
+
+`Register receipt...` and `Return funds...` expand their forms below Payment
+actions on the account page. `Cancel` closes a form without submission.
+The forms have distinct operation keys and HTML IDs. Field errors or service
+refusals render the same account page: the submitted form stays expanded with
+its amount, method, comment and key, while the other form is collapsed.
+
+Receipt registration increases available funds without automatic assignment.
+Payout uses the existing service: available funds only after debt is settled,
+partial amounts and a selected manual method, with LIFO sources. Successful
+submission returns to the account with updated balances and its search context.
+
+`Cancel receipt...` opens Payments with account/PAID/manual filters.
+`Back to account`, applying/resetting filters and pagination retain the source
+account URL. Account history links use the account address, including on
+error responses to a POST.
+
+The user confirmed **62 related tests in 86.084 seconds on 2026-11-24**:
+account summary, finance views, receipt entry and payouts.
+`ruff check shop_epower/finance shop_epower/payments` and `git diff --check`
+passed (LF/CRLF warnings only). Form display, Cancel and return links were
+checked manually; debt refusal and successful inline payouts are covered by tests.
+
+The full-project run passed on **2026-11-24: 1182 tests in 1062.406 seconds**.
+Project-wide Ruff, model/migration consistency and git diff --check passed;
+no unrecorded model changes were detected, with LF/CRLF warnings only.
+This verifies the shared stage: order-editing services, OrderItemChange,
+migration 0023, inline forms and money workflows. Next comes the shared commit,
+then inline item addition using its existing service. Staff history, the
+customer edit indicator and editing APIs remain queued.
 
 ## Remaining Decisions Before Further Financial Migrations
 
@@ -1066,11 +1278,19 @@ the latest full-project run remains 1107.
 - Resolved on 2026-10-19: no shipment correction/reopening in PHASE 23.
   Add explicit confirmation before `Complete order`; preserve one shipment
   per order. Money corrections and future goods returns are distinct workflows.
-- Define the smallest append-only order-change history model and how to
-  capture the manager's confirmed price and reservation changes. Implement
-  reverse reservation release within the selected line, including
-  multiple supplier reservations. Never silently rewrite a recorded shipment
-  or financial history.
+- Quantity reduction, removal and addition services with history are implemented.
+  All 42 history/editing tests are included in the 130-test related regression
+  that passed in 89.038 seconds on 2026-11-22; scoped Ruff and diff checks passed.
+  Quantity reduction/removal now use inline staff forms, verified on 2026-11-23.
+  Account money forms, errors and navigation passed all 62 related tests in
+  86.084 seconds on 2026-11-24, with finance/payments Ruff and whitespace checks.
+  The full suite passed on 2026-11-24: 1182 tests in 1062.406 seconds,
+  project-wide Ruff, model/migration and whitespace checks passed.
+  Commit the checkpoint, then implement price-confirmed addition.
+  Staff history display, the customer edit indicator and
+  editing APIs remain queued. Other combinations with order cancellation, receipts,
+  payouts and invoice snapshots, plus retries/concurrency, remain open.
+  Never silently rewrite recorded shipments or original financial history.
 - How should the order-level debt list present multiple shipments or
   payments when these are introduced later? Keep personal and legal account
   balances visibly separate. An optional customer summary must drill down
@@ -1083,7 +1303,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Single work order as of 2026-11-11. This list defines the immediate sequence;
+Single work order as of 2026-11-23. This list defines the immediate sequence;
 earlier dated sections retain the history of decisions and validation.
 PHASE 23 remains open. Full shipment, debt creation, fund assignment/removal,
 customer balances and the staff shipped-unpaid list are implemented.
@@ -1208,7 +1428,7 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    APIs are included in this regression; it is not a new full-project run.
    Website route unification is complete; invoice snapshot implementation is recorded in step 8.
    Preserve permissions, reason/actor, operation key, LIFO sources and replay safety.
-   The latest full-project run is 1107; PHASE 23 remains in progress.
+   At that checkpoint the full-project run was 1107; PHASE 23 remains in progress.
    The route unification agreed on 2026-11-16 is implemented and verified
    on 2026-11-18: payment website routes use `/shop/payments/`, preserving the
    `payments` namespace and `/api/payments/`. Existing mock-payment and related
@@ -1222,8 +1442,31 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    backfill was explicitly excluded on that date. The user applied 0018 to the
    development database and manually verified a new invoice PDF on 2026-11-18.
    All 454 related tests passed in 425.268 seconds, project-wide Ruff and
-   whitespace checks passed. Next implement the agreed staff edits
-   with reason/history. New quantity at a new price is a separate line; update
+   whitespace checks passed. Quantity reduction/removal/addition and history
+   now have 42 tests. On 2026-11-22 all 130 related tests passed in 89.038 seconds,
+   with scoped Ruff and diff checks. Addition recalculates supplier/customer
+   pricing, checks confirmation and keeps batches/funds separate.
+   Retained-assignment cancellation and edited-order shipment with repeat
+   completion are verified. Inline quantity/removal and Payment actions forms
+   are implemented, including error redisplay with preserved input and keys.
+   All 79 related website tests passed in 88.412 seconds on 2026-11-23;
+   orders/payments Ruff and whitespace checks passed. Item forms were also
+   manually verified. Migration 0023 is applied in web. Shipment confirmation
+   sits below Order actions and blocks page interaction until confirmation or
+   Cancel/Esc. Esc leaves the order in PROCESSING. The next run passed 36 staff
+   order-page tests in 77.028 seconds, file-scoped Ruff, whitespace and manual checks.
+   Quantity/removal buttons remain visible with an issued invoice and expand
+   a cancellation notice. Editing forms become available after cancellation.
+   The latest run passed 53 tests in 81.790 seconds, orders Ruff, whitespace
+   and manual checks.
+   Account money forms, error responses and navigation are complete:
+   62 tests passed in 86.084 seconds on 2026-11-24, with finance/payments Ruff
+   and whitespace checks. The full suite then passed on 2026-11-24:
+   1182 tests in 1062.406 seconds, project-wide Ruff, model/migration and
+   whitespace checks. The checkpoint includes order-editing services, history
+   and migration 0023. Commit it, then start item addition. Staff history/
+   customer indicator and editing APIs remain queued.
+   New quantity at a new price is a separate line; update
    totals/reservations atomically. Explicitly cancel an issued invoice before
    editing; reject post-shipment edits. No partial-shipment interface or reversal
    of confirmed shipment is added.
@@ -1233,6 +1476,10 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    whether Pending remains necessary for actual online payment attempts.
    Record that decision and update affected model choices/defaults, existing
    data, migrations and tests as needed. Preserve financial history.
+   At the end of PHASE 23, add navigation from the customer account page to the
+   staff list of that customer's orders with a pre-applied customer filter.
+   Preserve the filter through pagination and provide a return to the original
+   account page with its account-search context.
    Independently test concurrent financial actions and invoice
    numbering, reconcile amounts/sources, run the full suite and a manual
    end-to-end scenario. Synchronize both READMEs, diagrams and plans; prepare
@@ -1246,6 +1493,85 @@ money-specific setup stays in the test or a small helper. The user edits/runs
 application code, migrations, tests and Ruff; the assistant explains, reads and
 maintains documentation. Record the current point and unfinished step before
 changing the sequence for a new request.
+
+<a id="item-editing-next-session"></a>
+
+### Resume point: 24 November 2026
+
+Updated after the full run of 1182 tests in 1062.406 seconds on 2026-11-24.
+Project-wide Ruff, model/migration and whitespace checks passed. There is no
+unfinished red test. Next comes the shared commit, then the item-addition UI.
+
+**Implemented:**
+
+- reduce_order_item_quantity, remove_order_item and add_order_item services,
+  OrderItemChange, migration 0023 and history/reservation checks.
+- Inline quantity/removal forms. Issued invoices leave applicable buttons
+  visible with a notice; cancellation enables editing. The last line is
+  protected and quantity reduction has a minimum of 1.
+- Modal shipment confirmation below Order actions. Cancel/Esc preserve
+  PROCESSING and restore page interaction.
+- Inline account receipt/payout forms. Errors preserve the account page,
+  bound data, operation key and search context; only the submitted form is
+  expanded. Successful payouts update balances and retain return context.
+- Payments-to-account navigation, including Apply filters and Reset.
+  Account histories use the explicit account address and saved parameters.
+- Standalone financial GET pages remain. The orders.0023 migration is applied
+  to the website database in web.
+
+**Confirmed checks on 2026-11-24:**
+
+- Full run: 1182 tests in 1062.406 seconds.
+- Related run: 62 tests in 86.084 seconds:
+  `shop_epower.finance.tests.test_account_detail_summary`,
+  `shop_epower.finance.tests.test_manager_views`,
+  `shop_epower.payments.tests.test_account_receipt_views`,
+  `shop_epower.payments.tests.test_account_payout_views`.
+- Project-wide Ruff, makemigrations --check --dry-run (No changes detected)
+  and git diff --check passed; LF/CRLF warnings only.
+- The user manually checked form display and Payments return navigation.
+  Debt-refusal and successful-payout behavior passed tests. Manually check
+  those two POST scenarios in the current version before committing.
+- The latest confirmed full-project run is 1182 on 2026-11-24.
+
+**Next steps:**
+
+1. Shared-stage checks are complete. Stage the documentation, finance/orders/
+   payments and corresponding templates, including the new history model,
+   migration 0023 and tests. Inspect git diff --cached --check and
+   git diff --cached --stat.
+2. Commit the checkpoint covering pre-shipment editing, history, inline staff
+   forms and account money forms. Suggested title:
+   `feat: add pre-shipment order editing and inline payment forms`.
+   The user runs git add/commit/push. No repeated full run is needed until
+   further application changes.
+3. Start item addition in Order items: explain the form, then one TDD test.
+   It needs product selection, quantity, the owner's current price, explicit
+   price confirmation and a required reason. Reuse add_order_item; changed
+   prices require renewed confirmation. Every addition creates a separate
+   line even at the same price; earlier prices/reservations remain unchanged.
+4. Continue staff history/reason display, the customer edit indicator and
+   editing APIs in the agreed order. Preserve roles, PROCESSING, recorded
+   shipment/issued-invoice guards, list filters/page and atomic stock,
+   history and financial updates.
+
+Preserve payout rules: available funds only after debt settlement, partial
+amounts and a selected manual method, with LIFO sources. Order assignment is
+separate. Reduction/removal releases excess prepayment in LIFO order through
+a reversal and a smaller retained-source assignment.
+
+Account-to-customer-orders navigation remains scheduled for the end of PHASE 23
+(added on 2026-11-24): customer filtering, pagination and return to the source
+account/search context. Keep this task queued when moving to item addition.
+
+Remaining cross-workflow scenarios, concurrency/retries and the Pending audit
+remain queued. PHASE 23 is not complete; minimal 1C (PHASE 24) and the test pilot
+(PHASE 25) follow.
+
+Teaching sequence: one test → user result → explanation and minimal implementation
+→ repeat that test; related modules after completed behavior. The user edits/runs
+application code, migrations, tests, Ruff and git; the assistant reads, explains
+and maintains documentation.
 
 ## Verification Gates
 
@@ -1303,9 +1629,12 @@ changing the sequence for a new request.
   obligation can be traced without double counting.
 - Multiple confirmed payments may fund one order; each receipt is credited
   once, and one full shipment can be settled in separate manual allocations.
-- Pre-shipment item edits preserve confirmed receipts and balances, keep
-  stock reservations and order totals consistent, and require cancellation
-  before replacing an issued invoice. Post-shipment edits are rejected.
+- Pre-shipment item edits preserve actual confirmed receipts, keep stock
+  reservations, assigned funds, available balance and order totals consistent,
+  and require cancellation before replacing an issued invoice.
+  Excess assigned prepayment returns to available funds atomically in LIFO
+  order using original sources; no excess means no financial changes.
+  Post-shipment edits and removal of the last line are rejected.
 - Adding the same product later never extends an old-price order item:
   existing prices stay fixed, while the new quantity uses a validated
   current selling price and separate supplier/stock reservations.

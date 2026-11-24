@@ -1,0 +1,110 @@
+{% if order.customer_account_id %}
+    <div class="card mb-4">
+        <div class="card-header d-flex align-items-center flex-wrap gap-2">
+            <span>Payment actions</span>
+
+            <div class="d-flex flex-wrap gap-2">
+                {% if receipt_form %}
+                    <button
+                        type="button"
+                        class="btn btn-success btn-sm{% if not receipt_form_open %} collapsed{% endif %}"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#order-receipt-form-{{ order.pk }}"
+                        aria-expanded="{% if receipt_form_open %}true{% else %}false{% endif %}"
+                        aria-controls="order-receipt-form-{{ order.pk }}"
+                    >
+                        Register receipt...
+                    </button>
+                {% endif %}
+
+                {% if assignment_form %}
+                    <button
+                        type="button"
+                        class="btn btn-primary btn-sm{% if not assignment_form_open %} collapsed{% endif %}"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#order-assignment-form-{{ order.pk }}"
+                        aria-expanded="{% if assignment_form_open %}true{% else %}false{% endif %}"
+                        aria-controls="order-assignment-form-{{ order.pk }}"
+                    >
+                        Assign funds...
+                    </button>
+                {% endif %}
+            </div>
+        </div>
+
+        {% if receipt_form %}
+            <div class="collapse{% if receipt_form_open %} show{% endif %}" id="order-receipt-form-{{ order.pk }}">
+                <div class="card-body">
+                    <p class="text-muted">
+                        Record only money already received.
+                        Funds must be assigned to the order separately.
+                    </p>
+
+                    <form
+                        method="post"
+                        action="{% url 'payments:manager_record_receipt' order.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <input type="hidden" name="next" value="{{ back_url }}">
+
+                        {{ receipt_form.as_p }}
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-success btn-sm">
+                                Confirm receipt
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#order-receipt-form-{{ order.pk }}"
+                                aria-controls="order-receipt-form-{{ order.pk }}"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+
+        {% if assignment_form %}
+            <div class="collapse{% if assignment_form_open %} show{% endif %}" id="order-assignment-form-{{ order.pk }}">
+                <div class="card-body">
+                    <p class="text-muted">
+                        Use funds already available on the customer's account.
+                    </p>
+
+                    <form
+                        method="post"
+                        action="{% url 'orders:manager_assign_order_funds' order.pk %}"
+                    >
+                        {% csrf_token %}
+
+                        <input type="hidden" name="next" value="{{ back_url }}">
+
+                        {{ assignment_form.as_p }}
+
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" class="btn btn-primary btn-sm">
+                                Assign funds
+                            </button>
+
+                            <button
+                                type="button"
+                                class="btn btn-outline-secondary btn-sm"
+                                data-bs-toggle="collapse"
+                                data-bs-target="#order-assignment-form-{{ order.pk }}"
+                                aria-controls="order-assignment-form-{{ order.pk }}"
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+{% endif %}

@@ -205,9 +205,9 @@ class TestsManagerAccountPayoutViews(TestCase):
             f'name="next" value="{escape(account_url)}"',
         )
 
-    # Проверяем возврат после успешной выплаты:
-    # сохраняется адрес карточки с исходным фильтром
-    # и страницей списка счетов.
+    # Возврат подтверждается встроенной формой на странице счёта.
+    # После отправки открывается карточка с обновлённым балансом.
+    # Исходный фильтр и страница поиска счетов сохраняются.
     def test_successful_payout_preserves_account_return_context(self):
         list_url = (
             reverse("finance:manager_account_list")
@@ -224,12 +224,13 @@ class TestsManagerAccountPayoutViews(TestCase):
 
         self.client.force_login(self.manager)
 
-        form_response = self.client.get(
-            self.url,
-            {"next": account_url},
-        )
+        form_response = self.client.get(account_url)
+
+        self.assertEqual(form_response.status_code, 200)
+
         operation_key = (
-            form_response.context["form"].initial["operation_key"]
+            form_response.context["payout_form"]
+            .initial["operation_key"]
         )
 
         response = self.client.post(
@@ -239,15 +240,29 @@ class TestsManagerAccountPayoutViews(TestCase):
                 "method": PayoutMethod.CASH,
                 "comment": "Money returned to the customer.",
                 "operation_key": operation_key,
-                "next": account_url,
+                "next": form_response.context["return_url"],
             },
+            follow=True,
         )
 
         self.assertRedirects(response, account_url)
+        self.assertTemplateUsed(
+            response,
+            "finance/manage/account_detail.html",
+        )
+        self.assertEqual(response.context["back_url"], list_url)
+        self.assertContains(
+            response,
+            f'href="{escape(list_url)}"',
+        )
+        self.assertEqual(
+            response.context["account"].available_balance,
+            Decimal("60.00"),
+        )
 
-    # Проверяем отображение отказа выплаты при долге:
-    # деньги не списываются, документ не создаётся,
-    # заполненная форма и исходный ключ операции сохраняются.
+    # При долге возврат отклоняется на странице счёта.
+    # Форма возврата раскрыта, данные, ключ и контекст поиска сохранены.
+    # Форма поступления свёрнута; деньги и история остаются без изменений.
     def test_payout_with_debt_preserves_form_data_and_shows_error(self):
         record_customer_debt(
             account=self.account,
@@ -256,12 +271,29 @@ class TestsManagerAccountPayoutViews(TestCase):
             actor_type=AccountTransactionActorType.MANAGER,
             created_by=self.manager,
         )
-
         self.client.force_login(self.manager)
 
-        form_response = self.client.get(self.url)
+        list_url = (
+            reverse("finance:manager_account_list")
+            + "?"
+            + urlencode(
+                {
+                    "q": self.user.email,
+                    "status": self.account.status,
+                },
+            )
+        )
+        account_response = self.client.get(
+            reverse(
+                "finance:manager_account_detail",
+                args=[self.account.pk],
+            ),
+            {"next": list_url},
+        )
+        return_url = account_response.wsgi_request.get_full_path()
         operation_key = (
-            form_response.context["form"].initial["operation_key"]
+            account_response.context["payout_form"]
+            .initial["operation_key"]
         )
         comment = "Customer requested a bank payout."
 
@@ -272,18 +304,37 @@ class TestsManagerAccountPayoutViews(TestCase):
                 "method": PayoutMethod.BANK_TRANSFER,
                 "comment": comment,
                 "operation_key": operation_key,
+                "next": return_url,
             },
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "finance/manage/account_detail.html",
+        )
+        self.assertEqual(response.context["back_url"], list_url)
         self.assertContains(
             response,
-            "Customer account debt must be settled before payout.",
+            (
+                '<div class="collapse show" '
+                f'id="account-payout-form-{self.account.pk}">'
+            ),
+        )
+        self.assertContains(
+            response,
+            (
+                '<div class="collapse" '
+                f'id="account-receipt-form-{self.account.pk}">'
+            ),
         )
 
-        form = response.context["form"]
+        form = response.context["payout_form"]
+        error = "Customer account debt must be settled before payout."
 
         self.assertTrue(form.is_bound)
+        self.assertFormError(form, None, error)
+        self.assertContains(response, error)
         self.assertEqual(form["amount"].value(), "40.00")
         self.assertEqual(
             form["method"].value(),
@@ -291,6 +342,15 @@ class TestsManagerAccountPayoutViews(TestCase):
         )
         self.assertEqual(form["comment"].value(), comment)
         self.assertEqual(form["operation_key"].value(), operation_key)
+        self.assertFalse(response.context["receipt_form"].is_bound)
+        self.assertContains(
+            response,
+            (
+                '<input type="hidden" name="next" '
+                f'value="{escape(return_url)}">'
+            ),
+            html=True,
+        )
 
         self.account.refresh_from_db()
 
