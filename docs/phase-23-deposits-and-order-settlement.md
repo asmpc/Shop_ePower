@@ -17,14 +17,18 @@ quantity reduction/removal and Payment actions use inline staff order forms.
 The 2026-11-23 website checkpoint passed 79 related tests in 88.412 seconds.
 Confirmation below Order actions subsequently passed 36 staff order-page tests
 in 77.028 seconds and manual checks; Esc closes confirmation without changing the order.
-The latest related editing run passed 53 tests in 81.790 seconds; buttons remain
+The earlier related editing run passed 53 tests in 81.790 seconds; buttons remain
 visible with an issued invoice and explain that it must first be cancelled.
 Account money forms are complete: receipt/payout errors stay on the account page,
 and successful submissions and Payments navigation preserve search context.
 On 2026-11-24 all 62 related tests passed in 86.084 seconds, with finance/payments
-Ruff and whitespace checks. The full suite passed on 2026-11-24:
-1182 tests in 1062.406 seconds, project-wide Ruff and model/migration checks passed.
-Next: the shared commit, then item addition.
+Ruff and whitespace checks. That earlier full run passed 1182 tests.
+Batch addition with one shared reason is now implemented and manually checked.
+The related run passed 111 tests in 153.416 seconds; the latest full run passed
+1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff, model/migration
+consistency (No changes detected) and whitespace checks passed.
+Next: commit batch addition, then staff history display, the customer edit
+indicator and editing APIs.
 Legacy demonstration invoices do not require a data backfill migration.
 PHASE 23 is not complete.
 
@@ -675,6 +679,12 @@ This does not introduce a new post-shipment goods-return workflow.
   the product already appears in the order. Existing item prices, quantities,
   and reservations are not silently extended or repriced. Separate price
   batches of the same product remain visible as separate lines.
+- Batch addition uses one shared comment for the whole set. The employee stages
+  several products/quantities, enters the reason once and confirms one operation.
+  The reason is optional during preparation and required at confirmation.
+  Each saved line gets a separate history entry with the shared reason and actor.
+  Selection/search/removal does not write order lines, stock or history.
+  Confirming the batch is atomic; any failing line rolls back the entire set.
 - Before the manager adds a new order line, recalculate the customer-facing
   selling price from current supplier pricing using the project's pricing
   rules, show the result, and require explicit confirmation. Do not accept
@@ -1236,13 +1246,44 @@ account summary, finance views, receipt entry and payouts.
 passed (LF/CRLF warnings only). Form display, Cancel and return links were
 checked manually; debt refusal and successful inline payouts are covered by tests.
 
-The full-project run passed on **2026-11-24: 1182 tests in 1062.406 seconds**.
-Project-wide Ruff, model/migration consistency and git diff --check passed;
-no unrecorded model changes were detected, with LF/CRLF warnings only.
-This verifies the shared stage: order-editing services, OrderItemChange,
-migration 0023, inline forms and money workflows. Next comes the shared commit,
-then inline item addition using its existing service. Staff history, the
-customer edit indicator and editing APIs remain queued.
+The earlier shared checkpoint passed **1182 tests in 1062.406 seconds on
+2026-11-24**, together with project-wide Ruff and model/migration/whitespace checks.
+It covered order-editing services, OrderItemChange, migration 0023, inline forms
+and money workflows. The subsequent batch-addition checkpoint is recorded below.
+
+<a id="batch-order-item-addition"></a>
+
+### Batch order-item addition — 2026-11-24
+
+Managers and administrators can add several products from the inline Order items
+panel. Search by name, manufacturer article or brand shows own/supplier stock and
+lead time. Selection previews the current price for the order's customer.
+`calculate_product_base_price()` calculates without saving the product;
+the existing update method uses the same calculation.
+
+`Add to list` stages a quantity and confirmed price in the form. Search, selection,
+pagination and removal retain the staged rows and shared reason through one POST
+form. Excluded rows retain only their hidden DELETE flag. An empty draft disables saving.
+No order lines, stock
+reservations or history are saved during selection; the draft has no database model.
+The reason is optional while preparing the list and required on `Add items`.
+Whitespace-only reasons are rejected. Enter the reason once for the whole batch.
+
+`add_order_items()` saves the batch in one transaction through `add_order_item()`.
+Each new line retains its price snapshot, reservations and separate history entry
+with the same reason and actor. Earlier lines remain unchanged; repeated products also create separate lines,
+even at the same price. A failed item
+rolls back the whole batch; error responses retain rows and the reason.
+Excluded rows are not saved. No payment, invoice or financial entry is created.
+PROCESSING, shipment and issued-invoice guards remain; the Add button stays visible
+with an issued invoice and explains that cancellation is required first.
+Customers receive 403 for all staff addition actions.
+
+The user confirmed search, selection, stock display, staging, shared-reason
+retention, removal and final saving manually. The related run passed **111 tests
+in 153.416 seconds**; the full run passed **1200 tests in 1262.037 seconds on
+2026-11-24**. Project-wide Ruff, model/migration consistency (No changes detected)
+and `git diff --check` passed. No new migration is required for this checkpoint.
 
 ## Remaining Decisions Before Further Financial Migrations
 
@@ -1284,9 +1325,11 @@ customer edit indicator and editing APIs remain queued.
   Quantity reduction/removal now use inline staff forms, verified on 2026-11-23.
   Account money forms, errors and navigation passed all 62 related tests in
   86.084 seconds on 2026-11-24, with finance/payments Ruff and whitespace checks.
-  The full suite passed on 2026-11-24: 1182 tests in 1062.406 seconds,
-  project-wide Ruff, model/migration and whitespace checks passed.
-  Commit the checkpoint, then implement price-confirmed addition.
+  Batch addition with one shared reason is implemented and manually verified.
+  The latest related run passed 111 tests in 153.416 seconds; the full run passed
+  1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff,
+  model/migration consistency and whitespace checks passed.
+  Commit this checkpoint before starting the remaining work.
   Staff history display, the customer edit indicator and
   editing APIs remain queued. Other combinations with order cancellation, receipts,
   payouts and invoice snapshots, plus retries/concurrency, remain open.
@@ -1464,8 +1507,12 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    and whitespace checks. The full suite then passed on 2026-11-24:
    1182 tests in 1062.406 seconds, project-wide Ruff, model/migration and
    whitespace checks. The checkpoint includes order-editing services, history
-   and migration 0023. Commit it, then start item addition. Staff history/
-   customer indicator and editing APIs remain queued.
+   and migration 0023. Batch addition is now implemented: one shared reason,
+   current customer prices/stock, retained formset state and whole-batch rollback.
+   The subsequent related run passed 111 tests in 153.416 seconds; the latest
+   full run passed 1200 tests in 1262.037 seconds on 2026-11-24, with project-wide
+   Ruff, model/migration consistency and whitespace checks.
+   Commit batch addition, then staff history/customer indicator and editing APIs.
    New quantity at a new price is a separate line; update
    totals/reservations atomically. Explicitly cancel an issued invoice before
    editing; reject post-shipment edits. No partial-shipment interface or reversal
@@ -1498,80 +1545,68 @@ changing the sequence for a new request.
 
 ### Resume point: 24 November 2026
 
-Updated after the full run of 1182 tests in 1062.406 seconds on 2026-11-24.
-Project-wide Ruff, model/migration and whitespace checks passed. There is no
-unfinished red test. Next comes the shared commit, then the item-addition UI.
+Batch item addition is implemented and ready to commit. The user confirmed
+1200 tests in 1262.037 seconds, project-wide Ruff, model/migration consistency
+(No changes detected) and whitespace checks. There is no unfinished red test.
 
-**Implemented:**
+**Completed in this checkpoint:**
 
-- reduce_order_item_quantity, remove_order_item and add_order_item services,
-  OrderItemChange, migration 0023 and history/reservation checks.
-- Inline quantity/removal forms. Issued invoices leave applicable buttons
-  visible with a notice; cancellation enables editing. The last line is
-  protected and quantity reduction has a minimum of 1.
-- Modal shipment confirmation below Order actions. Cancel/Esc preserve
-  PROCESSING and restore page interaction.
-- Inline account receipt/payout forms. Errors preserve the account page,
-  bound data, operation key and search context; only the submitted form is
-  expanded. Successful payouts update balances and retain return context.
-- Payments-to-account navigation, including Apply filters and Reset.
-  Account histories use the explicit account address and saved parameters.
-- Standalone financial GET pages remain. The orders.0023 migration is applied
-  to the website database in web.
+- Active-product search by name/article/brand, 20-entry pagination and current
+  customer-price preview with own/supplier stock and lead time.
+- Read-only calculate_product_base_price, reused by the existing price updater.
+  Preview does not save the catalog product or alter existing order prices.
+- One formset for the staged batch and one shared reason. Search, selection,
+  pagination and exclusion preserve both through the common POST form.
+  Staging/removal changes form data only; no persistent draft model is added.
+- add_order_items saves all active rows in one transaction through add_order_item.
+  Each line has its own snapshot/reservations/history with the same reason/actor.
+  A failed row rolls back the complete batch. Error responses preserve input.
+- The reason is required only on final confirmation; whitespace is rejected.
+  Excluded rows submit only DELETE and are not saved. An empty batch disables saving.
+- Manager/admin access, actual history authors, customer POST denial, PROCESSING,
+  shipment and issued-invoice guards remain. The issued-invoice Add button
+  reveals the cancellation notice. Earlier order lines and financial records stay unchanged.
+- Quantity/removal forms, shipment confirmation and account money forms from
+  the previous checkpoint remain in place. Model diagrams are unchanged because
+  this checkpoint introduces no new model links or migrations.
 
-**Confirmed checks on 2026-11-24:**
+**Confirmed checks:**
 
-- Full run: 1182 tests in 1062.406 seconds.
-- Related run: 62 tests in 86.084 seconds:
-  `shop_epower.finance.tests.test_account_detail_summary`,
-  `shop_epower.finance.tests.test_manager_views`,
-  `shop_epower.payments.tests.test_account_receipt_views`,
-  `shop_epower.payments.tests.test_account_payout_views`.
-- Project-wide Ruff, makemigrations --check --dry-run (No changes detected)
-  and git diff --check passed; LF/CRLF warnings only.
-- The user manually checked form display and Payments return navigation.
-  Debt-refusal and successful-payout behavior passed tests. Manually check
-  those two POST scenarios in the current version before committing.
-- The latest confirmed full-project run is 1182 on 2026-11-24.
+- Full run: 1200 tests in 1262.037 seconds on 2026-11-24.
+- Related run: 111 tests in 153.416 seconds across editing services, addition,
+  quantity/removal views and the main staff order views.
+- Pricing regression: 18 currency/markup/supplier-price tests in 0.725 seconds.
+- Project-wide Ruff, makemigrations --check --dry-run and git diff --check passed.
+- The user manually checked search, stock/price preview, staging several lines
+  with one reason, retained state, exclusion and final saving.
 
 **Next steps:**
 
-1. Shared-stage checks are complete. Stage the documentation, finance/orders/
-   payments and corresponding templates, including the new history model,
-   migration 0023 and tests. Inspect git diff --cached --check and
-   git diff --cached --stat.
-2. Commit the checkpoint covering pre-shipment editing, history, inline staff
-   forms and account money forms. Suggested title:
-   `feat: add pre-shipment order editing and inline payment forms`.
-   The user runs git add/commit/push. No repeated full run is needed until
-   further application changes.
-3. Start item addition in Order items: explain the form, then one TDD test.
-   It needs product selection, quantity, the owner's current price, explicit
-   price confirmation and a required reason. Reuse add_order_item; changed
-   prices require renewed confirmation. Every addition creates a separate
-   line even at the same price; earlier prices/reservations remain unchanged.
-4. Continue staff history/reason display, the customer edit indicator and
-   editing APIs in the agreed order. Preserve roles, PROCESSING, recorded
-   shipment/issued-invoice guards, list filters/page and atomic stock,
-   history and financial updates.
+1. Commit this checkpoint: documentation in both languages, orders changes,
+   currency calculation/tests and the new addition/search templates.
+   Inspect git diff --cached --check and git diff --cached --stat.
+   Suggested title: `feat: add batch order item addition`.
+   The user runs git add/commit/push; documentation-only edits need no repeated tests.
+2. After the commit, start staff order-change history by TDD: a selector,
+   context and a collapsed/paginated history on the order page. Show username,
+   time, reason and stored item/quantity/price/total snapshots.
+3. Add the customer edit indicator without exposing private reasons/history,
+   then editing APIs using the same services and permissions.
+4. Close step 9: account-to-customer-orders navigation with preserved filter/page
+   and return to the source account/search; Pending/default/mock audit;
+   independent concurrency/retry checks and final reconciliation/end-to-end
+   validation. Preserve receipt/assignment/payout separation and LIFO release
+   of excess prepayment on reductions/removals.
 
-Preserve payout rules: available funds only after debt settlement, partial
-amounts and a selected manual method, with LIFO sources. Order assignment is
-separate. Reduction/removal releases excess prepayment in LIFO order through
-a reversal and a smaller retained-source assignment.
+The account-to-orders task was explicitly added on 2026-11-24 and remains queued
+for the end of PHASE 23. Do not lose it while implementing history or APIs.
+PHASE 23 is not complete. Minimal 1C (PHASE 24) and the controlled test pilot
+(PHASE 25, without real sales/live external payments) follow.
 
-Account-to-customer-orders navigation remains scheduled for the end of PHASE 23
-(added on 2026-11-24): customer filtering, pagination and return to the source
-account/search context. Keep this task queued when moving to item addition.
-
-Remaining cross-workflow scenarios, concurrency/retries and the Pending audit
-remain queued. PHASE 23 is not complete; minimal 1C (PHASE 24) and the test pilot
-(PHASE 25) follow.
-
-Teaching sequence: one test → user result → explanation and minimal implementation
-→ repeat that test; related modules after completed behavior. The user edits/runs
-application code, migrations, tests, Ruff and git; the assistant reads, explains
-and maintains documentation.
+Teaching sequence: one targeted test → user result → explanation and minimal
+implementation → repeat that test; related modules after completed behavior.
+The user edits/runs application code, migrations, tests, Ruff and git.
+The assistant reads, explains and maintains documentation.
 
 ## Verification Gates
 
@@ -1641,8 +1676,9 @@ and maintains documentation.
 - Reducing quantity changes only the price batch selected by the manager;
   other batches keep their prices and reservations.
 - Missing reasons reject order edits without changing data. Each successful
-  edit creates exactly one order-change history entry; a failed atomic edit
-  creates none and leaves totals and reservations unchanged.
+  line edit creates one history entry. Batch addition accepts one shared reason
+  and records it for each added line. A failed atomic batch creates no entries
+  and leaves totals and reservations unchanged.
 - Customer views and APIs show the revised order but do not expose the
   manager's reason or internal change-history entries.
 - Manager edits do not wait for an in-app customer approval. Existing

@@ -170,3 +170,26 @@ class TestCurrencyPricing(TestCase):
 
         with self.assertRaises(ValueError):
             CurrencyService.update_product_base_price(self.product)
+
+    # Для предпросмотра рассчитываем актуальную цену без сохранения.
+    # При закупочной цене 100 и наценке 20% получаем 120.
+    # Ранее сохранённая цена товара 80 остаётся в базе без изменений.
+    def test_calculates_current_base_price_without_saving_product(self):
+        create_test_supplier_product(
+            supplier=self.supplier,
+            product=self.product,
+            supplier_price=Decimal("100.00"),
+            currency="BYN",
+        )
+        self.product.base_price = Decimal("80.00")
+        self.product.save(update_fields=["base_price"])
+
+        price = CurrencyService.calculate_product_base_price(
+            self.product,
+        )
+
+        self.assertEqual(price, Decimal("120.00"))
+
+        self.product.refresh_from_db()
+
+        self.assertEqual(self.product.base_price, Decimal("80.00"))

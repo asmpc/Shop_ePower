@@ -343,7 +343,11 @@ class TestsManagerOrderItemRemovalViews(TestCase):
                 f'href="{removal_url}?',
             )
 
-        self.assertContains(response, 'name="reason"', count=2)
+            self.assertContains(
+                response,
+                f'id="id_item_{item.pk}_removal_reason"',
+            )
+
         self.assertContains(
             response,
             (
@@ -380,7 +384,6 @@ class TestsManagerOrderItemRemovalViews(TestCase):
         self.assertContains(
             response,
             "Cancel the issued invoice before changing order items.",
-            count=2,
         )
 
         for item in (self.remaining_item, self.order_item):

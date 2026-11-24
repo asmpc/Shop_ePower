@@ -3,6 +3,8 @@ from decimal import Decimal
 from django import forms
 from django.core.validators import MaxValueValidator
 
+from shop_epower.catalog.models import Product
+
 
 class OrderFundAssignmentForm(forms.Form):
     amount = forms.DecimalField(
@@ -99,3 +101,47 @@ class OrderItemRemovalForm(forms.Form):
             },
         ),
     )
+
+
+class OrderItemAdditionForm(forms.Form):
+    product = forms.ModelChoiceField(
+        queryset=Product.objects.filter(is_active=True),
+        widget=forms.HiddenInput(),
+    )
+    quantity = forms.IntegerField(
+        label="Quantity",
+        min_value=1,
+        widget=forms.NumberInput(
+            attrs={
+                "class": "form-control",
+                "step": "1",
+            },
+        ),
+    )
+    confirmed_unit_price = forms.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+        widget=forms.HiddenInput(),
+    )
+
+
+class OrderItemsAdditionReasonForm(forms.Form):
+    reason = forms.CharField(
+        label="Reason for addition",
+        required=True,
+        help_text="Visible to staff only.",
+        widget=forms.Textarea(
+            attrs={
+                "class": "form-control",
+                "rows": 3,
+            },
+        ),
+    )
+
+
+OrderItemAdditionFormSet = forms.formset_factory(
+    OrderItemAdditionForm,
+    extra=0,
+    can_delete=True,
+)

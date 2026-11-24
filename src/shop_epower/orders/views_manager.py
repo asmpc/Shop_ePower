@@ -5,17 +5,21 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db.models import Exists, OuterRef
-from django.http import Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, render
 from django.views import View
 from django.views.generic import DetailView, ListView
 
+from shop_epower.catalog.selectors.products import get_product_list_queryset
 from shop_epower.chat.selectors import get_chat_rooms_for_order
 from shop_epower.orders.forms import (
     OrderFundAssignmentCancelForm,
     OrderFundAssignmentForm,
+    OrderItemAdditionForm,
+    OrderItemAdditionFormSet,
     OrderItemQuantityReductionForm,
     OrderItemRemovalForm,
+    OrderItemsAdditionReasonForm,
 )
 from shop_epower.orders.models import (
     Order,
@@ -30,9 +34,11 @@ from shop_epower.orders.navigation import (
 from shop_epower.orders.selectors import (
     get_order_financial_summary,
     get_order_fund_assignments,
+    get_order_item_addition_unit_price,
     get_unpaid_order_shipments_for_staff,
 )
 from shop_epower.orders.services import (
+    add_order_items,
     assign_order_funds,
     cancel_order_fund_assignment,
     reduce_order_item_quantity,
@@ -57,6 +63,7 @@ from shop_epower.payments.services import (
     mark_payment_paid,
     reset_payment_to_pending,
 )
+from shop_epower.suppliers.services.stock import get_product_inventory_public
 
 
 class ManagerOrderListView(
@@ -251,6 +258,89 @@ def get_manager_order_detail_context(
         get_order_fund_assignments(order=order),
         20,
     ).get_page(request.GET.get("assignments_page"))
+
+    addition_data = request.POST if request.method == "POST" else request.GET
+
+    item_search = addition_data.get("item_search", "").strip()
+    item_product_id = addition_data.get("item_product", "").strip()
+
+    context["item_search"] = item_search
+    context["addition_products"] = []
+    context["addition_product"] = None
+    context["addition_unit_price"] = None
+    context["addition_preview_error"] = ""
+    context["add_item_form"] = None
+    context["add_item_form_open"] = False
+    context["addition_reason_form"] = None
+    context["addition_formset"] = None
+
+    if can_edit_order_items:
+        context["addition_reason_form"] = OrderItemsAdditionReasonForm(
+            prefix="addition",
+            auto_id=f"id_order_{order.pk}_reason_%s",
+        )
+        context["addition_formset"] = OrderItemAdditionFormSet(
+            prefix="addition_items",
+            auto_id=f"id_order_{order.pk}_items_%s",
+        )
+        addition_form = OrderItemAdditionForm(
+            initial={"quantity": 1},
+            auto_id=f"id_order_{order.pk}_addition_%s",
+        )
+        context["add_item_form"] = addition_form
+        context["add_item_form_open"] = bool(
+            item_search or item_product_id
+        )
+
+        if item_search:
+            products = get_product_list_queryset(
+                params={"search": item_search},
+            ).order_by("name", "pk")
+
+            products_page = addition_data.get("products_page")
+
+            if (
+                request.method == "POST"
+                and request.POST.get("action") == "search"
+            ):
+                products_page = 1
+
+            context["addition_products"] = Paginator(
+                products,
+                20,
+            ).get_page(products_page)
+
+            for product in context["addition_products"]:
+                product.inventory = get_product_inventory_public(
+                    product,
+                )
+
+        if item_product_id:
+            try:
+                product = addition_form.fields["product"].clean(
+                    item_product_id,
+                )
+                unit_price = get_order_item_addition_unit_price(
+                    order=order,
+                    product=product,
+                )
+            except ValidationError as exc:
+                context["addition_preview_error"] = " ".join(
+                    exc.messages,
+                )
+            else:
+                product.inventory = get_product_inventory_public(
+                    product,
+                )
+                context["addition_product"] = product
+                context["addition_unit_price"] = unit_price
+
+                addition_form.initial.update(
+                    {
+                        "product": product.pk,
+                        "confirmed_unit_price": unit_price,
+                    },
+                )
 
     item_rows = []
 
@@ -829,6 +919,222 @@ class ManagerUnpaidOrderListView(LoginRequiredMixin, ListView):
             page,
             page.object_list,
             page.has_other_pages(),
+        )
+
+
+class ManagerOrderItemAddView(ManagerOrderDetailView):
+    def get(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        next_url = get_safe_manager_order_return_url(
+            request.GET.get("next"),
+            order=self.object,
+        )
+
+        return redirect_to_manager_order_detail(
+            request=request,
+            order_id=self.object.pk,
+            next_url=next_url,
+        )
+
+    def post(self, request, *args, **kwargs):
+        self.object = self.get_object()
+
+        if "remove_item" in request.POST:
+            return self._remove_staged_item(request)
+
+        action = request.POST.get("action", "search")
+
+        if action == "stage":
+            return self._stage_item(request)
+
+        if action == "search":
+            return self._search_items(request)
+
+        if action != "confirm":
+            return HttpResponseBadRequest(
+                "Unsupported addition action."
+            )
+
+        formset = OrderItemAdditionFormSet(
+            request.POST,
+            prefix="addition_items",
+            auto_id=f"id_order_{self.object.pk}_items_%s",
+        )
+        reason_form = OrderItemsAdditionReasonForm(
+            request.POST,
+            prefix="addition",
+            auto_id=f"id_order_{self.object.pk}_reason_%s",
+        )
+
+        items_valid = formset.is_valid()
+        reason_valid = reason_form.is_valid()
+
+        if items_valid and reason_valid:
+            items = []
+
+            for item_data in formset.cleaned_data:
+                if not item_data or item_data.get("DELETE"):
+                    continue
+
+                items.append(
+                    {
+                        "product": item_data["product"],
+                        "quantity": item_data["quantity"],
+                        "confirmed_unit_price": (
+                            item_data["confirmed_unit_price"]
+                        ),
+                    },
+                )
+
+            try:
+                add_order_items(
+                    order=self.object,
+                    items=items,
+                    changed_by=request.user,
+                    reason=reason_form.cleaned_data["reason"],
+                )
+            except ValidationError as exc:
+                reason_form.add_error(None, exc)
+            else:
+                messages.success(
+                    request,
+                    "Order items added.",
+                )
+
+                next_url = get_safe_manager_order_return_url(
+                    request.POST.get("next"),
+                    order=self.object,
+                )
+
+                return redirect_to_manager_order_detail(
+                    request=request,
+                    order_id=self.object.pk,
+                    next_url=next_url,
+                )
+
+        self.object.refresh_from_db()
+
+        context = self.get_context_data()
+        context["addition_formset"] = formset
+        context["addition_reason_form"] = reason_form
+        context["add_item_form_open"] = True
+
+        return self.render_to_response(context)
+
+    def _stage_item(self, request):
+        context = self.get_context_data()
+
+        if not context["can_edit_order_items"]:
+            return self.render_to_response(context)
+
+        addition_form = OrderItemAdditionForm(
+            request.POST,
+            auto_id=f"id_order_{self.object.pk}_addition_%s",
+        )
+        formset = OrderItemAdditionFormSet(
+            request.POST,
+            prefix="addition_items",
+            auto_id=f"id_order_{self.object.pk}_items_%s",
+        )
+        reason_form = OrderItemsAdditionReasonForm(
+            initial={
+                "reason": request.POST.get("addition-reason", ""),
+            },
+            prefix="addition",
+            auto_id=f"id_order_{self.object.pk}_reason_%s",
+        )
+
+        items_valid = formset.is_valid()
+        item_valid = addition_form.is_valid()
+
+        if items_valid and item_valid:
+            item_data = addition_form.cleaned_data
+            formset_data = request.POST.copy()
+            index = formset.total_form_count()
+            row_prefix = f"{formset.prefix}-{index}"
+
+            formset_data[f"{row_prefix}-product"] = str(
+                item_data["product"].pk,
+            )
+            formset_data[f"{row_prefix}-quantity"] = str(
+                item_data["quantity"],
+            )
+            formset_data[f"{row_prefix}-confirmed_unit_price"] = str(
+                item_data["confirmed_unit_price"],
+            )
+            formset_data[f"{formset.prefix}-TOTAL_FORMS"] = str(index + 1)
+
+            formset = OrderItemAdditionFormSet(
+                formset_data,
+                prefix="addition_items",
+                auto_id=f"id_order_{self.object.pk}_items_%s",
+            )
+            formset.is_valid()
+
+            addition_form = OrderItemAdditionForm(
+                initial={"quantity": 1},
+                auto_id=f"id_order_{self.object.pk}_addition_%s",
+            )
+
+        context["add_item_form"] = addition_form
+        context["addition_formset"] = formset
+        context["addition_reason_form"] = reason_form
+        context["add_item_form_open"] = True
+
+        return self.render_to_response(context)
+
+    def _search_items(self, request, *, formset_data=None):
+        context = self.get_context_data()
+
+        if not context["can_edit_order_items"]:
+            return self.render_to_response(context)
+
+        formset = OrderItemAdditionFormSet(
+            request.POST if formset_data is None else formset_data,
+            prefix="addition_items",
+            auto_id=f"id_order_{self.object.pk}_items_%s",
+        )
+        formset.is_valid()
+
+        reason_form = OrderItemsAdditionReasonForm(
+            initial={
+                "reason": request.POST.get("addition-reason", ""),
+            },
+            prefix="addition",
+            auto_id=f"id_order_{self.object.pk}_reason_%s",
+        )
+
+        context["addition_formset"] = formset
+        context["addition_reason_form"] = reason_form
+        context["add_item_form_open"] = True
+
+        return self.render_to_response(context)
+
+    def _remove_staged_item(self, request):
+        formset = OrderItemAdditionFormSet(
+            request.POST,
+            prefix="addition_items",
+        )
+
+        try:
+            index = int(request.POST.get("remove_item"))
+        except (TypeError, ValueError):
+            return HttpResponseBadRequest(
+                "Invalid item selected."
+            )
+
+        if not 0 <= index < formset.total_form_count():
+            return HttpResponseBadRequest(
+                "Invalid item selected."
+            )
+
+        formset_data = request.POST.copy()
+        formset_data[f"{formset.prefix}-{index}-DELETE"] = "on"
+
+        return self._search_items(
+            request,
+            formset_data=formset_data,
         )
 
 

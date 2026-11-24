@@ -15,6 +15,7 @@ from shop_epower.orders.views_manager import (
     ManagerOrderDetailView,
     ManagerOrderFundAssignmentCancelView,
     ManagerOrderFundAssignmentView,
+    ManagerOrderItemAddView,
     ManagerOrderItemQuantityReduceView,
     ManagerOrderItemRemoveView,
     ManagerOrderListView,
@@ -71,6 +72,12 @@ urlpatterns = [
         "manage/<int:pk>/",
         ManagerOrderDetailView.as_view(),
         name="manager_order_detail",
+    ),
+
+    path(
+        "manage/<int:pk>/items/add/",
+        ManagerOrderItemAddView.as_view(),
+        name="manager_add_order_item",
     ),
 
     path(

@@ -240,19 +240,19 @@ With an issued invoice, quantity/removal buttons stay visible and expand a notic
 that the invoice must first be cancelled; cancellation makes the forms available.
 The server-side editing guard remains. Latest related run on 2026-11-23:
 53 tests in 81.790 seconds, orders Ruff, whitespace and manual checks passed.
-Account money forms are complete: errors preserve the account, submitted data,
-key and search context; only the submitted form is expanded. Successful submission
-updates balances. Payments return navigation, Apply filters/Reset and histories
-preserve the account URL. On 2026-11-24 all 62 tests passed in 86.084 seconds,
-with finance/payments Ruff and whitespace checks. The full suite then passed on
-2026-11-24: 1182 tests in 1062.406 seconds, project-wide Ruff, model/migration
-and whitespace checks. Prepare the shared commit covering order-editing services,
-history and migration 0023, then inline item addition. Staff history/customer indicator, editing
-APIs and remaining end-to-end/concurrency checks stay queued.
-The latest full-project run is 1182 on 2026-11-24.
+Account money forms and Payments return context are complete; the earlier
+2026-11-24 checkpoint passed 62 related tests and a full 1182-test run.
+Batch item addition is now implemented: one shared reason, customer-price and
+stock previews, retained draft rows through search/selection/pagination/removal,
+and atomic confirmation through add_order_items. Each saved line has its own
+price snapshot, reservations and history entry with the shared reason and actor.
+The related regression passed 111 tests in 153.416 seconds; the full suite passed
+1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff,
+model/migration consistency (No changes detected) and whitespace checks passed.
+Next: commit this batch-addition checkpoint, then staff history display,
+the customer edit indicator and editing APIs. Independent concurrency/retry
+coverage and the Pending/mock audit remain in step 9. PHASE 23 is not complete.
 See [the resume plan](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
-Independent concurrency coverage remains in step 9; the latest full run is 1182.
-Checkpoint commits follow model protection and the complete account-funding flow.
 End-of-PHASE-23 task added on 2026-11-24: provide navigation from a customer
 account page to that customer's staff order list. Pre-apply the customer filter,
 retain it through pagination and preserve return to the source account/search.
@@ -324,6 +324,10 @@ Adding more of an existing product creates a separate order line with a
 validated current selling-price snapshot and its own reservations; the
 original price batch stays unchanged. Recalculate and show the new selling
 price to the manager for confirmation before adding the line.
+For batch addition, enter one shared reason for the entire set, not a separate
+reason for each product. Preparation does not change the order or reserve stock.
+Confirm the whole set atomically; each saved line retains that shared reason
+and actor in its own history entry. A failed line rolls back the whole set.
 For reductions, the manager selects the exact order line/price batch;
 the system does not pick which price or reservations to remove.
 
@@ -499,24 +503,21 @@ As of 2026-11-10 the order summary/action rows and three collapsed histories are
 implemented; the user confirmed order/invoice modules and manual checks. Receipt
 paging (20 entries), independent totals and preserved context passed focused
 tests; expansion after page changes remains open. No new full regression claimed.
-The next agreed PHASE 23 priority is an actual receipt into a customer account
-with no order: optional Payment order, mandatory linked deposit for an orderless
-receipt, atomic credit, no automatic assignment/debt, office/bank methods and
-staff-only confirmation. Adapt payment UI/API ownership and order-dependent
-paths before exposing the account action. Account detail must show customer
-information, freely available funds, assigned prepayment and shipped debt,
-a receipt button and collapsed/paginated transactions with safe return context.
-Keep personal/legal accounts separate. Then finish history expansion and the
-remaining correction/payout/concurrency work. Application changes/checks remain
-user-run; diagrams are updated when the schema is actually changed.
-Actual manual cash/bank refunds remain a separate subsequent workflow.
-Follow with safe receipt correction/manual refunds,
-invoice snapshots and pre-shipment editing, independent concurrency, full
-regression and the minimal 1C contract. PHASE 23 is not complete.
+Orderless account funding, inline receipt/payout forms, receipt correction and
+the combined Payments journal are implemented. Personal/legal accounts and
+safe return context remain separate. New invoice snapshots and pre-shipment
+quantity reduction/removal/batch addition are implemented.
+The current checkpoint is ready to commit after the full 1200-test run.
+Next: staff order-change history, the customer edit indicator and editing APIs.
+Finish the step 9 account-to-orders link, Pending/mock audit, independent
+concurrency/retry checks, final reconciliation and the minimal 1C contract.
+Application changes/checks remain user-run; diagrams change when model links do.
+PHASE 23 is not complete.
 See the [model diagrams and settlement example](phase-23-deposits-and-order-settlement.md#order-funds-models)
 and the [English README model map](README.en.md#order-funds-models).
-Existing debt allocation cannot be reused before an order has debt. Funding
-source traceability does not yet implement dependency-safe receipt correction.
+Existing debt allocation cannot be reused before an order has debt. Source
+traceability is retained for assignments, receipt correction and payouts;
+independent concurrency coverage remains open.
 The detailed phase plan and its published Russian version record the current boundary.
 Application code, tests, and migrations remain user-edited and user-run.
 The exit goal is a testable order-to-money flow

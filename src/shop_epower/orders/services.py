@@ -1568,3 +1568,33 @@ def add_order_item(
     )
 
     return order_item
+
+@transaction.atomic
+def add_order_items(
+    *,
+    order,
+    items,
+    changed_by,
+    reason,
+):
+    """Добавляет набор позиций с одной общей причиной."""
+
+    if not items:
+        raise ValidationError(
+            "At least one order item is required."
+        )
+
+    new_items = []
+
+    for item_data in items:
+        new_item = add_order_item(
+            order=order,
+            product=item_data["product"],
+            quantity=item_data["quantity"],
+            confirmed_unit_price=item_data["confirmed_unit_price"],
+            changed_by=changed_by,
+            reason=reason,
+        )
+        new_items.append(new_item)
+
+    return new_items

@@ -18,13 +18,17 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-1182-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-1200-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
 </div>
 
 ---
+
+Latest full run: **1200 tests passed on 2026-11-24 in 1262.037 seconds**.
+Project-wide Ruff, model/migration consistency (No changes detected) and
+`git diff --check` passed.
 
 ## 🚀 Project Overview
 
@@ -184,6 +188,9 @@ receipt or invoice creation does not automatically assign funds or settle debt.
 - Manager order processing
 - Inline pre-shipment quantity reduction/removal with required reasons,
   total recalculation, stock release and audit history
+- Batch product addition with one shared reason and atomic saving
+- Customer-price and stock previews; search, selection, pagination, errors
+  and exclusions preserve staged rows and the shared reason
 - Delivery updates
 - Controlled cancellation workflow
 - Reservation rollback after cancellation
@@ -572,13 +579,44 @@ account summary, finance views, receipt entry and payouts.
 passed (LF/CRLF warnings only). Form display, Cancel and return links were
 checked manually; debt refusal and successful inline payouts are covered by tests.
 
-The full-project run passed on **2026-11-24: 1182 tests in 1062.406 seconds**.
-Project-wide Ruff, model/migration consistency and git diff --check passed;
-no unrecorded model changes were detected, with LF/CRLF warnings only.
-This verifies the shared stage: order-editing services, OrderItemChange,
-migration 0023, inline forms and money workflows. Next comes the shared commit,
-then inline item addition using its existing service. Staff history, the
-customer edit indicator and editing APIs remain queued.
+The earlier shared checkpoint passed **1182 tests in 1062.406 seconds on
+2026-11-24**, together with project-wide Ruff and model/migration/whitespace checks.
+It covered order-editing services, OrderItemChange, migration 0023, inline forms
+and money workflows. The subsequent batch-addition checkpoint is recorded below.
+
+<a id="batch-order-item-addition"></a>
+
+### Batch order-item addition — 2026-11-24
+
+Managers and administrators can add several products from the inline Order items
+panel. Search by name, manufacturer article or brand shows own/supplier stock and
+lead time. Selection previews the current price for the order's customer.
+`calculate_product_base_price()` calculates without saving the product;
+the existing update method uses the same calculation.
+
+`Add to list` stages a quantity and confirmed price in the form. Search, selection,
+pagination and removal retain the staged rows and shared reason through one POST
+form. Excluded rows retain only their hidden DELETE flag. An empty draft disables saving.
+No order lines, stock
+reservations or history are saved during selection; the draft has no database model.
+The reason is optional while preparing the list and required on `Add items`.
+Whitespace-only reasons are rejected. Enter the reason once for the whole batch.
+
+`add_order_items()` saves the batch in one transaction through `add_order_item()`.
+Each new line retains its price snapshot, reservations and separate history entry
+with the same reason and actor. Earlier lines remain unchanged; repeated products also create separate lines,
+even at the same price. A failed item
+rolls back the whole batch; error responses retain rows and the reason.
+Excluded rows are not saved. No payment, invoice or financial entry is created.
+PROCESSING, shipment and issued-invoice guards remain; the Add button stays visible
+with an issued invoice and explains that cancellation is required first.
+Customers receive 403 for all staff addition actions.
+
+The user confirmed search, selection, stock display, staging, shared-reason
+retention, removal and final saving manually. The related run passed **111 tests
+in 153.416 seconds**; the full run passed **1200 tests in 1262.037 seconds on
+2026-11-24**. Project-wide Ruff, model/migration consistency (No changes detected)
+and `git diff --check` passed. No new migration is required for this checkpoint.
 
 <a id="order-funds-models"></a>
 
@@ -1133,10 +1171,11 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **1182 tests in 1062.406 seconds on
-2026-11-24**, including order-editing services, history, inline forms, money
-workflows and existing APIs. Project-wide Ruff, `makemigrations --check --dry-run`
-(No changes detected) and git diff --check passed, with only LF/CRLF warnings.
+The latest verified full run passed **1200 tests in 1262.037 seconds on
+2026-11-24**, including batch item addition, editing services, history,
+inline forms, money workflows and existing APIs. The preceding related run
+passed **111 tests in 153.416 seconds**. Project-wide Ruff,
+`makemigrations --check --dry-run` (No changes detected) and `git diff --check` passed.
 Tests run against an isolated PostgreSQL test database. GitHub Actions is
 configured to execute the full suite on pushes to `dev` and `main`, and on
 pull requests targeting `main`.
@@ -1379,7 +1418,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 1182 tests passed in 1062.406 seconds on 2026-11-24
+- Full suite of 1200 tests passed in 1262.037 seconds on 2026-11-24
 - Manual cash/bank payouts: LIFO sources, staff website form, API and combined receipt/payout journal
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
@@ -1501,10 +1540,11 @@ the pages are read-only. The full regression after this list passed on
 **2026-11-09: 920 tests in 941.617 seconds**.
 
 Receipt correction and actual office/bank payouts are implemented.
-Quantity reduction and removal use inline forms on the order page.
-Account money forms passed 62 related tests on 2026-11-24. The full run passed
-1182 tests. Next comes the shared commit, then item addition. See the
-[current resume point](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
+Quantity reduction, removal and batch addition use inline order-page forms.
+A batch is saved atomically with one shared reason. The 111-test related run
+and the full 1200-test run passed on 2026-11-24. Next: commit this checkpoint,
+then staff history display, the customer edit indicator and editing APIs.
+See the [current resume point](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
 
 Receipt confirmation, assigning funds to an order, shipment settlement and
 real payout are separate actions. Existing debt allocation cannot substitute

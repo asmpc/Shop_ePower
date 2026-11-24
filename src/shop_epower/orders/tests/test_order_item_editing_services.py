@@ -22,6 +22,7 @@ from shop_epower.orders.models import (
 from shop_epower.orders.selectors import get_order_financial_summary
 from shop_epower.orders.services import (
     add_order_item,
+    add_order_items,
     assign_order_funds,
     cancel_order_fund_assignment,
     complete_order_shipment,
@@ -2574,3 +2575,130 @@ class TestsOrderItemEditingServices(TestCase):
             self.assertEqual(source.stock_quantity, expected_quantity)
 
         self.assertFalse(self.order.item_changes.exists())
+
+    # Менеджер добавляет несколько позиций с одной общей причиной.
+    # Каждая позиция получает текущую цену и собственную запись истории.
+    # Прежняя позиция сохраняется, финансовых операций не возникает.
+    def test_addition_batch_uses_one_reason_for_all_items(self):
+        self._prepare_addition_sources()
+
+        second_product = create_test_product(
+            name="Second product",
+            manufacturer_article="SECOND-ADD-001",
+            brand=self.product.brand,
+            category=self.product.category,
+        )
+        create_test_supplier_product(
+            supplier=self.own_supplier,
+            product=second_product,
+            supplier_article="SUP-SECOND-ADD-001",
+            supplier_price=Decimal("200.00"),
+            currency=self.order.currency_snapshot,
+            stock_quantity=3,
+        )
+        reason = "Customer requested additional products."
+
+        new_items = add_order_items(
+            order=self.order,
+            items=[
+                {
+                    "product": self.product,
+                    "quantity": 2,
+                    "confirmed_unit_price": Decimal("130.00"),
+                },
+                {
+                    "product": second_product,
+                    "quantity": 1,
+                    "confirmed_unit_price": Decimal("260.00"),
+                },
+            ],
+            changed_by=self.manager,
+            reason=reason,
+        )
+
+        self.order.refresh_from_db()
+        self.order_item.refresh_from_db()
+
+        self.assertEqual(
+            [
+                (item.product_id, item.quantity, item.unit_price)
+                for item in new_items
+            ],
+            [
+                (self.product.pk, 2, Decimal("130.00")),
+                (second_product.pk, 1, Decimal("260.00")),
+            ],
+        )
+        self.assertEqual(self.order.items.count(), 3)
+        self.assertEqual(self.order.total_price, Decimal("1220.00"))
+        self.assertEqual(self.order_item.quantity, 7)
+        self.assertEqual(self.order_item.unit_price, Decimal("100.00"))
+
+        changes = self.order.item_changes.all()
+
+        self.assertEqual(changes.count(), 2)
+        self.assertCountEqual(
+            changes.values_list("order_item_id_snapshot", flat=True),
+            [item.pk for item in new_items],
+        )
+        for change in changes:
+            self.assertEqual(change.change_type, OrderItemChangeType.ADDED)
+            self.assertEqual(change.changed_by, self.manager)
+            self.assertEqual(change.reason, reason)
+
+        self.assertFalse(self.account.transactions.exists())
+
+    # Ошибка последующей позиции отменяет добавление всего набора.
+    # При доступных пяти единицах первая строка на две проходит,
+    # а вторая на четыре вызывает нехватку товара.
+    # Заказ, остатки, резервы, цена товара и история восстанавливаются.
+    def test_addition_batch_rolls_back_on_stock_error(self):
+        self._prepare_addition_sources()
+
+        with self.assertRaisesMessage(
+            ValidationError,
+            f"Not enough stock for product: {self.product.name}",
+        ):
+            add_order_items(
+                order=self.order,
+                items=[
+                    {
+                        "product": self.product,
+                        "quantity": 2,
+                        "confirmed_unit_price": Decimal("130.00"),
+                    },
+                    {
+                        "product": self.product,
+                        "quantity": 4,
+                        "confirmed_unit_price": Decimal("130.00"),
+                    },
+                ],
+                changed_by=self.manager,
+                reason="Customer requested additional products.",
+            )
+
+        self.order.refresh_from_db()
+        self.order_item.refresh_from_db()
+        self.product.refresh_from_db()
+
+        self.assertEqual(self.order.items.count(), 1)
+        self.assertEqual(self.order.total_price, Decimal("700.00"))
+        self.assertEqual(self.order_item.quantity, 7)
+        self.assertEqual(self.order_item.unit_price, Decimal("100.00"))
+        self.assertEqual(self.product.base_price, Decimal("100.00"))
+
+        for source, expected_quantity in (
+            (self.own_supplier_product, 2),
+            (self.external_supplier_product, 3),
+        ):
+            source.refresh_from_db()
+            self.assertEqual(source.stock_quantity, expected_quantity)
+
+        self.assertEqual(
+            OrderStockReservation.objects.filter(
+                order_item__order=self.order,
+            ).count(),
+            2,
+        )
+        self.assertFalse(self.order.item_changes.exists())
+        self.assertFalse(self.account.transactions.exists())
