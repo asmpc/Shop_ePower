@@ -11,6 +11,9 @@ from api.orders.serializers import (
     OrderDetailSerializer,
     OrderFundAssignmentCancelSerializer,
     OrderFundAssignmentSerializer,
+    OrderItemQuantityReduceSerializer,
+    OrderItemRemoveSerializer,
+    OrderItemsAdditionSerializer,
     OrderListSerializer,
     OrderStatusUpdateSerializer,
 )
@@ -18,12 +21,16 @@ from shop_epower.cart.models import Cart
 from shop_epower.orders.models import (
     Order,
     OrderFundAssignment,
+    OrderItem,
 )
 from shop_epower.orders.services import (
+    add_order_items,
     assign_order_funds,
     cancel_new_order,
     cancel_order_fund_assignment,
     create_order_from_cart,
+    reduce_order_item_quantity,
+    remove_order_item,
     update_order_status_by_manager,
 )
 from shop_epower.payments.services import validate_payment_method_for_delivery
@@ -343,5 +350,141 @@ class ManagerOrderFundAssignmentCancelAPIView(APIView):
                 "assignment_id": assignment.pk,
                 "reversal_id": reversal.pk,
             },
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=OrderItemQuantityReduceSerializer,
+    responses=OrderDetailSerializer,
+)
+class ManagerOrderItemQuantityReduceAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, item_id):
+        if not is_manager_or_admin(request.user):
+            return Response(
+                {"detail": "Permission denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        order_item = get_object_or_404(
+            OrderItem.objects.select_related("order"),
+            pk=item_id,
+        )
+
+        serializer = OrderItemQuantityReduceSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            reduce_order_item_quantity(
+                order_item=order_item,
+                new_quantity=serializer.validated_data["new_quantity"],
+                changed_by=request.user,
+                reason=serializer.validated_data["reason"],
+            )
+        except ValidationError as error:
+            return Response(
+                {"detail": error.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order = order_item.order
+        order.refresh_from_db()
+
+        return Response(
+            OrderDetailSerializer(order).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=OrderItemRemoveSerializer,
+    responses=OrderDetailSerializer,
+)
+class ManagerOrderItemRemoveAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, item_id):
+        if not is_manager_or_admin(request.user):
+            return Response(
+                {"detail": "Permission denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        order_item = get_object_or_404(
+            OrderItem.objects.select_related("order"),
+            pk=item_id,
+        )
+        order = order_item.order
+
+        serializer = OrderItemRemoveSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            remove_order_item(
+                order_item=order_item,
+                changed_by=request.user,
+                reason=serializer.validated_data["reason"],
+            )
+        except ValidationError as error:
+            return Response(
+                {"detail": error.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.refresh_from_db()
+
+        return Response(
+            OrderDetailSerializer(order).data,
+            status=status.HTTP_200_OK,
+        )
+
+
+@extend_schema(
+    request=OrderItemsAdditionSerializer,
+    responses=OrderDetailSerializer,
+)
+class ManagerOrderItemsAddAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def post(self, request, order_id):
+        if not is_manager_or_admin(request.user):
+            return Response(
+                {"detail": "Permission denied."},
+                status=status.HTTP_403_FORBIDDEN,
+            )
+
+        order = get_object_or_404(
+            Order,
+            pk=order_id,
+        )
+
+        serializer = OrderItemsAdditionSerializer(
+            data=request.data,
+        )
+        serializer.is_valid(raise_exception=True)
+
+        try:
+            add_order_items(
+                order=order,
+                items=serializer.validated_data["items"],
+                changed_by=request.user,
+                reason=serializer.validated_data["reason"],
+            )
+        except ValidationError as error:
+            return Response(
+                {"detail": error.messages},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        order.refresh_from_db()
+
+        return Response(
+            OrderDetailSerializer(order).data,
             status=status.HTTP_200_OK,
         )

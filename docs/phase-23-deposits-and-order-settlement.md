@@ -2,37 +2,33 @@
 
 **English | [Русский](ru/phase-23-deposits-and-order-settlement.md)**
 
-Status: implementation in progress. Receipt/invoice foundations, assignment
-before/after shipment and full shipment with prepayment application are
-implemented. Full shipment is connected to website/API completion; receipt
-registration, explicit assignment and whole-assignment cancellation are connected
-to the staff website and API. Customer balances are available on the profile and
-through the read-only API. The staff shipped-unpaid list is implemented with
-search, pagination and preserved return context. Receipt correction is connected
-to the website/API. Manual payout models, service, website and API are implemented.
-Payment website routes use `/shop/payments/`. New invoice line snapshots and
-snapshot-based PDFs are implemented. The schema migration is applied and a new
-invoice PDF is manually verified. Pre-shipment editing services are implemented;
-quantity reduction/removal and Payment actions use inline staff order forms.
-The 2026-11-23 website checkpoint passed 79 related tests in 88.412 seconds.
-Confirmation below Order actions subsequently passed 36 staff order-page tests
-in 77.028 seconds and manual checks; Esc closes confirmation without changing the order.
-The earlier related editing run passed 53 tests in 81.790 seconds; buttons remain
-visible with an issued invoice and explain that it must first be cancelled.
-Account money forms are complete: receipt/payout errors stay on the account page,
-and successful submissions and Payments navigation preserve search context.
-On 2026-11-24 all 62 related tests passed in 86.084 seconds, with finance/payments
-Ruff and whitespace checks. That earlier full run passed 1182 tests.
-Batch addition with one shared reason is now implemented and manually checked.
-The related run passed 111 tests in 153.416 seconds; the latest full run passed
-1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff, model/migration
-consistency (No changes detected) and whitespace checks passed.
-Next: commit batch addition, then staff history display, the customer edit
-indicator and editing APIs.
-Legacy demonstration invoices do not require a data backfill migration.
-PHASE 23 is not complete.
+Status: implementation in progress; PHASE 23 is not complete.
+Receipts, assignment/release before and after shipment, full shipment with
+prepayment application, receipt correction and manual payouts are connected
+to website/API. Customer balances are available on the profile/API; the
+unpaid-shipment work list retains search, pagination and return context.
+New invoices/PDFs use independent snapshots. Account/order money forms are inline.
 
-Current work order (updated 2026-11-24): [nine steps and checkpoints](#current-work-order).
+Pre-shipment editing is implemented in services, website and API: quantity
+reduction, selected-line removal and batch addition with one shared reason.
+Staff snapshot/username/reason history is collapsed, paginated by 20 and retains
+navigation. Customers see the change indicator in My Orders and detail without
+private reasons.
+
+Checkpoint 2026-11-26: **1242 tests in 1057.890 seconds**.
+The related run passed **109 tests in 89.852 seconds**. Project-wide Ruff,
+model/migration consistency (No changes detected) and whitespace checks passed.
+Models, migrations and relationship diagrams did not change in this checkpoint.
+It is ready to commit; the earlier committed baseline was `835daed`
+(website batch addition). Dated sections retain historical checks.
+
+Next: account-to-customer-orders navigation with retained context, Pending/
+default/mock audit, independent concurrency checks, amount/source reconciliation
+and end-to-end validation, and the minimal 1C exchange contract. Only after
+PHASE 23 closure: PHASE 24 (minimal 1C) and PHASE 25 (controlled pilot without
+real sales/live external payments).
+
+Current work order (updated 2026-11-26): [nine steps and checkpoints](#current-work-order).
 
 ## Completed Steps and Current Implementation Boundary
 
@@ -1285,6 +1281,124 @@ in 153.416 seconds**; the full run passed **1200 tests in 1262.037 seconds on
 2026-11-24**. Project-wide Ruff, model/migration consistency (No changes detected)
 and `git diff --check` passed. No new migration is required for this checkpoint.
 
+<a id="order-item-change-history"></a>
+
+## Staff order-item change history — 2026-11-25
+
+A separate collapsed Order item changes panel below Order items has a Change
+history button on the right. It shows change type, time, the author's username,
+product-name and price snapshots, before/after quantities and order totals,
+and the private reason. It uses saved OrderItemChange data, including removed lines.
+
+The selector returns only the selected order's history, newest time/pk first,
+and loads authors in one query. Pages contain 20 entries; navigation expands
+the panel, scrolls back to it and retains the source list's filters/page.
+Links use the order-detail route and the validated back_url.
+
+Managers and administrators can view the history; authors remain the employees
+who made each edit. Customers receive 403 on the staff page, and their own
+order detail exposes neither internal history nor reasons. The user confirmed
+selector/view checks, seven related modules, orders Ruff, git diff --check
+and manual display/collapse checks. A subsequent full run passed 1242 tests
+in 1057.890 seconds on 2026-11-26. Models, links and migrations are unchanged.
+The website customer indicator and all three item-editing APIs are complete.
+
+Validation: one selector test and five history-view tests passed individually.
+The user then confirmed a related run of test_order_item_change_selectors,
+test_order_item_change_views, test_manager_views, test_order_item_addition_views,
+test_order_item_quantity_views, test_order_item_removal_views and
+test_order_detail_views. No new full-suite count or duration was reported.
+
+<a id="customer-order-change-indicator"></a>
+
+## Customer order-change indicator — 2026-11-25
+
+On the website, My Orders shows a blue Order updated badge beside the status
+when saved item-change history exists. Customer order detail shows the notice
+before Order information; items and totals reflect the current order.
+Unchanged orders have no notice, including when another order has changes.
+
+Detail uses order.item_changes.exists(); the list annotates has_item_changes
+with Exists/OuterRef in its order query. Reading flags on loaded rows does not
+issue individual history queries. Multiple changes retain one list row per order
+and correct pagination.
+
+Customers see only their own orders; another customer's detail returns 404.
+Reasons and internal change history remain staff-only.
+Status filters, page and My Orders → detail → Back navigation are retained.
+The flag reports an edit without adding website customer approval.
+
+The user confirmed seven targeted indicator tests and a combined run of
+**36 tests in 34.759 seconds on 2026-11-25**: indicator, customer pagination/detail,
+history selector and staff history views. Orders Ruff and git diff --check passed;
+the list badge and detail notice were checked manually.
+A subsequent full run passed 1242 tests in 1057.890 seconds on 2026-11-26.
+Models, migrations and relationship diagrams are unchanged. Quantity-reduction and removal APIs are implemented below.
+
+<a id="order-item-quantity-api"></a>
+<a id="order-item-removal-api"></a>
+
+## Quantity-reduction and item-removal APIs — 2026-11-25
+
+Both operations allow managers and administrators and return an updated order
+through OrderDetailSerializer with 200. Customers receive 403 even for their own order.
+
+- `POST /api/orders/manage/items/{item_id}/reduce/` requires new_quantity and
+  reason and calls reduce_order_item_quantity. Quantity must be an integer in
+  1..current-1. Reducing 7 → 5 at a price of 100 releases two reserved units,
+  changes 700 → 500 and records the author/reason.
+- `POST /api/orders/manage/items/{item_id}/remove/` requires reason and calls
+  remove_order_item. The last order line cannot be removed regardless of its
+  unit count. Removing the first batch from 7 × 100 + 2 × 130 leaves 260 and
+  returns seven units to stock. History retains the removed line's numeric ID
+  snapshot, author, reason, quantities and order totals.
+
+Missing/blank reasons, non-PROCESSING status, an issued invoice and a recorded
+shipment are rejected with 400 without changes. A recorded shipment blocks edits
+even with a PROCESSING label; its snapshots, debt and original transaction remain.
+The order is reloaded before serializing its updated total and items.
+
+Tests share api.orders.tests.test_order_item_editing_api,
+TestsManagerOrderItemEditingAPI, with common setUp, a second price-batch helper
+and unchanged-state checks accepting expected status/total.
+**16 targeted tests** passed: eight quantity reductions and eight removals.
+The first quantity-API checkpoint included 88 related tests. At the 2026-11-25
+stopping point, the user confirmed **96 related tests** (api.orders and
+test_order_item_editing_services), api/orders and orders Ruff, and git diff --check.
+No duration was reported for the 96-test run. The subsequent full run passed
+1242 tests in 1057.890 seconds on 2026-11-26. Models/migrations/links are unchanged.
+Batch-addition API is also implemented in the following section.
+
+<a id="order-item-batch-addition-api"></a>
+
+## Batch-addition API — 2026-11-26
+
+`POST /api/orders/manage/{order_id}/items/add/` requires one shared reason and a
+nonempty items list. Each row contains an active product ID, positive integer
+quantity and positive decimal confirmed_unit_price. The serializer prepares
+product objects and Decimal values; the view calls the existing add_order_items
+once for the complete batch and returns an updated order with 200.
+
+Managers and administrators may perform the action; customers receive 403 even
+for their own order. Each new line has its own ADDED entry with the shared
+reason and actual author. Existing price batches are retained.
+The baseline example is 700 + 2 × 130 + 1 × 260 = 1220.
+Prices use the order owner's category: a customer discount of 10% and manager
+category of 20% require confirmed prices 117/234, producing a total of 1168.
+
+Invalid nested data rejects the request before saving. Insufficient stock in the
+second row or a stale confirmed price rolls back the whole batch, including the
+first processed line, reservations and history. A supplier price changed before
+the request remains. The service enforces PROCESSING, issued-invoice and recorded-
+shipment guards. Adding items creates no receipt, invoice or financial transaction.
+
+The shared module now has **29 targeted API tests**: 8 reductions, 8 removals and
+13 additions. **109 related tests in 89.852 seconds** passed on 2026-11-26.
+The full run passed **1242 tests in 1057.890 seconds**; project-wide Ruff,
+makemigrations --check --dry-run (No changes detected) and whitespace checks passed.
+Models, migrations and relationships did not change; diagrams remain current.
+This checkpoint is ready to commit. Next: PHASE 23 closure tasks in the resume plan.
+
 ## Remaining Decisions Before Further Financial Migrations
 
 - Receipt registration already uses a stable `operation_key` and linked
@@ -1329,9 +1443,18 @@ and `git diff --check` passed. No new migration is required for this checkpoint.
   The latest related run passed 111 tests in 153.416 seconds; the full run passed
   1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff,
   model/migration consistency and whitespace checks passed.
-  Commit this checkpoint before starting the remaining work.
-  Staff history display, the customer edit indicator and
-  editing APIs remain queued. Other combinations with order cancellation, receipts,
+  Batch addition is committed as `835daed`. Staff history display passed its
+  selector/view checks and seven related modules on 2026-11-25, with orders Ruff,
+  whitespace and manual display/collapse checks. The website customer indicator
+  passed its seven tests and the combined 36-test run in 34.759 seconds on
+  2026-11-25; orders Ruff, whitespace and manual display checks passed.
+  The quantity-reduction API passed eight targeted tests and 88 related tests,
+  api/orders and orders Ruff, and whitespace checks on 2026-11-25.
+  Item-removal API is also complete: 16 combined targeted tests and 96 related
+  tests, api/orders and orders Ruff and whitespace checks passed on 2026-11-25.
+  Batch API is complete: 29 targeted API tests, 109 related tests in 89.852 seconds
+  and the full 1242-test run in 1057.890 seconds passed on 2026-11-26.
+  Other combinations with order cancellation, receipts,
   payouts and invoice snapshots, plus retries/concurrency, remain open.
   Never silently rewrite recorded shipments or original financial history.
 - How should the order-level debt list present multiple shipments or
@@ -1346,7 +1469,7 @@ before writing migrations.
 
 ## Incremental TDD Work Plan
 
-Single work order as of 2026-11-23. This list defines the immediate sequence;
+Single work order updated on 2026-11-26. This list defines the immediate sequence;
 earlier dated sections retain the history of decisions and validation.
 PHASE 23 remains open. Full shipment, debt creation, fund assignment/removal,
 customer balances and the staff shipped-unpaid list are implemented.
@@ -1512,7 +1635,19 @@ project-wide Ruff and git diff --check (LF/CRLF warnings only).
    The subsequent related run passed 111 tests in 153.416 seconds; the latest
    full run passed 1200 tests in 1262.037 seconds on 2026-11-24, with project-wide
    Ruff, model/migration consistency and whitespace checks.
-   Commit batch addition, then staff history/customer indicator and editing APIs.
+   Batch addition is committed as `835daed`. Staff history display is complete:
+   selector/view tests and seven related modules, orders Ruff, whitespace and
+   manual display/collapse checks passed on 2026-11-25.
+   The website customer indicator is complete: seven targeted tests and the
+   combined 36-test run in 34.759 seconds passed on 2026-11-25, with orders Ruff,
+   whitespace and manual checks. Quantity reduction through API passed eight
+   targeted tests and 88 related tests, api/orders and orders Ruff, and whitespace
+   checks on 2026-11-25. Removal API is also complete: 16 combined targeted tests
+   and 96 related tests, api/orders and orders Ruff and whitespace checks passed.
+   Batch API then passed 13 targeted scenarios (29 editing API tests overall),
+   109 related tests in 89.852 seconds and the full 1242-test run in 1057.890
+   seconds on 2026-11-26. Project-wide Ruff, migration consistency and whitespace
+   checks passed. Commit this checkpoint, then continue the closure tasks.
    New quantity at a new price is a separate line; update
    totals/reservations atomically. Explicitly cancel an issued invoice before
    editing; reject post-shipment edits. No partial-shipment interface or reversal
@@ -1543,70 +1678,60 @@ changing the sequence for a new request.
 
 <a id="item-editing-next-session"></a>
 
-### Resume point: 24 November 2026
+### Checkpoint — 26 November 2026
 
-Batch item addition is implemented and ready to commit. The user confirmed
-1200 tests in 1262.037 seconds, project-wide Ruff, model/migration consistency
-(No changes detected) and whitespace checks. There is no unfinished red test.
+Completed since `835daed` (website batch addition, 2026-11-24):
 
-**Completed in this checkpoint:**
-
-- Active-product search by name/article/brand, 20-entry pagination and current
-  customer-price preview with own/supplier stock and lead time.
-- Read-only calculate_product_base_price, reused by the existing price updater.
-  Preview does not save the catalog product or alter existing order prices.
-- One formset for the staged batch and one shared reason. Search, selection,
-  pagination and exclusion preserve both through the common POST form.
-  Staging/removal changes form data only; no persistent draft model is added.
-- add_order_items saves all active rows in one transaction through add_order_item.
-  Each line has its own snapshot/reservations/history with the same reason/actor.
-  A failed row rolls back the complete batch. Error responses preserve input.
-- The reason is required only on final confirmation; whitespace is rejected.
-  Excluded rows submit only DELETE and are not saved. An empty batch disables saving.
-- Manager/admin access, actual history authors, customer POST denial, PROCESSING,
-  shipment and issued-invoice guards remain. The issued-invoice Add button
-  reveals the cancellation notice. Earlier order lines and financial records stay unchanged.
-- Quantity/removal forms, shipment confirmation and account money forms from
-  the previous checkpoint remain in place. Model diagrams are unchanged because
-  this checkpoint introduces no new model links or migrations.
+- Selected-order history for managers/administrators: saved snapshots, author
+  username, reason, newest first, 20-entry pages, collapsed display and preserved
+  navigation. Customers receive neither internal history nor reasons.
+- Customer Order updated indicator in My Orders and detail. Per-order flags
+  require no individual history query for each list row; owner access,
+  status/page filters and return navigation are retained.
+- Quantity-reduction, selected-line removal and batch-addition APIs. Reasons
+  are required and shared for a batch. Existing services retain transaction
+  boundaries, reservations, totals and audit. Final-line, PROCESSING,
+  issued-invoice and recorded-shipment guards are preserved.
+- Confirmed customer prices are rechecked independently of the manager category.
+  Invalid nested data, inactive products, second-row stock failure and stale
+  prices leave the complete batch unchanged.
+- api.orders.tests.test_order_item_editing_api has 29 tests and shared setUp/
+  helpers. Other new modules cover one history selector test, five staff-history
+  view tests and seven customer-indicator scenarios.
 
 **Confirmed checks:**
 
-- Full run: 1200 tests in 1262.037 seconds on 2026-11-24.
-- Related run: 111 tests in 153.416 seconds across editing services, addition,
-  quantity/removal views and the main staff order views.
-- Pricing regression: 18 currency/markup/supplier-price tests in 0.725 seconds.
-- Project-wide Ruff, makemigrations --check --dry-run and git diff --check passed.
-- The user manually checked search, stock/price preview, staging several lines
-  with one reason, retained state, exclusion and final saving.
+- Full run: **1242 tests in 1057.890 seconds on 2026-11-26**.
+- Related run: **109 tests in 89.852 seconds**, covering api.orders and
+  shop_epower.orders.tests.test_order_item_editing_services.
+- Project-wide Ruff passed; makemigrations --check --dry-run: No changes detected.
+- git diff --check passed; staged whitespace review remains before committing.
+- Staff display/collapse and customer indicators were checked manually.
+- No unfinished RED, new models or migrations; relationship diagrams remain current.
+  The previous full baseline was 1200 tests on 2026-11-24.
 
-**Next steps:**
+**Next actions:**
 
-1. Commit this checkpoint: documentation in both languages, orders changes,
-   currency calculation/tests and the new addition/search templates.
-   Inspect git diff --cached --check and git diff --cached --stat.
-   Suggested title: `feat: add batch order item addition`.
-   The user runs git add/commit/push; documentation-only edits need no repeated tests.
-2. After the commit, start staff order-change history by TDD: a selector,
-   context and a collapsed/paginated history on the order page. Show username,
-   time, reason and stored item/quantity/price/total snapshots.
-3. Add the customer edit indicator without exposing private reasons/history,
-   then editing APIs using the same services and permissions.
-4. Close step 9: account-to-customer-orders navigation with preserved filter/page
-   and return to the source account/search; Pending/default/mock audit;
-   independent concurrency/retry checks and final reconciliation/end-to-end
-   validation. Preserve receipt/assignment/payout separation and LIFO release
-   of excess prepayment on reductions/removals.
+1. Review the staged diff and commit this checkpoint. Git remains user-run.
+2. Continue closure tasks: account-detail navigation to that customer's staff
+   order list with a pre-applied filter, retained pagination and return to the
+   original account with its account-search context.
+3. Audit Pending/default, legacy manual services and website/API actions, and
+   the mock provider; record the online-attempt decision and any required changes.
+4. Verify independent financial concurrency and invoice numbering, reconcile
+   amounts/sources, run an end-to-end scenario and prepare the minimal 1C exchange
+   contract. Then perform final regression and documentation synchronization.
 
-The account-to-orders task was explicitly added on 2026-11-24 and remains queued
-for the end of PHASE 23. Do not lose it while implementing history or APIs.
-PHASE 23 is not complete. Minimal 1C (PHASE 24) and the controlled test pilot
-(PHASE 25, without real sales/live external payments) follow.
+Account-to-orders navigation was explicitly added on 2026-11-24 and remains a
+required closure item. Preserve receipt/assignment/payout separation, LIFO
+release of excess prepayment and independent fulfillment/settlement.
+PHASE 23 is not complete. PHASES 24/25 follow closure; the pilot excludes real
+sales and live external payments.
 
 Teaching sequence: one targeted test → user result → explanation and minimal
-implementation → repeat that test; related modules after completed behavior.
-The user edits/runs application code, migrations, tests, Ruff and git.
-The assistant reads, explains and maintains documentation.
+implementation → repeat the test. Run related modules after completed behavior.
+Application code, migrations, tests, Ruff and Git remain user-run; the assistant
+reads, explains and maintains agreed documentation.
 
 ## Verification Gates
 

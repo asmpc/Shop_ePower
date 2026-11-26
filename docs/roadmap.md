@@ -249,9 +249,37 @@ price snapshot, reservations and history entry with the shared reason and actor.
 The related regression passed 111 tests in 153.416 seconds; the full suite passed
 1200 tests in 1262.037 seconds on 2026-11-24. Project-wide Ruff,
 model/migration consistency (No changes detected) and whitespace checks passed.
-Next: commit this batch-addition checkpoint, then staff history display,
-the customer edit indicator and editing APIs. Independent concurrency/retry
-coverage and the Pending/mock audit remain in step 9. PHASE 23 is not complete.
+Batch addition is committed as `835daed`. Staff change history is implemented
+and checked on 2026-11-25: order-scoped snapshots with usernames/private reasons,
+collapsed display, 20-entry pages, expansion and preserved list-return context.
+One selector test, five history-view tests and seven related modules passed;
+orders Ruff, whitespace and manual display/collapse checks passed.
+See [staff history](phase-23-deposits-and-order-settlement.md#order-item-change-history).
+The website customer indicator is complete: Order updated in My Orders and
+detail, owner scoping, private reasons, Exists flags without per-row history
+queries, and retained status/page/navigation. Seven indicator tests and the
+combined 36-test run passed in 34.759 seconds on 2026-11-25; orders Ruff,
+whitespace and manual display checks passed.
+See [customer indicator](phase-23-deposits-and-order-settlement.md#customer-order-change-indicator).
+The quantity-reduction API is complete: manager/admin success, customer denial,
+required reasons, quantity/status/invoice/shipment guards and retained audit.
+Eight targeted tests and 88 related tests, api/orders and orders Ruff, and
+whitespace checks passed on 2026-11-25.
+See [quantity API](phase-23-deposits-and-order-settlement.md#order-item-quantity-api).
+Item removal is also complete: selected-line deletion, stock/reservation release,
+original author/reason, final-line protection and all editing guards.
+At the 2026-11-25 removal checkpoint, the shared module had 16 tests; 96 related tests,
+api/orders and orders Ruff and whitespace checks passed on 2026-11-25.
+See [editing APIs](phase-23-deposits-and-order-settlement.md#order-item-removal-api).
+The batch-addition API is now complete: a nonempty item list, one shared reason,
+confirmed customer prices, row validation and whole-batch rollback. The shared
+API module has 29 tests. The 109-test related run passed in 89.852 seconds and
+the full run passed 1242 tests in 1057.890 seconds on 2026-11-26; project-wide
+Ruff, migration consistency (No changes detected) and whitespace checks passed.
+See [batch API](phase-23-deposits-and-order-settlement.md#order-item-batch-addition-api).
+Ready to commit this checkpoint; next are PHASE 23 closure tasks.
+Independent concurrency/retry coverage and the Pending/mock audit remain in
+step 9. PHASE 23 is not complete.
 See [the resume plan](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
 End-of-PHASE-23 task added on 2026-11-24: provide navigation from a customer
 account page to that customer's staff order list. Pre-apply the customer filter,
@@ -507,8 +535,19 @@ Orderless account funding, inline receipt/payout forms, receipt correction and
 the combined Payments journal are implemented. Personal/legal accounts and
 safe return context remain separate. New invoice snapshots and pre-shipment
 quantity reduction/removal/batch addition are implemented.
-The current checkpoint is ready to commit after the full 1200-test run.
-Next: staff order-change history, the customer edit indicator and editing APIs.
+Website batch addition is committed as `835daed`. Staff order-change history
+passed scoped checks on 2026-11-25. The latest full run passed 1242 tests in
+1057.890 seconds on 2026-11-26.
+The website customer indicator passed seven targeted tests and the combined
+36-test run in 34.759 seconds on 2026-11-25, orders Ruff, whitespace and
+manual checks. The quantity-reduction API subsequently passed eight targeted
+tests and 88 related tests, api/orders and orders Ruff and whitespace checks.
+At the removal checkpoint, the shared module had 16 targeted tests and
+the 96-test related run, api/orders and orders Ruff and whitespace checks passed.
+Batch API is also complete: 29 targeted API tests and 109 related tests
+in 89.852 seconds, then the full 1242-test run in 1057.890 seconds on 2026-11-26.
+Project-wide Ruff, migration consistency and whitespace checks passed.
+No unfinished RED. Commit this checkpoint, then continue PHASE 23 closure.
 Finish the step 9 account-to-orders link, Pending/mock audit, independent
 concurrency/retry checks, final reconciliation and the minimal 1C contract.
 Application changes/checks remain user-run; diagrams change when model links do.

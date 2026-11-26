@@ -42,6 +42,12 @@
                     {% elif order.status == "cancelled" %}
                         <span class="badge bg-danger ms-2">CANCELLED</span>
                     {% endif %}
+
+                    {% if order.has_item_changes %}
+                        <span class="badge bg-info text-dark ms-2">
+                            Order updated
+                        </span>
+                    {% endif %}
                 </div>
 
                 <div class="col-md-2 border-start">

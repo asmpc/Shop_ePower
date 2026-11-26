@@ -35,6 +35,7 @@ from shop_epower.orders.selectors import (
     get_order_financial_summary,
     get_order_fund_assignments,
     get_order_item_addition_unit_price,
+    get_order_item_changes,
     get_unpaid_order_shipments_for_staff,
 )
 from shop_epower.orders.services import (
@@ -258,6 +259,11 @@ def get_manager_order_detail_context(
         get_order_fund_assignments(order=order),
         20,
     ).get_page(request.GET.get("assignments_page"))
+
+    context["item_changes"] = Paginator(
+        get_order_item_changes(order=order),
+        20,
+    ).get_page(request.GET.get("changes_page"))
 
     addition_data = request.POST if request.method == "POST" else request.GET
 

@@ -3,6 +3,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import redirect_to_login
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
+from django.db.models import Exists, OuterRef
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.views.decorators.http import require_POST
@@ -13,7 +14,11 @@ from shop_epower.accounts.services.profile import (
 )
 from shop_epower.cart.models import Cart
 from shop_epower.chat.selectors import get_chat_rooms_for_order
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import (
+    Order,
+    OrderItemChange,
+    OrderStatus,
+)
 from shop_epower.orders.services import cancel_new_order, create_order_from_cart
 from shop_epower.payments.models import PaymentMethod
 from shop_epower.payments.selectors import get_active_invoice_for_order
@@ -140,6 +145,13 @@ def order_list_view(request):
     orders = (
         Order.objects
         .filter(user=request.user)
+        .annotate(
+            has_item_changes=Exists(
+                OrderItemChange.objects.filter(
+                    order_id=OuterRef("pk"),
+                ),
+            ),
+        )
         .prefetch_related("items")
         .order_by("-created_at", "-pk")
     )
@@ -190,6 +202,7 @@ def order_detail_view(request, order_id):
         "orders/detail.html",
         {
             "order": order,
+            "has_item_changes": order.item_changes.exists(),
             "payments": payments,
             "can_cancel": order.status == OrderStatus.NEW,
             "chat_rooms": chat_rooms,

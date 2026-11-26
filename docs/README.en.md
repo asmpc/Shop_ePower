@@ -18,7 +18,7 @@ A Django platform being developed for wholesale and retail workflows:
 ![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)
 ![Celery](https://img.shields.io/badge/Celery-5.6-37814A?logo=celery&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?logo=docker&logoColor=white)
-![Tests](https://img.shields.io/badge/Automated_Tests-1200-success)
+![Tests](https://img.shields.io/badge/Automated_Tests-1242-success)
 [![Shop_ePower CI](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/asmpc/Shop_ePower/actions/workflows/ci.yml)
 
 
@@ -26,9 +26,10 @@ A Django platform being developed for wholesale and retail workflows:
 
 ---
 
-Latest full run: **1200 tests passed on 2026-11-24 in 1262.037 seconds**.
-Project-wide Ruff, model/migration consistency (No changes detected) and
-`git diff --check` passed.
+Latest full run: **1242 tests passed on 2026-11-26 in 1057.890 seconds**.
+The related run passed **109 tests in 89.852 seconds**. Project-wide Ruff,
+model/migration consistency (No changes detected) and `git diff --check` passed.
+Staff history and the customer indicator were checked manually.
 
 ## 🚀 Project Overview
 
@@ -618,6 +619,118 @@ in 153.416 seconds**; the full run passed **1200 tests in 1262.037 seconds on
 2026-11-24**. Project-wide Ruff, model/migration consistency (No changes detected)
 and `git diff --check` passed. No new migration is required for this checkpoint.
 
+<a id="order-item-change-history"></a>
+
+### Staff order-item change history — 2026-11-25
+
+A separate collapsed Order item changes panel below Order items has a Change
+history button on the right. It shows change type, time, the author's username,
+product-name and price snapshots, before/after quantities and order totals,
+and the private reason. It uses saved OrderItemChange data, including removed lines.
+
+The selector returns only the selected order's history, newest time/pk first,
+and loads authors in one query. Pages contain 20 entries; navigation expands
+the panel, scrolls back to it and retains the source list's filters/page.
+Links use the order-detail route and the validated back_url.
+
+Managers and administrators can view the history; authors remain the employees
+who made each edit. Customers receive 403 on the staff page, and their own
+order detail exposes neither internal history nor reasons. The user confirmed
+selector/view checks, seven related modules, orders Ruff, git diff --check
+and manual display/collapse checks. A subsequent full run passed 1242 tests
+in 1057.890 seconds on 2026-11-26. Models, links and migrations are unchanged.
+All three item-editing APIs are complete; PHASE 23 closure tasks remain.
+
+<a id="customer-order-change-indicator"></a>
+
+### Customer order-change indicator — 2026-11-25
+
+On the website, My Orders shows a blue Order updated badge beside the status
+when saved item-change history exists. Customer order detail shows the notice
+before Order information; items and totals reflect the current order.
+Unchanged orders have no notice, including when another order has changes.
+
+Detail uses order.item_changes.exists(); the list annotates has_item_changes
+with Exists/OuterRef in its order query. Reading flags on loaded rows does not
+issue individual history queries. Multiple changes retain one list row per order
+and correct pagination.
+
+Customers see only their own orders; another customer's detail returns 404.
+Reasons and internal change history remain staff-only.
+Status filters, page and My Orders → detail → Back navigation are retained.
+The flag reports an edit without adding website customer approval.
+
+The user confirmed seven targeted indicator tests and a combined run of
+**36 tests in 34.759 seconds on 2026-11-25**: indicator, customer pagination/detail,
+history selector and staff history views. Orders Ruff and git diff --check passed;
+the list badge and detail notice were checked manually.
+A subsequent full run passed 1242 tests in 1057.890 seconds on 2026-11-26.
+Models, migrations and relationship diagrams are unchanged. The quantity-reduction and removal APIs follow below.
+
+<a id="order-item-quantity-api"></a>
+<a id="order-item-removal-api"></a>
+
+### Quantity-reduction and item-removal APIs — 2026-11-25
+
+Both operations allow managers and administrators and return an updated order
+through OrderDetailSerializer with 200. Customers receive 403 even for their own order.
+
+- `POST /api/orders/manage/items/{item_id}/reduce/` requires new_quantity and
+  reason and calls reduce_order_item_quantity. Quantity must be an integer in
+  1..current-1. Reducing 7 → 5 at a price of 100 releases two reserved units,
+  changes 700 → 500 and records the author/reason.
+- `POST /api/orders/manage/items/{item_id}/remove/` requires reason and calls
+  remove_order_item. The last order line cannot be removed regardless of its
+  unit count. Removing the first batch from 7 × 100 + 2 × 130 leaves 260 and
+  returns seven units to stock. History retains the removed line's numeric ID
+  snapshot, author, reason, quantities and order totals.
+
+Missing/blank reasons, non-PROCESSING status, an issued invoice and a recorded
+shipment are rejected with 400 without changes. A recorded shipment blocks edits
+even with a PROCESSING label; its snapshots, debt and original transaction remain.
+The order is reloaded before serializing its updated total and items.
+
+Tests share api.orders.tests.test_order_item_editing_api,
+TestsManagerOrderItemEditingAPI, with common setUp, a second price-batch helper
+and unchanged-state checks accepting expected status/total.
+**16 targeted tests** passed: eight quantity reductions and eight removals.
+The first quantity-API checkpoint included 88 related tests. At the 2026-11-25
+stopping point, the user confirmed **96 related tests** (api.orders and
+test_order_item_editing_services), api/orders and orders Ruff, and git diff --check.
+No duration was reported for the 96-test run. The subsequent full run passed
+1242 tests in 1057.890 seconds on 2026-11-26. Models/migrations/links are unchanged.
+Batch-addition API is also implemented in the following section.
+
+<a id="order-item-batch-addition-api"></a>
+
+### Batch-addition API — 2026-11-26
+
+`POST /api/orders/manage/{order_id}/items/add/` requires one shared reason and a
+nonempty items list. Each row contains an active product ID, positive integer
+quantity and positive decimal confirmed_unit_price. The serializer prepares
+product objects and Decimal values; the view calls the existing add_order_items
+once for the complete batch and returns an updated order with 200.
+
+Managers and administrators may perform the action; customers receive 403 even
+for their own order. Each new line has its own ADDED entry with the shared
+reason and actual author. Existing price batches are retained.
+The baseline example is 700 + 2 × 130 + 1 × 260 = 1220.
+Prices use the order owner's category: a customer discount of 10% and manager
+category of 20% require confirmed prices 117/234, producing a total of 1168.
+
+Invalid nested data rejects the request before saving. Insufficient stock in the
+second row or a stale confirmed price rolls back the whole batch, including the
+first processed line, reservations and history. A supplier price changed before
+the request remains. The service enforces PROCESSING, issued-invoice and recorded-
+shipment guards. Adding items creates no receipt, invoice or financial transaction.
+
+The shared module now has **29 targeted API tests**: 8 reductions, 8 removals and
+13 additions. **109 related tests in 89.852 seconds** passed on 2026-11-26.
+The full run passed **1242 tests in 1057.890 seconds**; project-wide Ruff,
+makemigrations --check --dry-run (No changes detected) and whitespace checks passed.
+Models, migrations and relationships did not change; diagrams remain current.
+This checkpoint is ready to commit. Next: PHASE 23 closure tasks in the resume plan.
+
 <a id="order-funds-models"></a>
 
 ## Order Funds and Shipment Models
@@ -1171,10 +1284,10 @@ with the schema at [`/api/schema/`](http://127.0.0.1:8000/api/schema/).
 
 Shop_ePower is developed with a strong automated-testing focus.
 
-The latest verified full run passed **1200 tests in 1262.037 seconds on
-2026-11-24**, including batch item addition, editing services, history,
-inline forms, money workflows and existing APIs. The preceding related run
-passed **111 tests in 153.416 seconds**. Project-wide Ruff,
+The latest verified full run passed **1242 tests in 1057.890 seconds on
+2026-11-26**, including staff history, customer indicators, reduction/removal/
+batch-addition APIs, money workflows and existing scenarios. The related run
+passed **109 tests in 89.852 seconds**. Project-wide Ruff,
 `makemigrations --check --dry-run` (No changes detected) and `git diff --check` passed.
 Tests run against an isolated PostgreSQL test database. GitHub Actions is
 configured to execute the full suite on pushes to `dev` and `main`, and on
@@ -1418,7 +1531,7 @@ roadmap and current phase plan identify the remaining integration tasks.
 - Order-based invoice issuance, staff cancellation and reissue with retained history
 - Payment-independent client invoice data/PDF access and paginated staff history
 - Removal of active failed-payment paths; historical data preserved
-- Full suite of 1200 tests passed in 1262.037 seconds on 2026-11-24
+- Full suite of 1242 tests passed in 1057.890 seconds on 2026-11-26
 - Manual cash/bank payouts: LIFO sources, staff website form, API and combined receipt/payout journal
 - Atomic full shipment, independent item snapshots and prepayment application
   connected to website/API completion; browser confirmation and staff-only POST
@@ -1542,8 +1655,14 @@ the pages are read-only. The full regression after this list passed on
 Receipt correction and actual office/bank payouts are implemented.
 Quantity reduction, removal and batch addition use inline order-page forms.
 A batch is saved atomically with one shared reason. The 111-test related run
-and the full 1200-test run passed on 2026-11-24. Next: commit this checkpoint,
-then staff history display, the customer edit indicator and editing APIs.
+and the full 1200-test run passed on 2026-11-24. Batch addition is committed
+as `835daed`. Staff change history and the customer indicator are implemented.
+The combined customer run passed 36 tests in 34.759 seconds on 2026-11-25,
+with orders Ruff, whitespace and manual display checks.
+The quantity-reduction API first passed eight targeted tests and 88 related tests.
+Item removal is also complete: 16 combined targeted tests and 96 related tests,
+api/orders and orders Ruff, and whitespace checks passed.
+All three item-editing APIs are complete; PHASE 23 closure tasks remain.
 See the [current resume point](phase-23-deposits-and-order-settlement.md#item-editing-next-session).
 
 Receipt confirmation, assigning funds to an order, shipment settlement and

@@ -2,6 +2,7 @@ from decimal import Decimal
 
 from rest_framework import serializers
 
+from shop_epower.catalog.models import Product
 from shop_epower.orders.models import Order, OrderItem, OrderStatus
 from shop_epower.payments.choices import PaymentMethod
 
@@ -107,4 +108,37 @@ class OrderFundAssignmentCancelSerializer(serializers.Serializer):
     )
     operation_key = serializers.CharField(
         max_length=255,
+    )
+
+
+class OrderItemQuantityReduceSerializer(serializers.Serializer):
+    new_quantity = serializers.IntegerField(
+        min_value=1,
+    )
+    reason = serializers.CharField()
+
+
+class OrderItemRemoveSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+
+
+class OrderItemAdditionSerializer(serializers.Serializer):
+    product = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+    )
+    quantity = serializers.IntegerField(
+        min_value=1,
+    )
+    confirmed_unit_price = serializers.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        min_value=Decimal("0.01"),
+    )
+
+
+class OrderItemsAdditionSerializer(serializers.Serializer):
+    reason = serializers.CharField()
+    items = OrderItemAdditionSerializer(
+        many=True,
+        allow_empty=False,
     )

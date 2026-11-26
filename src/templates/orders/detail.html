@@ -22,6 +22,18 @@
     </a>
 </div>
 
+{% if has_item_changes %}
+    <div class="alert alert-info" role="status">
+        <h5 class="alert-heading">
+            Order updated
+        </h5>
+
+        <p class="mb-0">
+            The items and total shown below reflect the current order.
+        </p>
+    </div>
+{% endif %}
+
 <div class="card mb-4">
     <div class="card-header">
         Order information

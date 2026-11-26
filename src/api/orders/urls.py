@@ -5,6 +5,9 @@ from api.orders.views import (
     ManagerOrderDetailAPIView,
     ManagerOrderFundAssignmentAPIView,
     ManagerOrderFundAssignmentCancelAPIView,
+    ManagerOrderItemQuantityReduceAPIView,
+    ManagerOrderItemRemoveAPIView,
+    ManagerOrderItemsAddAPIView,
     ManagerOrderListAPIView,
     ManagerOrderStatusUpdateAPIView,
     OrderCancelAPIView,
@@ -32,5 +35,20 @@ urlpatterns = [
         "manage/fund-assignments/<int:assignment_id>/cancel/",
         ManagerOrderFundAssignmentCancelAPIView.as_view(),
         name="manage-cancel-fund-assignment",
+    ),
+    path(
+        "manage/items/<int:item_id>/reduce/",
+        ManagerOrderItemQuantityReduceAPIView.as_view(),
+        name="manage-reduce-order-item",
+    ),
+    path(
+        "manage/items/<int:item_id>/remove/",
+        ManagerOrderItemRemoveAPIView.as_view(),
+        name="manage-remove-order-item",
+    ),
+    path(
+        "manage/<int:order_id>/items/add/",
+        ManagerOrderItemsAddAPIView.as_view(),
+        name="manage-add-order-items",
     ),
 ]

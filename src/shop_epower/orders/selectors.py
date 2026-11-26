@@ -16,6 +16,7 @@ from shop_epower.orders.models import (
     Order,
     OrderFundApplication,
     OrderFundAssignment,
+    OrderItemChange,
     OrderShipment,
     OrderStatus,
 )
@@ -198,3 +199,12 @@ def get_order_item_addition_unit_price(*, order, product):
         )
 
     return unit_price
+
+def get_order_item_changes(*, order):
+    """Возвращает историю выбранного заказа вместе с авторами."""
+    return (
+        OrderItemChange.objects
+        .filter(order=order)
+        .select_related("changed_by")
+        .order_by("-created_at", "-pk")
+    )

@@ -1,7 +1,12 @@
 from decimal import Decimal
 
 from shop_epower.core.currency import get_base_currency
-from shop_epower.orders.models import Order, OrderStatus
+from shop_epower.orders.models import (
+    Order,
+    OrderItemChange,
+    OrderItemChangeType,
+    OrderStatus,
+)
 
 
 def create_test_order(
@@ -33,5 +38,36 @@ def create_test_order(
         user=user,
         status=status,
         total_price=total_price,
+        **defaults,
+    )
+
+def create_test_order_item_change(
+    *,
+    order,
+    changed_by,
+    old_quantity=2,
+    new_quantity=1,
+    unit_price=Decimal("100.00"),
+    **kwargs,
+):
+    unit_price = Decimal(unit_price)
+
+    defaults = {
+        "order_item_id_snapshot": 101,
+        "change_type": OrderItemChangeType.REDUCED,
+        "product_name": "Original product",
+        "unit_price": unit_price,
+        "old_quantity": old_quantity,
+        "new_quantity": new_quantity,
+        "old_order_total": unit_price * old_quantity,
+        "new_order_total": unit_price * new_quantity,
+        "currency_snapshot": order.currency_snapshot,
+        "reason": "Customer requested fewer units.",
+    }
+    defaults.update(kwargs)
+
+    return OrderItemChange.objects.create(
+        order=order,
+        changed_by=changed_by,
         **defaults,
     )
