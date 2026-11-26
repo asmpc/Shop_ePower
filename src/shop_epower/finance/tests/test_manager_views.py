@@ -522,11 +522,11 @@ class TestsManagerFinanceViews(TestCase):
         self.assertEqual(len(second_page.context["transactions"]), 1)
         self.assertContains(
             first_page,
-            'href="?transactions_page=2"',
+            f'href="{url}?transactions_page=2"',
         )
         self.assertContains(
             second_page,
-            'href="?transactions_page=1"',
+            f'href="{url}?transactions_page=1"',
         )
 
     # В истории видны изменения и остатки после операции.
@@ -612,8 +612,22 @@ class TestsManagerFinanceViews(TestCase):
 
         self.assertEqual(len(first_page.context["status_history"]), 20)
         self.assertEqual(len(second_page.context["status_history"]), 1)
-        self.assertContains(first_page, 'href="?status_page=2">')
-        self.assertContains(second_page, 'href="?status_page=1">')
+        self.assertContains(
+            first_page,
+            (
+                f'<a class="page-link" '
+                f'href="{url}?status_page=2">Next</a>'
+            ),
+            html=True,
+        )
+        self.assertContains(
+            second_page,
+            (
+                f'<a class="page-link" '
+                f'href="{url}?status_page=1">Previous</a>'
+            ),
+            html=True,
+        )
 
     # Общий журнал при первом открытии не показывает операции клиентов.
     def test_transaction_journal_starts_without_results(self):

@@ -1,0 +1,135 @@
+<style>
+    .shipment-confirmation {
+        position: fixed;
+        inset: auto;
+        margin: 0;
+        max-width: none;
+        overflow: auto;
+    }
+
+    .shipment-confirmation::backdrop {
+        background: rgba(0, 0, 0, 0.25);
+    }
+</style>
+
+<div
+    id="shipment-confirmation-space-{{ order.pk }}"
+    hidden
+></div>
+
+<dialog
+    id="shipment-confirmation-{{ order.pk }}"
+    class="shipment-confirmation border rounded-bottom bg-body p-3"
+    aria-labelledby="shipment-confirmation-title-{{ order.pk }}"
+    aria-describedby="shipment-confirmation-message-{{ order.pk }}"
+>
+    <h2
+        id="shipment-confirmation-title-{{ order.pk }}"
+        class="h6"
+    >
+        Shipment confirmation
+    </h2>
+
+    <p id="shipment-confirmation-message-{{ order.pk }}">Confirm full shipment of order #{{ order.pk }}? Once confirmed, shipment cannot be cancelled and order items cannot be edited on the website.</p>
+
+    <form
+        method="post"
+        action="{% url 'orders:manager_order_status_update' order.pk %}"
+    >
+        {% csrf_token %}
+
+        <input type="hidden" name="next" value="{{ back_url }}">
+        <input type="hidden" name="status" value="completed">
+
+        <div class="d-flex flex-wrap gap-2">
+            <button type="submit" class="btn btn-success btn-sm">
+                Confirm full shipment
+            </button>
+
+            <button
+                type="button"
+                class="btn btn-outline-secondary btn-sm"
+                data-shipment-confirmation-cancel
+                autofocus
+            >
+                Cancel
+            </button>
+        </div>
+    </form>
+</dialog>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function () {
+        const dialog = document.getElementById(
+            "shipment-confirmation-{{ order.pk }}"
+        );
+        const space = document.getElementById(
+            "shipment-confirmation-space-{{ order.pk }}"
+        );
+        const actions = dialog.closest(".card");
+        const header = actions.querySelector(".card-header");
+        const openButton = header.querySelector(
+            "[data-shipment-confirmation-open]"
+        );
+        const cancelButton = dialog.querySelector(
+            "[data-shipment-confirmation-cancel]"
+        );
+
+        let previousBodyOverflow = "";
+
+        function positionDialog() {
+            if (!dialog.open) {
+                return;
+            }
+
+            const headerPosition = header.getBoundingClientRect();
+            const availableHeight = Math.max(
+                0,
+                window.innerHeight - headerPosition.bottom - 12
+            );
+
+            dialog.style.left = `${headerPosition.left}px`;
+            dialog.style.top = `${headerPosition.bottom}px`;
+            dialog.style.width = `${headerPosition.width}px`;
+            dialog.style.maxHeight = `${availableHeight}px`;
+
+            space.style.height = `${dialog.offsetHeight}px`;
+        }
+
+        openButton.addEventListener("click", function () {
+            if (dialog.open) {
+                return;
+            }
+
+            previousBodyOverflow = document.body.style.overflow;
+            space.hidden = false;
+
+            dialog.showModal();
+
+            dialog.style.width = (
+                `${header.getBoundingClientRect().width}px`
+            );
+            space.style.height = `${dialog.offsetHeight}px`;
+
+            header.scrollIntoView({
+                block: "start",
+                behavior: "instant",
+            });
+
+            document.body.style.overflow = "hidden";
+            positionDialog();
+        });
+
+        cancelButton.addEventListener("click", function () {
+            dialog.close();
+        });
+
+        dialog.addEventListener("close", function () {
+            space.hidden = true;
+            space.style.height = "";
+            document.body.style.overflow = previousBodyOverflow;
+        });
+
+        window.addEventListener("resize", positionDialog);
+    });
+</script>

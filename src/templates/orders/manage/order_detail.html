@@ -352,31 +352,7 @@
     </div>
 {% endif %}
 
-{% if order.customer_account_id %}
-    <div class="card mb-4">
-        <div class="card-header d-flex align-items-center flex-wrap gap-2">
-            <span>Payment actions</span>
-
-            <div class="d-flex flex-wrap gap-2">
-                <a
-                    href="{% url 'payments:manager_record_receipt' order.pk %}?next={{ back_url|urlencode }}"
-                    class="btn btn-success btn-sm"
-                >
-                    Register receipt
-                </a>
-
-                {% if order.status == "new" or order.status == "processing" or order.status == "completed" %}
-                    <a
-                        href="{% url 'orders:manager_assign_order_funds' order.pk %}?next={{ back_url|urlencode }}"
-                        class="btn btn-primary btn-sm"
-                    >
-                        Assign funds
-                    </a>
-                {% endif %}
-            </div>
-        </div>
-    </div>
-{% endif %}
+{% include "orders/manage/payment_actions.html" %}
 
 <div class="card mb-4">
     <div class="card-header d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -652,21 +628,15 @@
         <div class="card-header d-flex align-items-center flex-wrap gap-2">
             <span>Order actions</span>
 
-            <form
-                method="post"
-                action="{% url 'orders:manager_order_status_update' order.id %}"
-                class="mb-0"
-                onsubmit="return confirm('Confirm full shipment of order #{{ order.pk }}? Once confirmed, shipment cannot be cancelled and order items cannot be edited on the website.');"
+                        <button
+                type="button"
+                class="btn btn-success btn-sm"
+                data-shipment-confirmation-open
+                aria-haspopup="dialog"
+                aria-controls="shipment-confirmation-{{ order.pk }}"
             >
-                {% csrf_token %}
-
-                <input type="hidden" name="next" value="{{ back_url }}">
-                <input type="hidden" name="status" value="completed">
-
-                <button type="submit" class="btn btn-success btn-sm">
-                    Complete order
-                </button>
-            </form>
+                Complete order
+            </button>
 
             <button
                 class="btn btn-outline-danger btn-sm"
@@ -679,6 +649,8 @@
                 Cancel order...
             </button>
         </div>
+
+        {% include "orders/manage/shipment_confirmation.html" %}
 
         <div class="collapse" id="cancelOrderForm">
             <div class="card-body">
@@ -1036,34 +1008,49 @@
 {% endif %}
 
 <div class="card mb-4">
-    <div class="card-header">
-        Order items
+    <div class="card-header d-flex align-items-center flex-wrap gap-2">
+        <span>Order items</span>
+
+        {% if add_item_form %}
+            <button
+                type="button"
+                class="btn btn-primary btn-sm{% if not add_item_form_open %} collapsed{% endif %}"
+                data-bs-toggle="collapse"
+                data-bs-target="#order-item-add-form-{{ order.pk }}"
+                aria-expanded="{% if add_item_form_open %}true{% else %}false{% endif %}"
+                aria-controls="order-item-add-form-{{ order.pk }}"
+            >
+                Add item...
+            </button>
+        {% elif item_editing_blocked_by_invoice %}
+            <button
+                type="button"
+                class="btn btn-primary btn-sm collapsed"
+                data-bs-toggle="collapse"
+                data-bs-target="#order-item-add-invoice-notice-{{ order.pk }}"
+                aria-expanded="false"
+                aria-controls="order-item-add-invoice-notice-{{ order.pk }}"
+            >
+                Add item...
+            </button>
+        {% endif %}
     </div>
 
-    <div class="card-body">
-        {% for item in order.items.all %}
-            <div class="card mb-3 border-secondary">
-                <div class="card-body">
-                    <h5 class="mb-2">
-                        {{ item.product_name }}
-                    </h5>
+    {% include "orders/manage/order_item_addition_form.html" %}
 
-                    <p class="mb-1">
-                        <strong>Price:</strong>
-                        {{ item.unit_price }} {{ item.currency_snapshot }}
-                    </p>
-
-                    <p class="mb-1">
-                        <strong>Quantity:</strong>
-                        {{ item.quantity }}
-                    </p>
-
-                    <p class="mb-0">
-                        <strong>Total:</strong>
-                        {{ item.total_price }} {{ item.currency_snapshot }}
-                    </p>
+    {% if item_editing_blocked_by_invoice %}
+        <div class="collapse" id="order-item-add-invoice-notice-{{ order.pk }}">
+            <div class="card-body border-bottom">
+                <div class="alert alert-warning mb-0" role="status">
+                    Cancel the issued invoice before changing order items.
                 </div>
             </div>
+        </div>
+    {% endif %}
+
+    <div class="card-body">
+        {% for row in order_item_rows %}
+            {% include "orders/manage/order_item_card.html" with item=row.item quantity_form=row.quantity_form quantity_form_open=row.quantity_form_open removal_form=row.removal_form removal_form_open=row.removal_form_open %}
         {% empty %}
             <p class="mb-0">
                 No order items.

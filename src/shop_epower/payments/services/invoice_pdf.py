@@ -354,7 +354,7 @@ def _build_items_table(
     ]
 
     for index, item in enumerate(
-        invoice.order.items.all(),
+        invoice.items.all(),
         start=1,
     ):
         table_data.append(

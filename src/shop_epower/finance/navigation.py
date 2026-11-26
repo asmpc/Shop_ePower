@@ -1,6 +1,6 @@
 from urllib.parse import urlsplit
 
-from django.urls import reverse
+from django.urls import Resolver404, resolve, reverse
 
 
 def _get_safe_return_url(candidate, *, default_url):
@@ -38,3 +38,24 @@ def get_safe_manager_account_detail_url(candidate, *, account):
             kwargs={"pk": account.pk},
         ),
     )
+
+def get_safe_manager_account_return_url(candidate):
+    """Проверяет адрес исходной карточки счёта для обратного перехода."""
+    if not candidate:
+        return None
+
+    try:
+        parsed = urlsplit(candidate)
+        match = resolve(parsed.path)
+    except (ValueError, Resolver404):
+        return None
+
+    if (
+        parsed.scheme
+        or parsed.netloc
+        or parsed.fragment
+        or match.view_name != "finance:manager_account_detail"
+    ):
+        return None
+
+    return candidate

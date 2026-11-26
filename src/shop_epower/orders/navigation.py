@@ -65,22 +65,21 @@ def redirect_to_manager_order_detail(
     *,
     request,
     order_id,
+    next_url=None,
 ):
     """
     Redirects back to manager order detail
     while preserving the original manager list URL.
     """
-
     detail_url = reverse(
         "orders:manager_order_detail",
         args=[order_id],
     )
 
-    next_url = request.POST.get(
-        "next",
-        reverse(
-            "orders:manager_order_list",
-        ),
-    )
+    if next_url is None:
+        next_url = request.POST.get(
+            "next",
+            reverse("orders:manager_order_list"),
+        )
 
     return redirect(f"{detail_url}?{urlencode({'next': next_url})}")

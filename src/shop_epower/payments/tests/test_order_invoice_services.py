@@ -1,4 +1,5 @@
 from decimal import Decimal
+from unittest.mock import patch
 
 from django.core.exceptions import ValidationError
 from django.test import TestCase
@@ -7,11 +8,16 @@ from shop_epower.accounts.tests.helpers import (
     create_test_manager,
     create_test_user,
 )
+from shop_epower.catalog.tests.helpers import create_test_product
 from shop_epower.finance.services import create_personal_customer_account
-from shop_epower.orders.models import OrderStatus
+from shop_epower.orders.models import (
+    OrderItem,
+    OrderStatus,
+)
 from shop_epower.orders.tests.helpers import create_test_order
 from shop_epower.payments.models import (
     Invoice,
+    InvoiceItem,
     InvoiceStatus,
     Payment,
     PaymentMethod,
@@ -37,6 +43,18 @@ class TestsOrderInvoiceServices(TestCase):
         )
 
         self.company_settings = create_test_company_settings()
+
+        self.product = create_test_product()
+
+        self.order_item = OrderItem.objects.create(
+            order=self.order,
+            product=self.product,
+            product_name="Original product",
+            unit_price=Decimal("50.00"),
+            quantity=2,
+            total_price=Decimal("100.00"),
+            currency_snapshot=self.order.currency_snapshot,
+        )
 
     # Проверяем выставление счёта до получения денег:
     # документ сохраняет данные заказа и реквизиты продавца.
@@ -103,9 +121,9 @@ class TestsOrderInvoiceServices(TestCase):
         self.assertEqual(Payment.objects.count(), 0)
         self.assertEqual(self.account.transactions.count(), 0)
 
-    # Проверяем перевыпуск после аннулирования:
-    # старый счёт и сведения об аннулировании сохраняются.
-    # Новый счёт получает отдельную запись и другой номер.
+    # Проверяем перевыпуск после аннулирования и изменения заказа:
+    # старый счёт сохраняет исходные строки и сумму,
+    # новый получает обновлённые позиции и отдельный номер.
     # Получение денег и балансы этот процесс не затрагивает.
     def test_can_create_new_invoice_after_previous_is_cancelled(self):
         manager = create_test_manager()
@@ -120,6 +138,20 @@ class TestsOrderInvoiceServices(TestCase):
             invoice=first_invoice,
             cancelled_by=manager,
             comment=reason,
+        )
+
+        OrderItem.objects.filter(
+            pk=self.order_item.pk,
+        ).update(
+            product_name="Changed product",
+            unit_price=Decimal("80.00"),
+            quantity=1,
+            total_price=Decimal("80.00"),
+        )
+
+        self.order.total_price = Decimal("80.00")
+        self.order.save(
+            update_fields=["total_price"],
         )
 
         new_invoice = create_invoice_for_order(
@@ -156,3 +188,76 @@ class TestsOrderInvoiceServices(TestCase):
             self.account.debt_balance,
             Decimal("0.00"),
         )
+
+        old_item = first_invoice.items.get()
+        new_item = new_invoice.items.get()
+
+        self.assertEqual(old_item.product_name, "Original product")
+        self.assertEqual(old_item.unit_price, Decimal("50.00"))
+        self.assertEqual(old_item.quantity, 2)
+        self.assertEqual(old_item.total_price, Decimal("100.00"))
+        self.assertEqual(first_invoice.amount, Decimal("100.00"))
+
+        self.assertEqual(new_item.product_name, "Changed product")
+        self.assertEqual(new_item.unit_price, Decimal("80.00"))
+        self.assertEqual(new_item.quantity, 1)
+        self.assertEqual(new_item.total_price, Decimal("80.00"))
+        self.assertEqual(new_invoice.amount, Decimal("80.00"))
+
+    # Проверяем независимость выписанного счёта:
+    # изменение названия, цены и количества в заказе
+    # не меняет сохранённые строки и сумму Invoice.
+    def test_invoice_preserves_items_after_order_line_changes(self):
+        invoice = create_invoice_for_order(
+            order=self.order,
+        )
+
+        OrderItem.objects.filter(
+            pk=self.order_item.pk,
+        ).update(
+            product_name="Changed product",
+            unit_price=Decimal("80.00"),
+            quantity=1,
+            total_price=Decimal("80.00"),
+        )
+
+        self.order.total_price = Decimal("80.00")
+        self.order.save(
+            update_fields=["total_price"],
+        )
+
+        invoice.refresh_from_db()
+        item = invoice.items.get()
+
+        self.assertEqual(item.product_name, "Original product")
+        self.assertEqual(item.unit_price, Decimal("50.00"))
+        self.assertEqual(item.quantity, 2)
+        self.assertEqual(item.total_price, Decimal("100.00"))
+        self.assertEqual(
+            item.currency_snapshot,
+            self.order.currency_snapshot,
+        )
+        self.assertEqual(invoice.amount, Decimal("100.00"))
+
+    # Проверяем целостность выписки:
+    # ошибка после сохранения первой строки откатывает
+    # и строки счёта, и сам Invoice.
+    def test_invoice_creation_rolls_back_when_item_saving_fails(self):
+        def save_one_item_and_fail(items):
+            items[0].save()
+            raise RuntimeError("Invoice item saving failed.")
+
+        with patch(
+            "shop_epower.payments.services.invoice.InvoiceItem.objects.bulk_create",
+            side_effect=save_one_item_and_fail,
+        ):
+            with self.assertRaisesMessage(
+                RuntimeError,
+                "Invoice item saving failed.",
+            ):
+                create_invoice_for_order(
+                    order=self.order,
+                )
+
+        self.assertFalse(Invoice.objects.exists())
+        self.assertFalse(InvoiceItem.objects.exists())

@@ -1,5 +1,7 @@
+from copy import copy
 from decimal import Decimal
 
+from django.core.exceptions import ValidationError
 from django.db.models import (
     DecimalField,
     F,
@@ -18,6 +20,7 @@ from shop_epower.orders.models import (
     OrderStatus,
 )
 from shop_epower.payments.models import PaymentStatus
+from shop_epower.suppliers.services.currency import CurrencyService
 
 
 def get_new_orders_count_for_manager():
@@ -165,3 +168,33 @@ def get_order_financial_summary(*, order):
         "available_balance": account.available_balance,
         "currency": account.currency,
     }
+
+def get_order_item_addition_unit_price(*, order, product):
+    """Рассчитывает текущую цену для клиента без изменения товара."""
+
+    if order.currency_snapshot != CurrencyService.get_base_currency():
+        raise ValidationError(
+            "Order currency must match the current base currency."
+        )
+
+    try:
+        base_price = CurrencyService.calculate_product_base_price(product)
+    except ValueError as exc:
+        raise ValidationError(str(exc)) from exc
+
+    if base_price is None:
+        raise ValidationError(
+            "No current supplier price is available for this product."
+        )
+
+    priced_product = copy(product)
+    priced_product.base_price = base_price
+
+    unit_price = priced_product.get_price_for_user(order.user)
+
+    if not unit_price.is_finite() or unit_price <= 0:
+        raise ValidationError(
+            "A positive current product price is required."
+        )
+
+    return unit_price

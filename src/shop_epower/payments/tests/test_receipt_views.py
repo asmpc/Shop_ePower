@@ -307,43 +307,76 @@ class TestsManagerPaymentReceiptViews(TestCase):
         )
         self.assertFalse(self.order.fund_assignments.exists())
 
-    # Нулевая сумма отклоняется без создания поступления.
-    # Форма сохраняет введённые данные и прежний ключ операции.
+    # Нулевая сумма отклоняется внутри страницы заказа.
+    # Форма поступления сохраняет ввод и прежний ключ операции.
+    # Назначение остаётся свёрнутым; финансовые данные не меняются.
     def test_invalid_receipt_amount_preserves_form_and_operation_key(self):
         self.client.force_login(self.manager)
-        url = reverse(
+
+        receipt_url = reverse(
             "payments:manager_record_receipt",
             kwargs={"pk": self.order.pk},
         )
-        form_response = self.client.get(url)
+        detail_url = reverse(
+            "orders:manager_order_detail",
+            kwargs={"pk": self.order.pk},
+        )
+        list_url = (
+            reverse("orders:manager_order_list")
+            + "?status=new&page=2"
+        )
+        receipt_panel_id = f"order-receipt-form-{self.order.pk}"
+        assignment_panel_id = f"order-assignment-form-{self.order.pk}"
+
+        form_response = self.client.get(
+            detail_url,
+            {"next": list_url},
+        )
         operation_key = (
-            form_response.context["form"].initial["operation_key"]
+            form_response.context["receipt_form"].initial["operation_key"]
         )
         comment = "Payment received in the office."
 
         response = self.client.post(
-            url,
+            receipt_url,
             {
                 "amount": "0.00",
                 "method": PaymentMethod.ON_RECEIPT,
                 "operation_key": operation_key,
                 "comment": comment,
+                "next": list_url,
             },
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "orders/manage/order_detail.html",
+        )
+        self.assertEqual(response.context["back_url"], list_url)
+        self.assertContains(
+            response,
+            f'<div class="collapse show" id="{receipt_panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{assignment_panel_id}">',
+        )
 
-        form = response.context["form"]
+        form = response.context["receipt_form"]
 
         self.assertTrue(form.is_bound)
         self.assertIn("amount", form.errors)
+        self.assertContains(response, form.errors["amount"][0])
         self.assertEqual(form["amount"].value(), "0.00")
+        self.assertEqual(form["method"].value(), PaymentMethod.ON_RECEIPT)
         self.assertEqual(form["comment"].value(), comment)
         self.assertEqual(
             form["operation_key"].value(),
             operation_key,
         )
         self.assertContains(response, f'value="{operation_key}"')
+        self.assertFalse(response.context["assignment_form"].is_bound)
 
         self.account.refresh_from_db()
 
@@ -359,14 +392,21 @@ class TestsManagerPaymentReceiptViews(TestCase):
         self.assertFalse(self.account.transactions.exists())
         self.assertFalse(self.order.fund_assignments.exists())
 
-    # Со страницы заказа можно открыть регистрацию поступления.
-    # Ссылка сохраняет исходный список заказов с фильтром и страницей.
-    def test_order_detail_links_to_receipt_form_with_list_context(self):
+    # Регистрация поступления раскрывается прямо на странице заказа.
+    # Форма содержит ключ операции и отправляется обработчику поступления.
+    # Открытие страницы сохраняет платежи, балансы и назначения.
+    def test_order_detail_contains_collapsed_receipt_form(self):
         self.client.force_login(self.manager)
+
         list_url = (
-            f"{reverse('orders:manager_order_list')}"
-            "?status=new&page=2"
+            reverse("orders:manager_order_list")
+            + "?status=new&page=2"
         )
+        receipt_url = reverse(
+            "payments:manager_record_receipt",
+            kwargs={"pk": self.order.pk},
+        )
+        panel_id = f"order-receipt-form-{self.order.pk}"
 
         response = self.client.get(
             reverse(
@@ -376,17 +416,49 @@ class TestsManagerPaymentReceiptViews(TestCase):
             {"next": list_url},
         )
 
-        receipt_url = reverse(
-            "payments:manager_record_receipt",
-            kwargs={"pk": self.order.pk},
-        )
-
         self.assertEqual(response.status_code, 200)
-        self.assertContains(response, "Register receipt")
+        self.assertEqual(response.context["back_url"], list_url)
         self.assertContains(
             response,
-            f'href="{receipt_url}?next={quote(list_url)}"',
+            f'data-bs-target="#{panel_id}"',
         )
+        self.assertContains(
+            response,
+            f'<div class="collapse" id="{panel_id}">',
+        )
+        self.assertContains(
+            response,
+            f'action="{receipt_url}"',
+        )
+        self.assertNotContains(
+            response,
+            f'href="{receipt_url}?',
+        )
+
+        form = response.context["receipt_form"]
+
+        self.assertIsNotNone(form)
+        operation_key = form.initial.get("operation_key")
+
+        self.assertTrue(operation_key)
+        self.assertContains(
+            response,
+            f'value="{escape(operation_key)}"',
+        )
+
+        self.account.refresh_from_db()
+
+        self.assertEqual(
+            self.account.available_balance,
+            Decimal("0.00"),
+        )
+        self.assertEqual(
+            self.account.debt_balance,
+            Decimal("0.00"),
+        )
+        self.assertFalse(Payment.objects.exists())
+        self.assertFalse(self.account.transactions.exists())
+        self.assertFalse(self.order.fund_assignments.exists())
 
     # Форма сохраняет адрес исходного списка скрытым полем.
     # После регистрации поступления заказ открывается с тем же

@@ -7,17 +7,24 @@ from django.http import (
     HttpResponse,
     HttpResponseForbidden,
 )
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import get_object_or_404, redirect, render
 from django.views import View
 from django.views.generic import DetailView, ListView
 
 from shop_epower.finance.models import CustomerAccount
-from shop_epower.finance.navigation import get_safe_manager_account_detail_url
+from shop_epower.finance.navigation import (
+    get_safe_manager_account_detail_url,
+    get_safe_manager_account_return_url,
+)
+from shop_epower.finance.views_manager import (
+    get_manager_account_detail_context,
+)
 from shop_epower.orders.models import Order
 from shop_epower.orders.navigation import (
     get_safe_manager_order_return_url,
     redirect_to_manager_order_detail,
 )
+from shop_epower.orders.views_manager import get_manager_order_detail_context
 from shop_epower.payments.forms import (
     ManualAccountPayoutForm,
     ManualPaymentReceiptForm,
@@ -156,6 +163,12 @@ class ManagerPaymentListView(
             "account_id",
             "",
         ).strip()
+
+        context["account_return_url"] = (
+            get_safe_manager_account_return_url(
+                self.request.GET.get("next"),
+            )
+        )
 
         return context
 
@@ -351,7 +364,11 @@ class ManagerRecordReceiptView(
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        form = ManualPaymentReceiptForm(request.POST)
+
+        form = ManualPaymentReceiptForm(
+            request.POST,
+            auto_id=f"id_order_{self.object.pk}_receipt_%s",
+        )
 
         if form.is_valid():
             try:
@@ -378,8 +395,21 @@ class ManagerRecordReceiptView(
                     order_id=self.object.pk,
                 )
 
-        return self.render_to_response(
-            self.get_context_data(form=form),
+        order = get_object_or_404(
+            Order.objects.select_related("user").prefetch_related("items"),
+            pk=self.object.pk,
+        )
+        context = get_manager_order_detail_context(
+            request=request,
+            order=order,
+            form=form,
+            active_action="receipt",
+        )
+
+        return render(
+            request,
+            "orders/manage/order_detail.html",
+            context,
         )
 
 
@@ -424,7 +454,11 @@ class ManagerRecordAccountReceiptView(
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        form = ManualPaymentReceiptForm(request.POST)
+
+        form = ManualPaymentReceiptForm(
+            request.POST,
+            auto_id=f"id_account_{self.object.pk}_receipt_%s",
+        )
 
         if form.is_valid():
             try:
@@ -447,8 +481,18 @@ class ManagerRecordAccountReceiptView(
 
                 return redirect(self.get_return_url())
 
-        return self.render_to_response(
-            self.get_context_data(form=form),
+        context = get_manager_account_detail_context(
+            request=request,
+            account=self.object,
+            form=form,
+            active_action="receipt",
+            return_url=self.get_return_url(),
+        )
+
+        return render(
+            request,
+            "finance/manage/account_detail.html",
+            context,
         )
 
 
@@ -493,7 +537,11 @@ class ManagerRecordAccountPayoutView(
 
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
-        form = ManualAccountPayoutForm(request.POST)
+
+        form = ManualAccountPayoutForm(
+            request.POST,
+            auto_id=f"id_account_{self.object.pk}_payout_%s",
+        )
 
         if form.is_valid():
             try:
@@ -516,8 +564,18 @@ class ManagerRecordAccountPayoutView(
 
                 return redirect(self.get_return_url())
 
-        return self.render_to_response(
-            self.get_context_data(form=form),
+        context = get_manager_account_detail_context(
+            request=request,
+            account=self.object,
+            form=form,
+            active_action="payout",
+            return_url=self.get_return_url(),
+        )
+
+        return render(
+            request,
+            "finance/manage/account_detail.html",
+            context,
         )
 
 

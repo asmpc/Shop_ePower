@@ -16,6 +16,7 @@ from shop_epower.payments.models import (
     PaymentMethod,
     PaymentStatus,
 )
+from shop_epower.payments.services import record_manual_account_payment
 
 
 class TestsManagerAccountReceiptViews(TestCase):
@@ -107,72 +108,6 @@ class TestsManagerAccountReceiptViews(TestCase):
         self.assertFalse(self.user.orders.exists())
         self.assertFalse(Invoice.objects.exists())
 
-    # Переход в форму и обратно сохраняет адрес карточки
-    # вместе с вложенным адресом исходного поиска.
-    def test_account_to_receipt_and_back_preserves_search_context(self):
-        list_url = (
-            reverse("finance:manager_account_list")
-            + "?"
-            + urlencode(
-                {
-                    "q": self.user.email,
-                    "account_id": self.account.pk,
-                    "account_type": self.account.account_type,
-                    "status": self.account.status,
-                    "page": 1,
-                }
-            )
-        )
-        account_url = (
-            reverse(
-                "finance:manager_account_detail",
-                args=[self.account.pk],
-            )
-            + "?"
-            + urlencode({"next": list_url})
-        )
-        form_url = self.url + "?" + urlencode({"next": account_url})
-
-        self.client.force_login(self.manager)
-
-        account_response = self.client.get(account_url)
-
-        self.assertEqual(account_response.status_code, 200)
-        self.assertContains(
-            account_response,
-            f'href="{escape(form_url)}"',
-        )
-
-        form_response = self.client.get(form_url)
-
-        self.assertEqual(form_response.status_code, 200)
-        self.assertEqual(
-            form_response.context["return_url"],
-            account_url,
-        )
-        self.assertContains(
-            form_response,
-            f'href="{escape(account_url)}"',
-        )
-        self.assertContains(
-            form_response,
-            (
-                '<input type="hidden" name="next" '
-                f'value="{escape(account_url)}">'
-            ),
-            html=True,
-        )
-
-        returned_response = self.client.get(
-            form_response.context["return_url"],
-        )
-
-        self.assertEqual(returned_response.status_code, 200)
-        self.assertEqual(
-            returned_response.context["back_url"],
-            list_url,
-        )
-
     # После регистрации поступления менеджер возвращается
     # в карточку счёта с сохранённым адресом исходного поиска.
     def test_recording_receipt_preserves_search_context(self):
@@ -200,10 +135,8 @@ class TestsManagerAccountReceiptViews(TestCase):
 
         self.client.force_login(self.manager)
 
-        form_response = self.client.get(
-            self.url,
-            {"next": account_url},
-        )
+        form_response = self.client.get(account_url)
+
         self.assertEqual(form_response.status_code, 200)
 
         response = self.client.post(
@@ -212,7 +145,7 @@ class TestsManagerAccountReceiptViews(TestCase):
                 "amount": "100.00",
                 "method": PaymentMethod.ON_RECEIPT,
                 "operation_key": (
-                    form_response.context["form"]
+                    form_response.context["receipt_form"]
                     .initial["operation_key"]
                 ),
                 "comment": "Advance received in the office.",
@@ -227,36 +160,88 @@ class TestsManagerAccountReceiptViews(TestCase):
             list_url,
         )
 
-    # Сумма, превышающая размер поля Payment, отклоняется формой.
-    # Введённые данные и ключ сохраняются, деньги не зачисляются.
+    # Недопустимая сумма возвращает страницу счёта с раскрытой формой.
+    # Сумма, способ поступления, комментарий и ключ операции сохраняются.
+    # Контекст поиска не теряется; деньги не зачисляются.
     def test_too_large_amount_is_rejected_without_credit(self):
         self.client.force_login(self.manager)
 
-        form_response = self.client.get(self.url)
+        list_url = (
+            reverse("finance:manager_account_list")
+            + "?"
+            + urlencode(
+                {
+                    "q": self.user.email,
+                    "account_type": self.account.account_type,
+                    "status": self.account.status,
+                },
+            )
+        )
+        account_response = self.client.get(
+            reverse(
+                "finance:manager_account_detail",
+                args=[self.account.pk],
+            ),
+            {"next": list_url},
+        )
+        return_url = account_response.wsgi_request.get_full_path()
         operation_key = (
-            form_response.context["form"].initial["operation_key"]
+            account_response.context["receipt_form"]
+            .initial["operation_key"]
         )
         amount = "10000000000.00"
+        comment = "Incorrect bank receipt amount."
 
         response = self.client.post(
             self.url,
             {
                 "amount": amount,
-                "method": PaymentMethod.ON_RECEIPT,
+                "method": PaymentMethod.INVOICE,
                 "operation_key": operation_key,
-                "comment": "Incorrect amount.",
+                "comment": comment,
+                "next": return_url,
             },
         )
 
         self.assertEqual(response.status_code, 200)
+        self.assertTemplateUsed(
+            response,
+            "finance/manage/account_detail.html",
+        )
+        self.assertEqual(response.context["back_url"], list_url)
+        self.assertContains(
+            response,
+            (
+                '<div class="collapse show" '
+                f'id="account-receipt-form-{self.account.pk}">'
+            ),
+        )
 
-        form = response.context["form"]
+        form = response.context["receipt_form"]
 
+        self.assertTrue(form.is_bound)
         self.assertIn("amount", form.errors)
+        self.assertContains(
+            response,
+            escape(form.errors["amount"][0]),
+        )
         self.assertEqual(form["amount"].value(), amount)
+        self.assertEqual(
+            form["method"].value(),
+            PaymentMethod.INVOICE,
+        )
+        self.assertEqual(form["comment"].value(), comment)
         self.assertEqual(
             form["operation_key"].value(),
             operation_key,
+        )
+        self.assertContains(
+            response,
+            (
+                '<input type="hidden" name="next" '
+                f'value="{escape(return_url)}">'
+            ),
+            html=True,
         )
 
         self.account.refresh_from_db()
@@ -378,3 +363,84 @@ class TestsManagerAccountReceiptViews(TestCase):
         )
         self.assertFalse(Payment.objects.exists())
         self.assertFalse(self.account.transactions.exists())
+
+    # После ошибки внесения ссылка Next ведёт в карточку счёта.
+    # Переход открывает вторую страницу истории и сохраняет исходный поиск.
+    # Относительный адрес обработчика поступления использоваться не должен.
+    def test_receipt_error_preserves_transaction_history_links(self):
+        for number in range(21):
+            record_manual_account_payment(
+                account=self.account,
+                amount=Decimal("1.00"),
+                method=PaymentMethod.ON_RECEIPT,
+                operation_key=f"account:history:receipt:{number}",
+                created_by=self.manager,
+            )
+
+        self.client.force_login(self.manager)
+
+        list_url = (
+            reverse("finance:manager_account_list")
+            + "?"
+            + urlencode({"q": self.user.email})
+        )
+        detail_url = reverse(
+            "finance:manager_account_detail",
+            args=[self.account.pk],
+        )
+        account_url = (
+            detail_url
+            + "?"
+            + urlencode({"next": list_url})
+        )
+
+        account_response = self.client.get(account_url)
+        operation_key = (
+            account_response.context["receipt_form"]
+            .initial["operation_key"]
+        )
+
+        response = self.client.post(
+            self.url,
+            {
+                "amount": "0.00",
+                "method": PaymentMethod.ON_RECEIPT,
+                "operation_key": operation_key,
+                "comment": "Incorrect receipt amount.",
+                "next": account_url,
+            },
+        )
+
+        second_page_url = (
+            detail_url
+            + "?"
+            + urlencode(
+                {
+                    "next": list_url,
+                    "transactions_page": 2,
+                },
+            )
+        )
+
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(
+            response,
+            f'href="{escape(second_page_url)}"',
+        )
+
+        second_page = self.client.get(second_page_url)
+
+        self.assertEqual(second_page.status_code, 200)
+        self.assertEqual(
+            second_page.context["transactions"].number,
+            2,
+        )
+        self.assertEqual(
+            second_page.context["back_url"],
+            list_url,
+        )
+        self.assertContains(
+            second_page,
+            '<div class="collapse show" id="transaction-history">',
+        )
+        self.assertEqual(self.account.transactions.count(), 21)

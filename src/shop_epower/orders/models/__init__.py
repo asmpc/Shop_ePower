@@ -11,6 +11,10 @@ from shop_epower.orders.models.order_fund_assignment_source import (
     OrderFundAssignmentSource,
 )
 from shop_epower.orders.models.order_item import OrderItem
+from shop_epower.orders.models.order_item_change import (
+    OrderItemChange,
+    OrderItemChangeType,
+)
 from shop_epower.orders.models.order_shipment import OrderShipment
 from shop_epower.orders.models.order_shipment_item import OrderShipmentItem
 from shop_epower.orders.models.order_stock_reservation import OrderStockReservation

@@ -911,8 +911,9 @@ class TestsManagerOrderViews(TestCase):
         self.assertContains(response, "Waiting")
         self.assertFalse(order.payments.exists())
 
-    # Форма завершения заказа запрашивает подтверждение полной отгрузки
-    # и предупреждает, что отменить её на сайте будет нельзя.
+    # Подтверждение полной отгрузки находится в диалоге страницы заказа.
+    # Кнопка открывает диалог; прежний браузерный confirm больше не используется.
+    # Предупреждение о необратимости отгрузки сохраняется.
     def test_manager_detail_requires_shipment_confirmation(self):
         self.client.force_login(self.manager)
 
@@ -923,20 +924,27 @@ class TestsManagerOrderViews(TestCase):
             )
         )
 
+        dialog_id = f"shipment-confirmation-{self.order.pk}"
         confirmation_message = (
             f"Confirm full shipment of order #{self.order.pk}? "
             "Once confirmed, shipment cannot be cancelled "
             "and order items cannot be edited on the website."
         )
-        expected_handler = (
-            f"return confirm('{confirmation_message}');"
-        )
 
         self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "<dialog")
+        self.assertContains(response, f'id="{dialog_id}"')
         self.assertContains(
             response,
-            f'onsubmit="{expected_handler}"',
+            "data-shipment-confirmation-open",
         )
+        self.assertContains(
+            response,
+            f'aria-controls="{dialog_id}"',
+        )
+        self.assertContains(response, confirmation_message)
+        self.assertContains(response, "Confirm full shipment")
+        self.assertNotContains(response, "return confirm(")
 
     # Подтверждение завершения через сайт создаёт полную отгрузку
     # и обязательство, затем возвращает менеджера в карточку заказа

@@ -51,7 +51,7 @@ class CurrencyService:
         )
 
     @classmethod
-    def update_product_base_price(cls, product):
+    def calculate_product_base_price(cls, product):
         supplier_products = SupplierProduct.objects.filter(
             product=product,
             is_active=True,
@@ -61,7 +61,7 @@ class CurrencyService:
         )
 
         if not supplier_products.exists():
-            return
+            return None
 
         base_currency = cls.get_base_currency()
 
@@ -76,7 +76,7 @@ class CurrencyService:
 
         markup_percent = get_markup_percent_for_product(product)
 
-        product.base_price = (
+        return (
             max_price_in_base_currency
             * (Decimal("1") + markup_percent / Decimal("100"))
         ).quantize(
@@ -84,4 +84,12 @@ class CurrencyService:
             rounding=ROUND_HALF_UP,
         )
 
+    @classmethod
+    def update_product_base_price(cls, product):
+        base_price = cls.calculate_product_base_price(product)
+
+        if base_price is None:
+            return
+
+        product.base_price = base_price
         product.save(update_fields=["base_price"])

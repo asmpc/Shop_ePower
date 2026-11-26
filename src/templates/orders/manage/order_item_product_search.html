@@ -1,0 +1,107 @@
+<input
+    type="hidden"
+    name="products_page"
+    value="{{ addition_products.number|default:1 }}"
+    form="order-item-addition-form-{{ order.pk }}"
+>
+
+<div class="mb-3">
+    <label
+        for="id_order_{{ order.pk }}_item_search"
+        class="form-label"
+    >
+        Find a product
+    </label>
+
+    <input
+        type="search"
+        name="item_search"
+        id="id_order_{{ order.pk }}_item_search"
+        value="{{ item_search }}"
+        placeholder="Name, manufacturer article, or brand"
+        class="form-control mb-2"
+        form="order-item-addition-form-{{ order.pk }}"
+    >
+
+    <button
+        type="submit"
+        name="action"
+        value="search"
+        class="btn btn-outline-primary btn-sm"
+        form="order-item-addition-form-{{ order.pk }}"
+        formnovalidate
+    >
+        Search
+    </button>
+</div>
+
+{% if item_search %}
+    <ul class="list-group mb-3">
+        {% for product in addition_products %}
+            <li class="list-group-item d-flex justify-content-between align-items-center flex-wrap gap-2">
+                <div>
+                    <div>{{ product.name }}</div>
+
+                    <div class="text-muted small">
+                        {{ product.brand.name }} · {{ product.manufacturer_article }}
+                    </div>
+
+                    {% include "catalog/includes/product_inventory.html" with compact=1 %}
+                </div>
+
+                <button
+                    type="submit"
+                    name="item_product"
+                    value="{{ product.pk }}"
+                    class="btn btn-outline-primary btn-sm"
+                    form="order-item-addition-form-{{ order.pk }}"
+                    formnovalidate
+                >
+                    Select
+                </button>
+            </li>
+        {% empty %}
+            <li class="list-group-item text-muted">
+                No active products found.
+            </li>
+        {% endfor %}
+    </ul>
+
+    {% if addition_products.has_other_pages %}
+        <nav
+            class="d-flex align-items-center flex-wrap gap-2 mb-3"
+            aria-label="Product search pages"
+        >
+            {% if addition_products.has_previous %}
+                <button
+                    type="submit"
+                    name="products_page"
+                    value="{{ addition_products.previous_page_number }}"
+                    class="btn btn-outline-secondary btn-sm"
+                    form="order-item-addition-form-{{ order.pk }}"
+                    formnovalidate
+                >
+                    Previous
+                </button>
+            {% endif %}
+
+            <span class="text-muted small">
+                Page {{ addition_products.number }}
+                of {{ addition_products.paginator.num_pages }}
+            </span>
+
+            {% if addition_products.has_next %}
+                <button
+                    type="submit"
+                    name="products_page"
+                    value="{{ addition_products.next_page_number }}"
+                    class="btn btn-outline-secondary btn-sm"
+                    form="order-item-addition-form-{{ order.pk }}"
+                    formnovalidate
+                >
+                    Next
+                </button>
+            {% endif %}
+        </nav>
+    {% endif %}
+{% endif %}

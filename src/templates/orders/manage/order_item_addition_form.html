@@ -1,0 +1,146 @@
+{% if add_item_form %}
+    <div class="collapse{% if add_item_form_open %} show{% endif %}" id="order-item-add-form-{{ order.pk }}">
+        <div class="card-body border-bottom">
+            {% include "orders/manage/order_item_product_search.html" %}
+            {% if addition_preview_error %}
+                <div class="alert alert-warning" role="alert">
+                    {{ addition_preview_error }}
+                </div>
+            {% elif addition_product %}
+                <div class="alert alert-info">
+                    <p class="mb-1">
+                        Selected product: {{ addition_product.name }}
+                    </p>
+
+                    <p class="mb-0">
+                        Current unit price:
+                        <strong>
+                            {{ addition_unit_price }} {{ order.currency_snapshot }}
+                        </strong>
+                    </p>
+
+                    <div class="mt-2">
+                        {% include "catalog/includes/product_inventory.html" with product=addition_product compact=1 %}
+                    </div>
+                </div>
+            {% endif %}
+
+            <p class="text-muted">
+                Select a product and confirm its current price before adding it.
+            </p>
+
+            <form
+                id="order-item-addition-form-{{ order.pk }}"
+                method="post"
+                action="{% url 'orders:manager_add_order_item' order.pk %}#order-item-add-form-{{ order.pk }}"
+            >
+                {% csrf_token %}
+
+                <input type="hidden" name="next" value="{{ back_url }}">
+
+                {{ add_item_form.as_p }}
+
+                <button
+                    type="submit"
+                    name="action"
+                    value="stage"
+                    class="btn btn-outline-primary btn-sm"
+                    formnovalidate
+                    {% if not add_item_form.product.value %}disabled{% endif %}
+                >
+                    Add to list
+                </button>
+
+                <div class="mt-3 border-top pt-3">
+                    <p class="mb-2">Selected items</p>
+
+                    {{ addition_formset.management_form }}
+
+                    {{ addition_formset.non_form_errors }}
+
+                    <div id="order-addition-items-{{ order.pk }}">
+                        {% for item_form in addition_formset %}
+                            {% if item_form.cleaned_data.DELETE %}
+                                {{ item_form.DELETE.as_hidden }}
+                            {% else %}
+                                <div class="border rounded p-3 mb-3">
+                                    {{ item_form.non_field_errors }}
+
+                                    <p class="mb-1">
+                                        {% if item_form.cleaned_data.product %}
+                                            {{ item_form.cleaned_data.product.name }}
+                                        {% else %}
+                                            Product #{{ item_form.product.value }}
+                                        {% endif %}
+                                    </p>
+
+                                    <p class="text-muted small mb-2">
+                                        Confirmed unit price:
+                                        {{ item_form.confirmed_unit_price.value }}
+                                        {{ order.currency_snapshot }}
+                                    </p>
+
+                                    {{ item_form.product }}
+                                    {{ item_form.product.errors }}
+
+                                    {{ item_form.confirmed_unit_price }}
+                                    {{ item_form.confirmed_unit_price.errors }}
+
+                                    <div class="mb-2">
+                                        {{ item_form.quantity.label_tag }}
+                                        {{ item_form.quantity }}
+                                        {{ item_form.quantity.errors }}
+                                    </div>
+
+                                    <div hidden>
+                                        {{ item_form.DELETE }}
+                                    </div>
+
+                                    <button
+                                        type="submit"
+                                        name="remove_item"
+                                        value="{{ forloop.counter0 }}"
+                                        class="btn btn-outline-danger btn-sm"
+                                        formnovalidate
+                                    >
+                                        Remove from list
+                                    </button>
+                                </div>
+                            {% endif %}
+                        {% endfor %}
+
+                        {% if addition_formset.total_form_count == addition_formset.deleted_forms|length %}
+                            <p class="text-muted mb-3">
+                                No items selected yet.
+                            </p>
+                        {% endif %}
+                    </div>
+                    {{ addition_reason_form.as_p }}
+                </div>
+
+                <div class="d-flex flex-wrap gap-2">
+                    <button
+                        type="submit"
+                        name="action"
+                        value="confirm"
+                        class="btn btn-primary btn-sm"
+                        formnovalidate
+                        {% if addition_formset.total_form_count == addition_formset.deleted_forms|length %}disabled{% endif %}
+                    >
+                        Add items
+                    </button>
+
+                    <button
+                        type="button"
+                        class="btn btn-outline-secondary btn-sm"
+                        data-bs-toggle="collapse"
+                        data-bs-target="#order-item-add-form-{{ order.pk }}"
+                        aria-controls="order-item-add-form-{{ order.pk }}"
+                    >
+                        Cancel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+{% endif %}
